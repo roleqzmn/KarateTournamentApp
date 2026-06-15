@@ -79,7 +79,7 @@ Karate Tournament Manager is a Windows desktop application designed to streamlin
 
 ### Steps
 ```bash
-git clone https://github.com/roleqzmn/KarateTournametApp.git
+git clone https://github.com/roleqzmn/KarateTournamentApp.git
 cd KarateTournamentApp
 dotnet restore
 dotnet build
