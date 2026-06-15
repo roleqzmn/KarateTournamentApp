@@ -293,4 +293,4 @@ For bug reports and feature requests, please use the GitHub Issues page.
 
 ## Contact
 
-Project Link: [https://github.com/roleqzmn/KarateTournametApp](https://github.com/roleqzmn/KarateTournametApp)
+Project Link: [https://github.com/roleqzmn/KarateTournametApp](https://github.com/roleqzmn/KarateTournamentApp)
