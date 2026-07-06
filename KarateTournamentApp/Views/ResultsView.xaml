@@ -4,9 +4,15 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:KarateTournamentApp.Views"
+             xmlns:converters="clr-namespace:KarateTournamentApp.Converters"
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="800"
              Background="#F0F0F0">
+    <UserControl.Resources>
+        <converters:AlternationIndexToPlaceConverter x:Key="AlternationIndexToPlaceConverter"/>
+        <converters:DiscardedScoreBackgroundConverter x:Key="DiscardedScoreBackgroundConverter"/>
+    </UserControl.Resources>
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -32,7 +38,7 @@
         <!-- Results List -->
         <Border Grid.Row="1" Background="White" CornerRadius="5" Padding="20">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ItemsControl ItemsSource="{Binding Rankings}">
+                <ItemsControl ItemsSource="{Binding Rankings}" AlternationCount="1000">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Background="#ECF0F1" 
@@ -49,14 +55,14 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Rank placeholder - would need indexing -->
+                                    <!-- Rank -->
                                     <Border Grid.Column="0" 
                                             Background="#3498DB"
                                             Width="50"
                                             Height="50"
                                             CornerRadius="25"
                                             Margin="0,0,15,0">
-                                        <TextBlock Text="#" 
+                                        <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=ContentPresenter}, Path=(ItemsControl.AlternationIndex), Converter={StaticResource AlternationIndexToPlaceConverter}}" 
                                                    FontSize="24"
                                                    FontWeight="Bold"
                                                    Foreground="White"
@@ -100,7 +106,7 @@
                                                    FontSize="12" 
                                                    Foreground="#7f8c8d"
                                                    Margin="0,0,0,5"/>
-                                        <ItemsControl ItemsSource="{Binding JudgeScores}">
+                                        <ItemsControl ItemsSource="{Binding JudgeScores}" AlternationCount="1000">
                                             <ItemsControl.ItemsPanel>
                                                 <ItemsPanelTemplate>
                                                     <WrapPanel/>
@@ -108,10 +114,15 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Background="#95a5a6" 
-                                                            CornerRadius="3" 
+                                                    <Border CornerRadius="3" 
                                                             Padding="8,5"
                                                             Margin="2">
+                                                        <Border.Background>
+                                                            <MultiBinding Converter="{StaticResource DiscardedScoreBackgroundConverter}">
+                                                                <Binding RelativeSource="{RelativeSource AncestorType=ContentPresenter}" Path="(ItemsControl.AlternationIndex)"/>
+                                                                <Binding RelativeSource="{RelativeSource AncestorType=ItemsControl}" Path="DataContext.DiscardedJudgeScoreIndexes"/>
+                                                            </MultiBinding>
+                                                        </Border.Background>
                                                         <TextBlock Text="{Binding StringFormat={}{0:F1}}" 
                                                                    FontSize="12"
                                                                    Foreground="White"/>

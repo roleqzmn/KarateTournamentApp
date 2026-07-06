@@ -60,14 +60,12 @@ namespace KarateTournamentApp.ViewModels
             get
             {
                 if (!IsParticipantFinished || JudgeScores.Count < 3) return 0;
-                
-                // Create a copy to avoid modifying the original collection
-                var scoresCopy = JudgeScores.OrderBy(s => s).ToList();
-                // Remove lowest and highest from the copy
-                scoresCopy.RemoveAt(0);
-                scoresCopy.RemoveAt(scoresCopy.Count - 1);
-                
-                return scoresCopy.Sum();
+
+                var discardedIndexes = GetDiscardedScoreIndexes(JudgeScores.ToList());
+                var discarded = new HashSet<int>(discardedIndexes);
+                return JudgeScores
+                    .Where((score, index) => !discarded.Contains(index))
+                    .Sum();
             }
         }
 
@@ -117,9 +115,6 @@ namespace KarateTournamentApp.ViewModels
             }
             else
             {
-                // Save all results to category
-                _category.FinalResults = new List<ParticipantResult>(Results);
-                
                 // Also save raw judge scores for backward compatibility
                 foreach (var result in Results)
                 {
@@ -141,7 +136,8 @@ namespace KarateTournamentApp.ViewModels
                 {
                     Participant = CurrentParticipant,
                     Score = FinalScore, 
-                    JudgeScores = new List<decimal>(JudgeScores) 
+                    JudgeScores = new List<decimal>(JudgeScores),
+                    DiscardedJudgeScoreIndexes = GetDiscardedScoreIndexes(JudgeScores.ToList())
                 };
                 
                 Results.Add(result);
@@ -229,11 +225,13 @@ namespace KarateTournamentApp.ViewModels
 
         public ObservableCollection<ParticipantResult> GetFinalRankings()
         {
-            // Use category's saved results if available, otherwise use local results
-            IEnumerable<ParticipantResult> sourceResults = _category.FinalResults.Any() 
-                ? _category.FinalResults 
-                : Results;
-            var results = new ObservableCollection<ParticipantResult>(sourceResults.OrderByDescending(r => r.Score));
+            // If final rankings are already resolved and saved, use them directly.
+            if (_category.FinalResults.Any())
+            {
+                return new ObservableCollection<ParticipantResult>(_category.FinalResults);
+            }
+
+            var results = new ObservableCollection<ParticipantResult>(Results.OrderByDescending(r => r.Score));
             
             System.Diagnostics.Debug.WriteLine($"GetFinalRankings called. Total results: {results.Count}");
             
@@ -325,8 +323,34 @@ namespace KarateTournamentApp.ViewModels
                     }
                 }
             }
+
+            if (_category.IsFinished)
+            {
+                _category.FinalResults = results.ToList();
+            }
             
             return results;
+        }
+
+        private static List<int> GetDiscardedScoreIndexes(IReadOnlyList<decimal> scores)
+        {
+            // For exactly 3 scores none are discarded; above 3 discard one lowest and one highest.
+            if (scores.Count <= 3)
+            {
+                return new List<int>();
+            }
+
+            var indexed = scores
+                .Select((score, index) => new { score, index })
+                .OrderBy(x => x.score)
+                .ThenBy(x => x.index)
+                .ToList();
+
+            return new List<int>
+            {
+                indexed[0].index,
+                indexed[indexed.Count - 1].index
+            };
         }
 
         private void SwapResults(ObservableCollection<ParticipantResult> results, int index1, int index2)

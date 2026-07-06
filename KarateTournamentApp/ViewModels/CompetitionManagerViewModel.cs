@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
@@ -12,6 +13,10 @@ namespace KarateTournamentApp.ViewModels
     /// </summary>
     public class CompetitionManagerViewModel : ViewModelBase
     {
+        private const int MaxScoreToWin = 6;
+        private const int AtenaiHansokuThreshold = 3;
+        private const int ChukokuHansokuThreshold = 4;
+
         private readonly Category _category;
         private int _currentMatchIndex;
         
@@ -35,7 +40,7 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public bool IsShobuSanbon => CurrentMatch is ShobuSanbonMatch;
+        public bool IsShobuSanbon => _category.CategoryType == CategoryType.Kumite;
 
         // Senshu properties
         public bool SenshuEnabled
@@ -71,11 +76,30 @@ namespace KarateTournamentApp.ViewModels
         public CompetitionManagerViewModel(Category category)
         {
             _category = category;
-            
-            // Initialize bracket if not already done
+
+            bool isKumiteCategory = _category.CategoryType == CategoryType.Kumite;
+            bool hasLegacyMatchTypes = isKumiteCategory
+                && _category.BracketMatches.Any(m => m is not ShobuSanbonMatch);
+            bool hasNoPlayableMatches = isKumiteCategory
+                && _category.BracketMatches.Any()
+                && !_category.BracketMatches.Any(m => !m.IsFinished && m.Aka.HasValue && m.Shiro.HasValue)
+                && _category.Participants.Count >= 2
+                && !_category.IsFinished;
+
             if (!_category.BracketMatches.Any())
             {
-                _category.InitializeBracket();
+                if (isKumiteCategory)
+                {
+                    InitializeKumiteBracketAsShobu();
+                }
+                else
+                {
+                    _category.InitializeBracket();
+                }
+            }
+            else if (hasLegacyMatchTypes || hasNoPlayableMatches)
+            {
+                InitializeKumiteBracketAsShobu();
             }
 
             // Find first unfinished match
@@ -83,6 +107,10 @@ namespace KarateTournamentApp.ViewModels
             if (_currentMatchIndex >= 0)
             {
                 CurrentMatch = _category.BracketMatches[_currentMatchIndex];
+            }
+            else
+            {
+                CurrentMatch = null;
             }
 
             NextMatchCommand = new RelayCommand(o => MoveToNextMatch(), o => CanMoveToNextMatch());
@@ -111,20 +139,9 @@ namespace KarateTournamentApp.ViewModels
 
         private void MoveToNextMatch()
         {
-            if (CurrentMatch.IsFinished)
+            if (CurrentMatch?.IsFinished == true)
             {
-                _category.PromoteWinner(_currentMatchIndex);
-                _currentMatchIndex = FindNextUnfinishedMatch();
-                
-                if (_currentMatchIndex >= 0)
-                {
-                    CurrentMatch = _category.BracketMatches[_currentMatchIndex];
-                }
-                else
-                {
-                    CurrentMatch = null;
-                    _category.IsFinished = true;
-                }
+                PromoteWinnerAndSelectNextMatch();
             }
         }
 
@@ -141,12 +158,12 @@ namespace KarateTournamentApp.ViewModels
                         if (shobuMatch.SenshuEnabled && (shobuMatch.HasSenshuAka || shobuMatch.HasSenshuShiro))
                         {
                             // Winner by Senshu
-                            CurrentMatch.WinnerId = shobuMatch.HasSenshuAka ? CurrentMatch.Aka : CurrentMatch.Shiro;
-                            CurrentMatch.IsFinished = true;
+                            var winnerId = shobuMatch.HasSenshuAka ? CurrentMatch.Aka : CurrentMatch.Shiro;
+                            CompleteMatch(winnerId, false, true);
                             
                             System.Windows.MessageBox.Show(
-                                $"Remis! Zwyciêzca przez SENSHU: {(shobuMatch.HasSenshuAka ? "AKA" : "SHIRO")}",
-                                "Rozstrzygniêcie przez Senshu",
+                                $"Remis! Zwyciï¿½zca przez SENSHU: {(shobuMatch.HasSenshuAka ? "AKA" : "SHIRO")}",
+                                "Rozstrzygniï¿½cie przez Senshu",
                                 System.Windows.MessageBoxButton.OK,
                                 System.Windows.MessageBoxImage.Information);
                         }
@@ -154,7 +171,7 @@ namespace KarateTournamentApp.ViewModels
                         {
                             // Draw without Senshu - need overtime
                             var result = System.Windows.MessageBox.Show(
-                                "Remis! Czy rozpocz¹æ dogrywkê (+60 sekund)?",
+                                "Remis! Czy rozpoczï¿½ï¿½ dogrywkï¿½ (+60 sekund)?",
                                 "Dogrywka",
                                 System.Windows.MessageBoxButton.YesNo,
                                 System.Windows.MessageBoxImage.Question);
@@ -168,7 +185,7 @@ namespace KarateTournamentApp.ViewModels
                             {
                                 // Manual decision or cancel
                                 System.Windows.MessageBox.Show(
-                                    "Walka niezakoñczona. U¿yj DrawResolver lub rêcznie wybierz zwyciêzcê.",
+                                    "Walka niezakoï¿½czona. Uï¿½yj DrawResolver lub rï¿½cznie wybierz zwyciï¿½zcï¿½.",
                                     "Uwaga",
                                     System.Windows.MessageBoxButton.OK,
                                     System.Windows.MessageBoxImage.Warning);
@@ -179,7 +196,7 @@ namespace KarateTournamentApp.ViewModels
                     else
                     {
                         // Non-Shobu Sanbon draw (shouldn't happen, but handle it)
-                        System.Windows.MessageBox.Show("Remis! Rêcznie wybierz zwyciêzcê.", "Remis", 
+                        System.Windows.MessageBox.Show("Remis! Rï¿½cznie wybierz zwyciï¿½zcï¿½.", "Remis", 
                             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                         return;
                     }
@@ -189,14 +206,12 @@ namespace KarateTournamentApp.ViewModels
                     // Determine winner based on score
                     if (CurrentMatch.AkaScore > CurrentMatch.ShiroScore)
                     {
-                        CurrentMatch.WinnerId = CurrentMatch.Aka;
+                        CompleteMatch(CurrentMatch.Aka, false, true);
                     }
                     else
                     {
-                        CurrentMatch.WinnerId = CurrentMatch.Shiro;
+                        CompleteMatch(CurrentMatch.Shiro, false, true);
                     }
-                    
-                    CurrentMatch.IsFinished = true;
                 }
                 
                 OnPropertyChanged(nameof(CurrentMatch));
@@ -228,7 +243,7 @@ namespace KarateTournamentApp.ViewModels
                 OnPropertyChanged(nameof(IsInOvertime));
                 
                 System.Windows.MessageBox.Show(
-                    $"Dogrywka {shobuMatch.OvertimeCount} rozpoczêta!\n+60 sekund dodane.\nSenshu zresetowane.",
+                    $"Dogrywka {shobuMatch.OvertimeCount} rozpoczï¿½ta!\n+60 sekund dodane.\nSenshu zresetowane.",
                     "Dogrywka",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Information);
@@ -285,31 +300,185 @@ namespace KarateTournamentApp.ViewModels
                 {
                     CurrentMatch.AkaScore += (short)points;
                     if (CurrentMatch.AkaScore < 0) CurrentMatch.AkaScore = 0;
+
+                    if (CurrentMatch.AkaScore >= MaxScoreToWin)
+                    {
+                        CompleteMatch(CurrentMatch.Aka, false, true);
+                    }
                 }
                 else
                 {
                     CurrentMatch.ShiroScore += (short)points;
                     if (CurrentMatch.ShiroScore < 0) CurrentMatch.ShiroScore = 0;
+
+                    if (CurrentMatch.ShiroScore >= MaxScoreToWin)
+                    {
+                        CompleteMatch(CurrentMatch.Shiro, false, true);
+                    }
                 }
                 
                 OnPropertyChanged(nameof(CurrentMatch));
             }
         }
 
-        public void UpdatePenalty(bool isAka, int change)
+        public void UpdatePenalty(bool isAka, PenaltyType penaltyType, int change)
         {
             if (CurrentMatch is ShobuSanbonMatch shobuMatch && !CurrentMatch.IsFinished)
             {
                 if (isAka)
                 {
-                    shobuMatch.PenaltyAka = Math.Max(0, shobuMatch.PenaltyAka + change);
+                    if (penaltyType == PenaltyType.Atenai)
+                    {
+                        shobuMatch.AtenaiAka = Math.Max(0, shobuMatch.AtenaiAka + change);
+                    }
+                    else
+                    {
+                        shobuMatch.ChukokuAka = Math.Max(0, shobuMatch.ChukokuAka + change);
+                    }
                 }
                 else
                 {
-                    shobuMatch.PenaltyShiro = Math.Max(0, shobuMatch.PenaltyShiro + change);
+                    if (penaltyType == PenaltyType.Atenai)
+                    {
+                        shobuMatch.AtenaiShiro = Math.Max(0, shobuMatch.AtenaiShiro + change);
+                    }
+                    else
+                    {
+                        shobuMatch.ChukokuShiro = Math.Max(0, shobuMatch.ChukokuShiro + change);
+                    }
                 }
+
+                bool akaHansoku = shobuMatch.AtenaiAka >= AtenaiHansokuThreshold
+                    || shobuMatch.ChukokuAka >= ChukokuHansokuThreshold;
+                bool shiroHansoku = shobuMatch.AtenaiShiro >= AtenaiHansokuThreshold
+                    || shobuMatch.ChukokuShiro >= ChukokuHansokuThreshold;
+
+                if (akaHansoku)
+                {
+                    CompleteMatch(CurrentMatch.Shiro, true, true);
+                    System.Windows.MessageBox.Show(
+                        "AKA otrzymuje HANSOKU. Zwyciï¿½a SHIRO.",
+                        "Dyskwalifikacja",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                }
+                else if (shiroHansoku)
+                {
+                    CompleteMatch(CurrentMatch.Aka, true, true);
+                    System.Windows.MessageBox.Show(
+                        "SHIRO otrzymuje HANSOKU. Zwyciï¿½a AKA.",
+                        "Dyskwalifikacja",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                }
+
                 OnPropertyChanged(nameof(CurrentMatch));
             }
+        }
+
+        private void CompleteMatch(Guid? winnerId, bool disqualification, bool autoAdvance)
+        {
+            if (CurrentMatch == null)
+            {
+                return;
+            }
+
+            CurrentMatch.WinnerId = winnerId;
+            CurrentMatch.IsDisqualification = disqualification;
+            CurrentMatch.IsFinished = true;
+
+            if (CurrentMatch is ShobuSanbonMatch shobuMatch)
+            {
+                shobuMatch.IsRunning = false;
+            }
+
+            if (autoAdvance)
+            {
+                PromoteWinnerAndSelectNextMatch();
+            }
+        }
+
+        private void PromoteWinnerAndSelectNextMatch()
+        {
+            _category.PromoteWinner(_currentMatchIndex);
+            _currentMatchIndex = FindNextUnfinishedMatch();
+
+            if (_currentMatchIndex >= 0)
+            {
+                CurrentMatch = _category.BracketMatches[_currentMatchIndex];
+            }
+            else
+            {
+                CurrentMatch = null;
+                _category.IsFinished = true;
+                SaveKumiteFinalResults();
+            }
+
+            CommandManager.InvalidateRequerySuggested();
+        }
+
+        private void InitializeKumiteBracketAsShobu()
+        {
+            var shobuCategory = new ShobuSanbonCategory(
+                _category.AllowedBelts,
+                _category.CategoryType,
+                _category.Sex,
+                _category.MinAge,
+                _category.MaxAge)
+            {
+                Participants = _category.Participants
+            };
+
+            shobuCategory.InitializeBracket();
+            _category.BracketMatches = shobuCategory.BracketMatches;
+        }
+
+        private void SaveKumiteFinalResults()
+        {
+            if (_category.CategoryType != CategoryType.Kumite || !_category.BracketMatches.Any())
+            {
+                return;
+            }
+
+            var totalPoints = new Dictionary<Guid, int>();
+            foreach (var participant in _category.Participants)
+            {
+                totalPoints[participant.Id] = 0;
+            }
+
+            foreach (var match in _category.BracketMatches.Where(m => m.IsFinished))
+            {
+                if (match.Aka.HasValue && totalPoints.ContainsKey(match.Aka.Value))
+                {
+                    totalPoints[match.Aka.Value] += match.AkaScore;
+                }
+
+                if (match.Shiro.HasValue && totalPoints.ContainsKey(match.Shiro.Value))
+                {
+                    totalPoints[match.Shiro.Value] += match.ShiroScore;
+                }
+            }
+
+            var winnerId = _category.BracketMatches[0].WinnerId;
+
+            var orderedParticipants = _category.Participants
+                .OrderByDescending(p => winnerId.HasValue && p.Id == winnerId.Value)
+                .ThenByDescending(p => totalPoints.TryGetValue(p.Id, out int points) ? points : 0)
+                .ThenBy(p => p.FullName)
+                .ToList();
+
+            var finalResults = new List<ParticipantResult>();
+            for (int i = 0; i < orderedParticipants.Count; i++)
+            {
+                finalResults.Add(new ParticipantResult
+                {
+                    Participant = orderedParticipants[i],
+                    Score = orderedParticipants.Count - i,
+                    JudgeScores = new List<decimal>()
+                });
+            }
+
+            _category.FinalResults = finalResults;
         }
     }
 }

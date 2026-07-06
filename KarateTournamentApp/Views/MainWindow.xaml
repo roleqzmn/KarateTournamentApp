@@ -490,12 +490,17 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                     <Run Text="zawodników"/>
                                                     </TextBlock>
                                                 </StackPanel>
+                                                <TextBlock Text="{Binding KumiteWinnerDisplay}"
+                                                           Margin="0,5,0,0"
+                                                           Foreground="#C0392B"
+                                                           FontWeight="Bold"
+                                                           Visibility="{Binding HasKumiteWinner, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                             </StackPanel>
 
                                             <!-- Merge button -->
                                             <Button Grid.Column="2" 
                                                 Command="{Binding MergeCommand}"
-                                                Content="🔗 Połącz" 
+                                                Content="Połącz" 
                                                 Background="#3498DB" 
                                                 Foreground="White"
                                                 FontWeight="SemiBold"
@@ -528,7 +533,7 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                             <!-- Initialize Bracket button -->
                                             <Button Grid.Column="3" 
                                                 Command="{Binding InitializeBracketCommand}"
-                                                Content="🎲 Losuj" 
+                                                Content="Losuj" 
                                                 Background="#F39C12" 
                                                 Foreground="White"
                                                 FontWeight="SemiBold"
@@ -564,7 +569,7 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                             <!-- Start Competition button -->
                                             <Button Grid.Column="4" 
                                                 Command="{Binding StartCompetitionCommand}"
-                                                Content="▶️ Start" 
+                                                Content="Start" 
                                                 Background="#9B59B6" 
                                                 Foreground="White"
                                                 FontWeight="SemiBold"
@@ -599,8 +604,44 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
 
                                             <!-- Delete button -->
                                             <Button Grid.Column="5" 
+                                                Command="{Binding ViewResultsCommand}"
+                                                Content="Wyniki" 
+                                                Background="#16A085" 
+                                                Foreground="White"
+                                                FontWeight="SemiBold"
+                                                Padding="15,8"
+                                                Margin="5"
+                                                BorderThickness="0"
+                                                Cursor="Hand">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="Button">
+                                                                    <Border Background="{TemplateBinding Background}"
+                                                                        CornerRadius="5"
+                                                                        Padding="{TemplateBinding Padding}">
+                                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#138D75"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter Property="Opacity" Value="0.5"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+
+                                            <!-- Delete button -->
+                                            <Button Grid.Column="6" 
                                                 Command="{Binding DeleteCommand}"
-                                                Content="🗑️ Usuń" 
+                                                Content="Usuń" 
                                                 Background="#E74C3C" 
                                                 Foreground="White"
                                                 FontWeight="SemiBold"

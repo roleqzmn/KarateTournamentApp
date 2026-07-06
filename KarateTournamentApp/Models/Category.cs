@@ -118,10 +118,27 @@ namespace KarateTournamentApp.Models
         /// <summary>
         /// Initializes a bracket, semi-randomly
         /// </summary>
-        public void InitializeBracket()
+        public virtual void InitializeBracket()
         {
             BracketMatches = new List<Match>();
             var size = Participants.Count;
+
+            if (size <= 2)
+            {
+                var singleMatch = new Match();
+                BracketMatches.Add(singleMatch);
+                if (size >= 1)
+                {
+                    singleMatch.Aka = Participants[0].Id;
+                }
+                if (size >= 2)
+                {
+                    singleMatch.Shiro = Participants[1].Id;
+                }
+
+                return;
+            }
+
             int leafs = 1;
             while (leafs < size) leafs = 2 * leafs;
 
@@ -135,12 +152,26 @@ namespace KarateTournamentApp.Models
 
             for (int i = 0; i < size; i++)
             {
-                int bracketIndex = (leafs - 1) + i;
-                BracketMatches[bracketIndex].Aka = shuffledParticipants[i].Id;
-
-                if (BracketMatches[bracketIndex].IsFinished)
+                int bracketIndex = (leafs - 1) + (i / 2);
+                if (i % 2 == 0)
                 {
-                    PromoteWinner(bracketIndex);
+                    BracketMatches[bracketIndex].Aka = shuffledParticipants[i].Id;
+                }
+                else
+                {
+                    BracketMatches[bracketIndex].Shiro = shuffledParticipants[i].Id;
+                }
+            }
+
+            for (int i = leafs - 1; i < totalMatches; i++)
+            {
+                var match = BracketMatches[i];
+                bool hasBye = match.Aka.HasValue ^ match.Shiro.HasValue;
+                if (hasBye)
+                {
+                    match.WinnerId = match.Aka ?? match.Shiro;
+                    match.IsFinished = true;
+                    PromoteWinner(i);
                 }
             }
         }
@@ -162,10 +193,28 @@ namespace KarateTournamentApp.Models
         /// <summary>
         /// Initializes a bracket, semi-randomly
         /// </summary>
-        public new void InitializeBracket()
+        public override void InitializeBracket()
         {
             BracketMatches = new List<Match>();
             var size = Participants.Count;
+
+            if (size <= 2)
+            {
+                var singleMatch = new ShobuSanbonMatch();
+                BracketMatches.Add(singleMatch);
+
+                if (size >= 1)
+                {
+                    singleMatch.Aka = Participants[0].Id;
+                }
+                if (size >= 2)
+                {
+                    singleMatch.Shiro = Participants[1].Id;
+                }
+
+                return;
+            }
+
             int leafs = 1;
             while (leafs < size) leafs = 2 * leafs;
 
@@ -179,12 +228,26 @@ namespace KarateTournamentApp.Models
 
             for (int i = 0; i < size; i++)
             {
-                int bracketIndex = (leafs - 1) + i;
-                BracketMatches[bracketIndex].Aka = shuffledParticipants[i].Id;
-
-                if (BracketMatches[bracketIndex].IsFinished)
+                int bracketIndex = (leafs - 1) + (i / 2);
+                if (i % 2 == 0)
                 {
-                    PromoteWinner(bracketIndex);
+                    BracketMatches[bracketIndex].Aka = shuffledParticipants[i].Id;
+                }
+                else
+                {
+                    BracketMatches[bracketIndex].Shiro = shuffledParticipants[i].Id;
+                }
+            }
+
+            for (int i = leafs - 1; i < totalMatches; i++)
+            {
+                var match = BracketMatches[i];
+                bool hasBye = match.Aka.HasValue ^ match.Shiro.HasValue;
+                if (hasBye)
+                {
+                    match.WinnerId = match.Aka ?? match.Shiro;
+                    match.IsFinished = true;
+                    PromoteWinner(i);
                 }
             }
         }

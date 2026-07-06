@@ -84,7 +84,11 @@
                                          Text="{Binding ScoreInput, UpdateSourceTrigger=PropertyChanged}" 
                                          FontSize="20"
                                          Padding="10"
-                                         Margin="0,0,0,10"/>
+                                         Margin="0,0,0,10">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding AddScoreCommand}"/>
+                                    </TextBox.InputBindings>
+                                </TextBox>
                                 <Button Content="Dodaj ocene" 
                                         Command="{Binding AddScoreCommand}"
                                         Background="#3498DB"

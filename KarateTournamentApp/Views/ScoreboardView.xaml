@@ -45,17 +45,35 @@
                                HorizontalAlignment="Center"
                                Margin="0,0,0,20"/>
 
-                    <!-- Penalties (for Shobu Sanbon) -->
-                    <StackPanel Orientation="Horizontal" 
-                                HorizontalAlignment="Center"
-                                Visibility="{Binding IsShobuSanbon, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <TextBlock Text="Kary: " 
-                                   FontSize="24" 
-                                   Foreground="#FFD700"/>
-                        <TextBlock Text="{Binding AkaPenalty}" 
-                                   FontSize="24" 
+                    <StackPanel Visibility="{Binding IsShobuSanbon, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="Atenai:"
+                                   FontSize="20"
+                                   Foreground="#FFD700"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding AkaAtenai}"
+                                   FontSize="26"
                                    FontWeight="Bold"
-                                   Foreground="#FFD700"/>
+                                   Foreground="#FFD700"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Text="Chukoku:"
+                                   FontSize="20"
+                                   Foreground="#FFD700"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,8,0,0"/>
+                        <TextBlock Text="{Binding AkaChukoku}"
+                                   FontSize="26"
+                                   FontWeight="Bold"
+                                   Foreground="#FFD700"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Text="HANSOKU"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   Foreground="#FDEDEC"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,12,0,0"
+                                   Visibility="{Binding AkaHansoku, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -96,7 +114,7 @@
                     <TextBlock Text="{Binding ShiroName}" 
                                FontSize="48" 
                                FontWeight="Bold" 
-                               Foreground="White"
+                               Foreground="Black"
                                TextAlignment="Center"
                                TextWrapping="Wrap"
                                Margin="0,0,0,40"/>
@@ -104,21 +122,39 @@
                     <TextBlock Text="{Binding ShiroScore}" 
                                FontSize="120" 
                                FontWeight="Bold" 
-                               Foreground="White"
+                               Foreground="Black"
                                HorizontalAlignment="Center"
                                Margin="0,0,0,20"/>
 
-                    <!-- Penalties (for Shobu Sanbon) -->
-                    <StackPanel Orientation="Horizontal" 
-                                HorizontalAlignment="Center"
-                                Visibility="{Binding IsShobuSanbon, Converter={StaticResource BoolToVisibilityConverter}}">
-                        <TextBlock Text="Kary: " 
-                                   FontSize="24" 
-                                   Foreground="#FFD700"/>
-                        <TextBlock Text="{Binding ShiroPenalty}" 
-                                   FontSize="24" 
+                    <StackPanel Visibility="{Binding IsShobuSanbon, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="Atenai:"
+                                   FontSize="20"
+                                   Foreground="#C0392B"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding ShiroAtenai}"
+                                   FontSize="26"
                                    FontWeight="Bold"
-                                   Foreground="#FFD700"/>
+                                   Foreground="#C0392B"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Text="Chukoku:"
+                                   FontSize="20"
+                                   Foreground="#C0392B"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,8,0,0"/>
+                        <TextBlock Text="{Binding ShiroChukoku}"
+                                   FontSize="26"
+                                   FontWeight="Bold"
+                                   Foreground="#C0392B"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Text="HANSOKU"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   Foreground="#C0392B"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,12,0,0"
+                                   Visibility="{Binding ShiroHansoku, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

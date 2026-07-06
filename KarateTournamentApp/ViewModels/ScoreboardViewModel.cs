@@ -36,20 +36,29 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public int AkaPenalty => _competitionManager.CurrentMatch is ShobuSanbonMatch shobuMatch 
-            ? shobuMatch.PenaltyAka : 0;
+        public int AkaAtenai => _competitionManager.CurrentMatch is ShobuSanbonMatch shobuMatch 
+            ? shobuMatch.AtenaiAka : 0;
 
-        public int ShiroPenalty => _competitionManager.CurrentMatch is ShobuSanbonMatch shobuMatch
-            ? shobuMatch.PenaltyShiro : 0;
+        public int AkaChukoku => _competitionManager.CurrentMatch is ShobuSanbonMatch shobuMatch
+            ? shobuMatch.ChukokuAka : 0;
 
-        public bool IsShobuSanbon => _competitionManager.IsShobuSanbon;
+        public int ShiroAtenai => _competitionManager.CurrentMatch is ShobuSanbonMatch shobuMatch 
+            ? shobuMatch.AtenaiShiro : 0;
+
+        public int ShiroChukoku => _competitionManager.CurrentMatch is ShobuSanbonMatch shobuMatch
+            ? shobuMatch.ChukokuShiro : 0;
+
+        public bool AkaHansoku => AkaAtenai >= 3 || AkaChukoku >= 4;
+        public bool ShiroHansoku => ShiroAtenai >= 3 || ShiroChukoku >= 4;
+
+        public bool IsShobuSanbon => _competitionManager.Category.CategoryType == CategoryType.Kumite;
 
         public ScoreboardViewModel(CompetitionManagerViewModel competitionManager)
         {
             _competitionManager = competitionManager;
 
-            // Setup timer for Shobu Sanbon matches
-            if (_competitionManager.IsShobuSanbon)
+            // Setup timer for Kumite / Shobu Sanbon mode
+            if (IsShobuSanbon)
             {
                 _timer = new System.Timers.Timer(100); // Update every 100ms
                 _timer.Elapsed += OnTimerElapsed;
@@ -97,8 +106,12 @@ namespace KarateTournamentApp.ViewModels
             OnPropertyChanged(nameof(ShiroName));
             OnPropertyChanged(nameof(AkaScore));
             OnPropertyChanged(nameof(ShiroScore));
-            OnPropertyChanged(nameof(AkaPenalty));
-            OnPropertyChanged(nameof(ShiroPenalty));
+            OnPropertyChanged(nameof(AkaAtenai));
+            OnPropertyChanged(nameof(AkaChukoku));
+            OnPropertyChanged(nameof(ShiroAtenai));
+            OnPropertyChanged(nameof(ShiroChukoku));
+            OnPropertyChanged(nameof(AkaHansoku));
+            OnPropertyChanged(nameof(ShiroHansoku));
             OnPropertyChanged(nameof(TimeDisplay));
             OnPropertyChanged(nameof(IsShobuSanbon));
         }

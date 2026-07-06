@@ -13,10 +13,24 @@ namespace KarateTournamentApp.Services
         private List<Belts> AllBelts { get; } = Enum.GetValues<Belts>().ToList();
         public void AssignParticipant(Participant p, bool DivideByBelt, bool DivideByAge) 
         {
-            if (p.Age >= 18) AssignSenior(p);
-            if (DivideByAge) AssignByAge(p);
-            if (DivideByBelt) AssignByBelt(p);
-            if (DivideByBelt && DivideByAge) AssignByBoth(p);
+            if (p.Age >= 18){ AssignSenior(p); return; }
+
+            if (DivideByBelt && DivideByAge)
+            {
+                AssignByBoth(p);
+                return;
+            }
+
+            if (DivideByAge)
+            {
+                AssignByAge(p);
+                return;
+            }
+
+            if (DivideByBelt)
+            {
+                AssignByBelt(p);
+            }
         }
         public void AssignTeam(Team t)
         {
@@ -51,10 +65,10 @@ namespace KarateTournamentApp.Services
                 }
                 else
                 {
-                    var cat = new Category(p.Belt, categoryType, p.Sex, 18, 99);
+                    var cat = new Category(AllBelts, categoryType, p.Sex, 18, 99);
                     if (categoryType == CategoryType.Kumite)
                     {
-                        cat = new ShobuSanbonCategory(p.Belt, categoryType, p.Sex, 18, 99);
+                        cat = new ShobuSanbonCategory(AllBelts, categoryType, p.Sex, 18, 99);
                     }
                     cat.Participants.Add(p);
                     DefinedCategories.Add(cat);

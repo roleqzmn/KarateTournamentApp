@@ -24,10 +24,15 @@ namespace KarateTournamentApp.ViewModels
         public ICommand AddShiroPointCommand { get; }
         public ICommand RemoveAkaPointCommand { get; }
         public ICommand RemoveShiroPointCommand { get; }
-        public ICommand AddAkaPenaltyCommand { get; }
-        public ICommand AddShiroPenaltyCommand { get; }
-        public ICommand RemoveAkaPenaltyCommand { get; }
-        public ICommand RemoveShiroPenaltyCommand { get; }
+        public ICommand AddAkaAtenaiCommand { get; }
+        public ICommand RemoveAkaAtenaiCommand { get; }
+        public ICommand AddShiroAtenaiCommand { get; }
+        public ICommand RemoveShiroAtenaiCommand { get; }
+        public ICommand AddAkaChukokuCommand { get; }
+        public ICommand RemoveAkaChukokuCommand { get; }
+        public ICommand AddShiroChukokuCommand { get; }
+        public ICommand RemoveShiroChukokuCommand { get; }
+        public ICommand ToggleTimerCommand { get; }
         public ICommand StartTimerCommand { get; }
         public ICommand StopTimerCommand { get; }
         public ICommand ResetTimerCommand { get; }
@@ -37,6 +42,30 @@ namespace KarateTournamentApp.ViewModels
 
         // Commands for other categories (Kata, Kumite, etc.)
         public ICommand AddJudgeScoreCommand { get; }
+
+        public bool IsTimerRunning => _competitionManager.CurrentMatch is ShobuSanbonMatch match && match.IsRunning;
+
+        public string TimerToggleText => IsTimerRunning ? "Stop" : "Start";
+
+        public string TimeDisplay
+        {
+            get
+            {
+                if (_scoreboardViewModel != null)
+                {
+                    return _scoreboardViewModel.TimeDisplay;
+                }
+
+                if (_competitionManager.CurrentMatch is ShobuSanbonMatch shobuMatch)
+                {
+                    var minutes = (int)(shobuMatch.TimeRemaining / 60);
+                    var seconds = (int)(shobuMatch.TimeRemaining % 60);
+                    return $"{minutes:D2}:{seconds:D2}";
+                }
+
+                return "--:--";
+            }
+        }
 
         private string _timeInput;
         public string TimeInput
@@ -60,11 +89,16 @@ namespace KarateTournamentApp.ViewModels
             RemoveAkaPointCommand = new RelayCommand(o => AddPoint(true, -1));
             RemoveShiroPointCommand = new RelayCommand(o => AddPoint(false, -1));
 
-            AddAkaPenaltyCommand = new RelayCommand(o => AddPenalty(true, 1));
-            AddShiroPenaltyCommand = new RelayCommand(o => AddPenalty(false, 1));
-            RemoveAkaPenaltyCommand = new RelayCommand(o => AddPenalty(true, -1));
-            RemoveShiroPenaltyCommand = new RelayCommand(o => AddPenalty(false, -1));
+            AddAkaAtenaiCommand = new RelayCommand(o => AddPenalty(true, PenaltyType.Atenai, 1));
+            RemoveAkaAtenaiCommand = new RelayCommand(o => AddPenalty(true, PenaltyType.Atenai, -1));
+            AddShiroAtenaiCommand = new RelayCommand(o => AddPenalty(false, PenaltyType.Atenai, 1));
+            RemoveShiroAtenaiCommand = new RelayCommand(o => AddPenalty(false, PenaltyType.Atenai, -1));
+            AddAkaChukokuCommand = new RelayCommand(o => AddPenalty(true, PenaltyType.Chukoku, 1));
+            RemoveAkaChukokuCommand = new RelayCommand(o => AddPenalty(true, PenaltyType.Chukoku, -1));
+            AddShiroChukokuCommand = new RelayCommand(o => AddPenalty(false, PenaltyType.Chukoku, 1));
+            RemoveShiroChukokuCommand = new RelayCommand(o => AddPenalty(false, PenaltyType.Chukoku, -1));
 
+            ToggleTimerCommand = new RelayCommand(o => ToggleTimer());
             StartTimerCommand = new RelayCommand(o => StartTimer());
             StopTimerCommand = new RelayCommand(o => StopTimer());
             ResetTimerCommand = new RelayCommand(o => ResetTimer());
@@ -77,6 +111,16 @@ namespace KarateTournamentApp.ViewModels
 
             // Subscribe to changes
             _competitionManager.PropertyChanged += (s, e) => RefreshAll();
+            if (_scoreboardViewModel != null)
+            {
+                _scoreboardViewModel.PropertyChanged += (s, e) =>
+                {
+                    if (e.PropertyName == nameof(ScoreboardViewModel.TimeDisplay))
+                    {
+                        OnPropertyChanged(nameof(TimeDisplay));
+                    }
+                };
+            }
         }
 
         private void AddPoint(bool isAka, int points)
@@ -85,20 +129,34 @@ namespace KarateTournamentApp.ViewModels
             RefreshAll();
         }
 
-        private void AddPenalty(bool isAka, int change)
+        private void AddPenalty(bool isAka, PenaltyType penaltyType, int change)
         {
-            _competitionManager.UpdatePenalty(isAka, change);
+            _competitionManager.UpdatePenalty(isAka, penaltyType, change);
             RefreshAll();
+        }
+
+        private void ToggleTimer()
+        {
+            if (IsTimerRunning)
+            {
+                StopTimer();
+            }
+            else
+            {
+                StartTimer();
+            }
         }
 
         private void StartTimer()
         {
             _scoreboardViewModel?.StartTimer();
+            RefreshAll();
         }
 
         private void StopTimer()
         {
             _scoreboardViewModel?.StopTimer();
+            RefreshAll();
         }
 
         private void ResetTimer()
@@ -183,6 +241,10 @@ namespace KarateTournamentApp.ViewModels
             OnPropertyChanged(nameof(AkaName));
             OnPropertyChanged(nameof(ShiroName));
             OnPropertyChanged(nameof(CategoryName));
+            OnPropertyChanged(nameof(IsShobuSanbon));
+            OnPropertyChanged(nameof(IsTimerRunning));
+            OnPropertyChanged(nameof(TimerToggleText));
+            OnPropertyChanged(nameof(TimeDisplay));
         }
     }
 }

@@ -4,6 +4,12 @@ using System.Text.Json.Serialization;
 
 namespace KarateTournamentApp.Models
 {
+    public enum PenaltyType
+    {
+        Atenai,
+        Chukoku
+    }
+
     [JsonDerivedType(typeof(Match), typeDiscriminator: "match")]
     [JsonDerivedType(typeof(ShobuSanbonMatch), typeDiscriminator: "shobuSanbon")]
     public class Match
@@ -41,8 +47,10 @@ namespace KarateTournamentApp.Models
     public class ShobuSanbonMatch : Match
     {
         public double TimeRemaining { get; set; } = 180; // 3 minutes in seconds
-        public int PenaltyAka { get; set; } = 0;
-        public int PenaltyShiro { get; set; } = 0;
+        public int AtenaiAka { get; set; } = 0;
+        public int AtenaiShiro { get; set; } = 0;
+        public int ChukokuAka { get; set; } = 0;
+        public int ChukokuShiro { get; set; } = 0;
         public bool IsRunning { get; set; } = false;
         
         // Senshu (advantage for first point)

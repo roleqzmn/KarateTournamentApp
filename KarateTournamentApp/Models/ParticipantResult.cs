@@ -12,5 +12,7 @@ namespace KarateTournamentApp.Models
         public decimal Score { get; set; }
         
         public List<decimal> JudgeScores { get; set; }
+
+        public List<int> DiscardedJudgeScoreIndexes { get; set; } = new List<int>();
     }
 }

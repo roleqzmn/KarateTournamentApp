@@ -30,6 +30,27 @@ namespace KarateTournamentApp.ViewModels
         public int ParticipantCount => _category.Participants.Count;
         public string CategoryTypeDisplay => _category.CategoryType.ToString();
         public string SexDisplay => _category.Sex.ToString();
+        public bool HasKumiteWinner =>
+            _category.CategoryType == CategoryType.Kumite
+            && _category.IsFinished
+            && _category.BracketMatches.Any()
+            && _category.BracketMatches[0].WinnerId.HasValue;
+
+        public string KumiteWinnerDisplay
+        {
+            get
+            {
+                if (!HasKumiteWinner)
+                {
+                    return string.Empty;
+                }
+
+                var winnerId = _category.BracketMatches[0].WinnerId!.Value;
+                var winner = _category.Participants.FirstOrDefault(p => p.Id == winnerId);
+                return winner != null ? $"Zwyciezca: {winner.FullName}" : "Zwyciezca: ---";
+            }
+        }
+
         public string AgeRangeDisplay
         {
             get
@@ -109,9 +130,9 @@ namespace KarateTournamentApp.ViewModels
                 else
                     _category.Participants.OrderBy(p => p.Id);
                 System.Windows.MessageBox.Show(
-                    $"Drabinka zosta³a zainicjalizowana!\n\n" +
+                    $"Drabinka zostaÅ‚a zainicjalizowana!\n\n" +
                     $"Kategoria: {_category.Name}\n" +
-                    $"Liczba zawodników: {_category.Participants.Count}\n" +
+                    $"Liczba zawodnikÃ³w: {_category.Participants.Count}\n" +
                     $"Liczba meczy: {_category.BracketMatches.Count}",
                     "Sukces", 
                     System.Windows.MessageBoxButton.OK, 
@@ -122,8 +143,8 @@ namespace KarateTournamentApp.ViewModels
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show(
-                    $"B³¹d podczas inicjalizacji drabinki:\n{ex.Message}",
-                    "B³¹d",
+                    $"BÅ‚Ä…d podczas inicjalizacji drabinki:\n{ex.Message}",
+                    "BÅ‚Ä…d",
                     System.Windows.MessageBoxButton.OK,
                     System.Windows.MessageBoxImage.Error);
             }
@@ -136,6 +157,8 @@ namespace KarateTournamentApp.ViewModels
             OnPropertyChanged(nameof(CategoryTypeDisplay));
             OnPropertyChanged(nameof(SexDisplay));
             OnPropertyChanged(nameof(AgeRangeDisplay));
+            OnPropertyChanged(nameof(HasKumiteWinner));
+            OnPropertyChanged(nameof(KumiteWinnerDisplay));
             OnPropertyChanged(nameof(Category));
         }
 
@@ -147,7 +170,9 @@ namespace KarateTournamentApp.ViewModels
         private bool CanViewResults()
         {
             // Can view results if category is finished and has saved results
-            return _category.IsFinished && _category.FinalResults != null && _category.FinalResults.Any();
+            return _category.IsFinished
+                   && ((_category.FinalResults != null && _category.FinalResults.Any())
+                       || _category.JudgingScores.Any());
         }
 
         private void ViewResults()
@@ -155,8 +180,12 @@ namespace KarateTournamentApp.ViewModels
             // Create a competition manager with saved results
             var competitionManager = new IndividualCompetitionManagerViewModel(_category);
             
-            // Load saved results into the manager
-            foreach (var result in _category.FinalResults)
+            // Load saved rankings if available, otherwise source from raw judging scores.
+            var sourceResults = _category.FinalResults.Any()
+                ? _category.FinalResults
+                : BuildResultsFromJudgingScores();
+
+            foreach (var result in sourceResults)
             {
                 competitionManager.Results.Add(result);
             }
@@ -173,6 +202,56 @@ namespace KarateTournamentApp.ViewModels
                 }
             };
             resultsWindow.ShowDialog();
+        }
+
+        private List<ParticipantResult> BuildResultsFromJudgingScores()
+        {
+            var results = new List<ParticipantResult>();
+
+            foreach (var (scores, participantId) in _category.JudgingScores)
+            {
+                var participant = _category.Participants.FirstOrDefault(p => p.Id == participantId);
+                if (participant == null)
+                {
+                    continue;
+                }
+
+                var discarded = GetDiscardedIndexes(scores);
+                var discardedSet = new HashSet<int>(discarded);
+                var finalScore = scores
+                    .Where((score, index) => !discardedSet.Contains(index))
+                    .Sum();
+
+                results.Add(new ParticipantResult
+                {
+                    Participant = participant,
+                    Score = finalScore,
+                    JudgeScores = new List<decimal>(scores),
+                    DiscardedJudgeScoreIndexes = discarded
+                });
+            }
+
+            return results;
+        }
+
+        private static List<int> GetDiscardedIndexes(IReadOnlyList<decimal> scores)
+        {
+            if (scores.Count <= 3)
+            {
+                return new List<int>();
+            }
+
+            var indexed = scores
+                .Select((score, index) => new { score, index })
+                .OrderBy(x => x.score)
+                .ThenBy(x => x.index)
+                .ToList();
+
+            return new List<int>
+            {
+                indexed[0].index,
+                indexed[indexed.Count - 1].index
+            };
         }
 
         private void StartCompetition()
@@ -221,6 +300,9 @@ namespace KarateTournamentApp.ViewModels
 
             scoreboardWindow.Show();
             judgeWindow.Show();
+
+            judgeWindow.Closed += (s, e) => Refresh();
+            scoreboardWindow.Closed += (s, e) => Refresh();
         }
 
         private void StartIndividualCompetition()
