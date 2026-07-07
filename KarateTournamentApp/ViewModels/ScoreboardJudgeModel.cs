@@ -18,6 +18,12 @@ namespace KarateTournamentApp.ViewModels
         public string AkaName => _competitionManager.AkaParticipant?.FullName ?? "---";
         public string ShiroName => _competitionManager.ShiroParticipant?.FullName ?? "---";
         public bool IsShobuSanbon => _competitionManager.IsShobuSanbon;
+        public int AkaScore => _competitionManager.CurrentMatch?.AkaScore ?? 0;
+        public int ShiroScore => _competitionManager.CurrentMatch?.ShiroScore ?? 0;
+        public int AkaAtenai => _competitionManager.CurrentMatch is ShobuSanbonMatch akaMatch ? akaMatch.AtenaiAka : 0;
+        public int ShiroAtenai => _competitionManager.CurrentMatch is ShobuSanbonMatch shiroMatch ? shiroMatch.AtenaiShiro : 0;
+        public int AkaChukoku => _competitionManager.CurrentMatch is ShobuSanbonMatch akaPenaltyMatch ? akaPenaltyMatch.ChukokuAka : 0;
+        public int ShiroChukoku => _competitionManager.CurrentMatch is ShobuSanbonMatch shiroPenaltyMatch ? shiroPenaltyMatch.ChukokuShiro : 0;
 
         // Commands for Shobu Sanbon
         public ICommand AddAkaPointCommand { get; }
@@ -242,6 +248,12 @@ namespace KarateTournamentApp.ViewModels
             OnPropertyChanged(nameof(ShiroName));
             OnPropertyChanged(nameof(CategoryName));
             OnPropertyChanged(nameof(IsShobuSanbon));
+            OnPropertyChanged(nameof(AkaScore));
+            OnPropertyChanged(nameof(ShiroScore));
+            OnPropertyChanged(nameof(AkaAtenai));
+            OnPropertyChanged(nameof(ShiroAtenai));
+            OnPropertyChanged(nameof(AkaChukoku));
+            OnPropertyChanged(nameof(ShiroChukoku));
             OnPropertyChanged(nameof(IsTimerRunning));
             OnPropertyChanged(nameof(TimerToggleText));
             OnPropertyChanged(nameof(TimeDisplay));

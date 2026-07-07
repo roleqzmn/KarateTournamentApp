@@ -178,6 +178,15 @@
                             <!-- AKA Controls -->
                             <GroupBox Grid.Column="0" Header="AKA (Czerwony)" Margin="0,0,10,0" Padding="10">
                                 <StackPanel>
+                                    <Border Background="#FDEDEC" BorderBrush="#E74C3C" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,15">
+                                        <StackPanel>
+                                            <TextBlock Text="Biezacy stan" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                            <TextBlock Text="{Binding AkaScore, StringFormat=Punkty: {0}}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding AkaAtenai, StringFormat=Atenai: {0}}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            <TextBlock Text="{Binding AkaChukoku, StringFormat=Chukoku: {0}}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
                                     <TextBlock Text="Punkty (do 6)" FontWeight="Bold" Margin="0,0,0,10"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <Button Content="-" 
@@ -258,6 +267,15 @@
                             <!-- SHIRO Controls -->
                             <GroupBox Grid.Column="1" Header="SHIRO (Bialy)" Margin="10,0,0,0" Padding="10">
                                 <StackPanel>
+                                    <Border Background="#F8F9F9" BorderBrush="#95A5A6" BorderThickness="1" CornerRadius="5" Padding="10" Margin="0,0,0,15">
+                                        <StackPanel>
+                                            <TextBlock Text="Biezacy stan" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                            <TextBlock Text="{Binding ShiroScore, StringFormat=Punkty: {0}}" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                            <TextBlock Text="{Binding ShiroAtenai, StringFormat=Atenai: {0}}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                            <TextBlock Text="{Binding ShiroChukoku, StringFormat=Chukoku: {0}}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+
                                     <TextBlock Text="Punkty (do 6)" FontWeight="Bold" Margin="0,0,0,10"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <Button Content="-" 

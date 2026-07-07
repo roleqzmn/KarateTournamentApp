@@ -17,6 +17,7 @@ namespace KarateTournamentApp.ViewModels
             _mergeRequestCallback = mergeRequestCallback;
             _deleteRequestCallback = deleteRequestCallback;
             MergeCommand = new RelayCommand(o => RequestMerge(), o => true);
+            RenameCommand = new RelayCommand(o => RenameCategory(), o => true);
             RemoveParticipantCommand = new RelayCommand(RemoveParticipant, o => true);
             StartCompetitionCommand = new RelayCommand(o => StartCompetition(), o => CanStartCompetition());
             DeleteCommand = new RelayCommand(o => RequestDelete(), o => CanDelete());
@@ -77,6 +78,7 @@ namespace KarateTournamentApp.ViewModels
         }
 
         public ICommand MergeCommand { get; }
+        public ICommand RenameCommand { get; }
         public ICommand RemoveParticipantCommand { get; }
         public ICommand StartCompetitionCommand { get; }
         public ICommand DeleteCommand { get; }
@@ -88,7 +90,85 @@ namespace KarateTournamentApp.ViewModels
             _mergeRequestCallback?.Invoke(this);
         }
 
-        private void RemoveParticipant(object parameter)
+        private void RenameCategory()
+        {
+            var textBox = new System.Windows.Controls.TextBox
+            {
+                Text = _category.Name,
+                Margin = new System.Windows.Thickness(0, 0, 0, 12),
+                MinWidth = 260,
+                Padding = new System.Windows.Thickness(8)
+            };
+
+            var okButton = new System.Windows.Controls.Button
+            {
+                Content = "Zapisz",
+                IsDefault = true,
+                Width = 90,
+                Margin = new System.Windows.Thickness(0, 0, 8, 0)
+            };
+
+            var cancelButton = new System.Windows.Controls.Button
+            {
+                Content = "Anuluj",
+                IsCancel = true,
+                Width = 90
+            };
+
+            var buttonsPanel = new System.Windows.Controls.StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+            };
+            buttonsPanel.Children.Add(okButton);
+            buttonsPanel.Children.Add(cancelButton);
+
+            var panel = new System.Windows.Controls.StackPanel
+            {
+                Margin = new System.Windows.Thickness(16)
+            };
+            panel.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Podaj nowa nazwe kategorii:",
+                Margin = new System.Windows.Thickness(0, 0, 0, 8),
+                FontWeight = System.Windows.FontWeights.SemiBold
+            });
+            panel.Children.Add(textBox);
+            panel.Children.Add(buttonsPanel);
+
+            var dialog = new System.Windows.Window
+            {
+                Title = "Zmiana nazwy kategorii",
+                Width = 360,
+                Height = 170,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
+                Content = panel
+            };
+
+            okButton.Click += (_, _) => dialog.DialogResult = true;
+
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            string newName = textBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(newName))
+            {
+                System.Windows.MessageBox.Show(
+                    "Nazwa kategorii nie moze byc pusta.",
+                    "Bledna nazwa",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            _category.Name = newName;
+            Refresh();
+        }
+
+        private void RemoveParticipant(object? parameter)
         {
             if (parameter is Participant participant)
             {

@@ -530,8 +530,41 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                 </Button.Style>
                                             </Button>
 
+                                            <!-- Rename button -->
+                                            <Button Grid.Column="3"
+                                                Command="{Binding RenameCommand}"
+                                                Content="Zmień nazwę"
+                                                Background="#5D6D7E"
+                                                Foreground="White"
+                                                FontWeight="SemiBold"
+                                                Padding="15,8"
+                                                Margin="5"
+                                                BorderThickness="0"
+                                                Cursor="Hand">
+                                                <Button.Style>
+                                                    <Style TargetType="Button">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="Button">
+                                                                    <Border Background="{TemplateBinding Background}"
+                                                                        CornerRadius="5"
+                                                                        Padding="{TemplateBinding Padding}">
+                                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                        <Style.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#566573"/>
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+
                                             <!-- Initialize Bracket button -->
-                                            <Button Grid.Column="3" 
+                                            <Button Grid.Column="4" 
                                                 Command="{Binding InitializeBracketCommand}"
                                                 Content="Losuj" 
                                                 Background="#F39C12" 
@@ -567,7 +600,7 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                             </Button>
 
                                             <!-- Start Competition button -->
-                                            <Button Grid.Column="4" 
+                                            <Button Grid.Column="5" 
                                                 Command="{Binding StartCompetitionCommand}"
                                                 Content="Start" 
                                                 Background="#9B59B6" 
@@ -602,8 +635,8 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                 </Button.Style>
                                             </Button>
 
-                                            <!-- Delete button -->
-                                            <Button Grid.Column="5" 
+                                            <!-- Results button -->
+                                            <Button Grid.Column="6" 
                                                 Command="{Binding ViewResultsCommand}"
                                                 Content="Wyniki" 
                                                 Background="#16A085" 
@@ -639,7 +672,7 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                             </Button>
 
                                             <!-- Delete button -->
-                                            <Button Grid.Column="6" 
+                                            <Button Grid.Column="7" 
                                                 Command="{Binding DeleteCommand}"
                                                 Content="Usuń" 
                                                 Background="#E74C3C" 
