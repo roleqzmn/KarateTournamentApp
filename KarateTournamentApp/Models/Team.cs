@@ -8,7 +8,7 @@ namespace KarateTournamentApp.Models
 {
     public class Team
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public int Id { get; set; } 
         public string Name { get; set; }
         public List<Participant> Members { get; set; } = new List<Participant>();
         public Sex Sex { get; set; }

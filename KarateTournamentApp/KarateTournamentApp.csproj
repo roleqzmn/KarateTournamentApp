@@ -12,8 +12,4 @@
     <PackageReference Include="EPPlus" Version="7.0.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Services\Nowy folder\" />
-  </ItemGroup>
-
 </Project>

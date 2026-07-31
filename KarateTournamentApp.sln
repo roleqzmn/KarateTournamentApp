@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarateTournamentApp", "Kara
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarateTournament.Api", "KarateTournament.Api\KarateTournament.Api.csproj", "{A83E61C3-DE16-F758-359C-3152337C3DB3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarateClassLibrary", "KarateClassLibrary\KarateClassLibrary.csproj", "{B593439C-8334-4E7E-B562-DDD26A2BECB7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{A83E61C3-DE16-F758-359C-3152337C3DB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A83E61C3-DE16-F758-359C-3152337C3DB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A83E61C3-DE16-F758-359C-3152337C3DB3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B593439C-8334-4E7E-B562-DDD26A2BECB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B593439C-8334-4E7E-B562-DDD26A2BECB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B593439C-8334-4E7E-B562-DDD26A2BECB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B593439C-8334-4E7E-B562-DDD26A2BECB7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
