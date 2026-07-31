@@ -23,6 +23,7 @@ namespace KarateTournamentApp.Models
     [JsonDerivedType(typeof(TeamCategory), typeDiscriminator: "team")]
     public class Category
     {
+        public int Id { get; set; }
         public string Name { get; set; } = "";
         public ObservableCollection<Participant> Participants { get; set; } = new ObservableCollection<Participant>();
         public List<Belts> AllowedBelts { get; set; } = new List<Belts> { };
@@ -32,7 +33,7 @@ namespace KarateTournamentApp.Models
         public bool IsFinished { get; set; } = false;
         public Sex Sex { get; set; }
         public CategoryType CategoryType { get; set; }
-        public List<(List<decimal> Scores, Guid ParticipantId)> JudgingScores { get; set; } = new List<(List<decimal>, Guid)>();
+        public List<(List<decimal> Scores, int ParticipantId)> JudgingScores { get; set; } = new List<(List<decimal>, int)>();
         public List<ParticipantResult> FinalResults { get; set; } = new List<ParticipantResult>();
 
         public Category(Belts belt, CategoryType type, Sex sex = Sex.Unisex, int? minAge = null, int? maxAge = null)

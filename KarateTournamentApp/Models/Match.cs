@@ -14,10 +14,10 @@ namespace KarateTournamentApp.Models
     [JsonDerivedType(typeof(ShobuSanbonMatch), typeDiscriminator: "shobuSanbon")]
     public class Match
     {
-        public Guid Guid { get; set; } = Guid.NewGuid();
-        public Guid? Aka { get; set; }
-        public Guid? Shiro { get; set; }
-        public Guid? WinnerId { get; set; } = null;
+        public int Id { get; set; }
+        public int? Aka { get; set; }
+        public int? Shiro { get; set; }
+        public int? WinnerId { get; set; } = null;
         public short AkaScore { get; set; } = 0;
         public short ShiroScore { get; set; } = 0;
         public bool IsFinished { get; set; } = false;
@@ -27,7 +27,7 @@ namespace KarateTournamentApp.Models
         {
         }
 
-        public Match(Guid? aka, Guid? shiro)
+        public Match(int? aka, int? shiro)
         {
             Aka = aka;
             Shiro = shiro;
@@ -66,7 +66,7 @@ namespace KarateTournamentApp.Models
         {
         }
 
-        public ShobuSanbonMatch(Guid? aka, Guid? shiro) : base(aka, shiro)
+        public ShobuSanbonMatch(int? aka, int? shiro) : base(aka, shiro)
         {
         }
     }
