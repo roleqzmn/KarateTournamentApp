@@ -1,5 +1,7 @@
 ﻿using System.Collections.ObjectModel;
-using KarateClassLibrary;
+using System.Collections.ObjectModel;
+using static KarateClassLibrary.Enums;
+
 namespace KarateTournament.Api.Entities
 {
     public class Category
@@ -7,7 +9,7 @@ namespace KarateTournament.Api.Entities
         public int Id { get; set; }
         public string Name { get; set; }
         public ObservableCollection<Participant> Participants { get; set; }
-        public List<KarateClassLibrary.Enums.Belts> AllowedBelts { get; set; }
+        public List<Belts> AllowedBelts { get; set; }
         public List<Match> BracketMatches { get; set; }
         public int? MinAge { get; set; }
         public int? MaxAge { get; set; }

@@ -376,7 +376,7 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        private void CompleteMatch(Guid? winnerId, bool disqualification, bool autoAdvance)
+        private void CompleteMatch(int? winnerId, bool disqualification, bool autoAdvance)
         {
             if (CurrentMatch == null)
             {
@@ -440,7 +440,7 @@ namespace KarateTournamentApp.ViewModels
                 return;
             }
 
-            var totalPoints = new Dictionary<Guid, int>();
+            var totalPoints = new Dictionary<int, int>();
             foreach (var participant in _category.Participants)
             {
                 totalPoints[participant.Id] = 0;

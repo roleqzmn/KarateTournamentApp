@@ -1,5 +1,4 @@
-﻿
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace KarateTournamentApp.Models
 {
@@ -38,7 +37,7 @@ namespace KarateTournamentApp.Models
         public int Age { get; set; }
         public string? Club { get; set; }
         public Belts Belt { get; set; }
-        public List<Guid> MatchHistory { get; set; } = new List<Guid>();
+        public List<int> MatchHistory { get; set; } = new List<int>();
         public string FullName => $"{FirstName} {LastName}";
         public Sex Sex { get ; set; }
         public List<CategoryType> Categories { get; set; }
