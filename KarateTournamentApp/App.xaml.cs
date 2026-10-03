@@ -40,6 +40,8 @@ namespace KarateTournamentApp
             windowService.Register<IndividualScoreboardViewModel, IndividualScoreboardView>();
             windowService.Register<IndividualJudgeViewModel, IndividualJudgeView>();
             windowService.Register<ResultsViewModel, ResultsView>();
+            windowService.Register<DrawResolverViewModel, DrawResolverView>();
+            windowService.Register<DrawResolverScoreboardViewModel, DrawResolverScoreboardView>();
         }
     }
 

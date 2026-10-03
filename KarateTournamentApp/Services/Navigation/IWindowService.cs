@@ -30,6 +30,8 @@ namespace KarateTournamentApp.Services.Navigation
         void Register<TViewModel, TView>() where TView : FrameworkElement, new();
 
         IWindowHandle Show(object viewModel, WindowOptions? options = null);
-        bool? ShowDialog(object viewModel, WindowOptions? options = null);
+
+        // onOpened lets the caller grab the handle before the modal loop blocks this call.
+        bool? ShowDialog(object viewModel, WindowOptions? options = null, Action<IWindowHandle>? onOpened = null);
     }
 }

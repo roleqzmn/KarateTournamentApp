@@ -1,6 +1,7 @@
 ﻿using System.Windows.Input;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
+using KarateTournamentApp.Services.Dialogs;
 
 namespace KarateTournamentApp.ViewModels
 {
@@ -11,6 +12,7 @@ namespace KarateTournamentApp.ViewModels
     {
         private readonly CompetitionManagerViewModel _competitionManager;
         private readonly ScoreboardViewModel _scoreboardViewModel;
+        private readonly IDialogService _dialogService;
 
         public CompetitionManagerViewModel CompetitionManager => _competitionManager;
 
@@ -84,9 +86,10 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public ScoreboardJudgeViewModel(CompetitionManagerViewModel competitionManager, ScoreboardViewModel scoreboardViewModel = null)
+        public ScoreboardJudgeViewModel(CompetitionManagerViewModel competitionManager, IDialogService dialogService, ScoreboardViewModel scoreboardViewModel = null)
         {
             _competitionManager = competitionManager;
+            _dialogService = dialogService ?? throw new System.ArgumentNullException(nameof(dialogService));
             _scoreboardViewModel = scoreboardViewModel;
 
             // Initialize commands
@@ -229,11 +232,11 @@ namespace KarateTournamentApp.ViewModels
                 }
                 
                 // Invalid input
-                System.Windows.MessageBox.Show(
+                _dialogService.ShowMessage(
                     "Nieprawidłowy format czasu!\nUżyj sekund (np. 180) lub MM:SS (np. 3:00)",
                     "Błąd",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Warning);
+                    DialogButtons.Ok,
+                    DialogIcon.Warning);
             }
         }
 

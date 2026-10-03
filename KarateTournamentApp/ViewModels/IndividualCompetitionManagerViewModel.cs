@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Input;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
+using KarateTournamentApp.Services.Navigation;
 
 namespace KarateTournamentApp.ViewModels
 {
@@ -14,6 +15,7 @@ namespace KarateTournamentApp.ViewModels
     public class IndividualCompetitionManagerViewModel : ViewModelBase
     {
         private readonly Category _category;
+        private readonly IWindowService _windowService;
         private int _currentParticipantIndex;
         
         public Category Category => _category;
@@ -77,9 +79,10 @@ namespace KarateTournamentApp.ViewModels
         public ICommand AddJudgeScoreCommand { get; }
         public ICommand RemoveLastJudgeScoreCommand { get; }
 
-        public IndividualCompetitionManagerViewModel(Category category)
+        public IndividualCompetitionManagerViewModel(Category category, IWindowService windowService)
         {
             _category = category;
+            _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
             _currentParticipantIndex = 0;
             
             JudgeScores = new ObservableCollection<decimal>();
@@ -171,54 +174,43 @@ namespace KarateTournamentApp.ViewModels
         private ParticipantResult ResolveDraw(ParticipantResult participant1, ParticipantResult participant2)
         {
             var scoreboardViewModel = new DrawResolverScoreboardViewModel(participant1.Participant, participant2.Participant);
-            
             var drawResolver = new DrawResolverViewModel(participant1.Participant, participant2.Participant, scoreboardViewModel);
-            
-            var scoreboardWindow = new System.Windows.Window
+
+            var scoreboardHandle = _windowService.Show(scoreboardViewModel, new WindowOptions
             {
                 Title = "DOGRYWKA - PUBLICZNA TABLICA",
                 Width = 1920,
                 Height = 1080,
-                WindowState = System.Windows.WindowState.Maximized,
-                WindowStyle = System.Windows.WindowStyle.None,
-                Content = new Views.DrawResolverScoreboardView
-                {
-                    DataContext = scoreboardViewModel
-                }
-            };
-            
-            var judgeWindow = new System.Windows.Window
-            {
-                Title = "Rozstrzyganie Remisu - Panel Sedziego",
-                Width = 800,
-                Height = 600,
-                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
-                ResizeMode = System.Windows.ResizeMode.NoResize,
-                Topmost = true,
-                Content = new Views.DrawResolverView
-                {
-                    DataContext = drawResolver
-                }
-            };
+                SizeState = WindowSizeState.Maximized,
+                Borderless = true
+            });
 
             Participant winner = null;
+            IWindowHandle judgeHandle = null;
+
             drawResolver.WinnerConfirmed += (sender, selectedWinner) =>
             {
                 winner = selectedWinner;
-                
+
                 System.Threading.Tasks.Task.Delay(3000).ContinueWith(_ =>
                 {
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
                     {
-                        scoreboardWindow.Close();
-                        judgeWindow.Close();
+                        scoreboardHandle.Close();
+                        judgeHandle?.Close();
                     });
                 });
             };
 
-            scoreboardWindow.Show();
-            
-            judgeWindow.ShowDialog();
+            _windowService.ShowDialog(drawResolver, new WindowOptions
+            {
+                Title = "Rozstrzyganie Remisu - Panel Sedziego",
+                Width = 800,
+                Height = 600,
+                StartupPosition = WindowStartupPosition.CenterScreen,
+                Resizable = false,
+                Topmost = true
+            }, handle => judgeHandle = handle);
 
             return winner == participant1.Participant ? participant1 : participant2;
         }

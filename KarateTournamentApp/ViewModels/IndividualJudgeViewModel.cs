@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows.Input;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
+using KarateTournamentApp.Services.Navigation;
 
 namespace KarateTournamentApp.ViewModels
 {
@@ -12,6 +13,7 @@ namespace KarateTournamentApp.ViewModels
     public class IndividualJudgeViewModel : ViewModelBase
     {
         private readonly IndividualCompetitionManagerViewModel _competitionManager;
+        private readonly IWindowService _windowService;
 
         public IndividualCompetitionManagerViewModel CompetitionManager => _competitionManager;
 
@@ -41,9 +43,10 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public IndividualJudgeViewModel(IndividualCompetitionManagerViewModel competitionManager)
+        public IndividualJudgeViewModel(IndividualCompetitionManagerViewModel competitionManager, IWindowService windowService)
         {
             _competitionManager = competitionManager;
+            _windowService = windowService ?? throw new System.ArgumentNullException(nameof(windowService));
 
             AddScoreCommand = new RelayCommand(o => AddScore());
             RemoveLastScoreCommand = _competitionManager.RemoveLastJudgeScoreCommand;
@@ -71,18 +74,13 @@ namespace KarateTournamentApp.ViewModels
 
         private void ShowResults()
         {
-            // This would open a results window showing final rankings
-            var resultsWindow = new System.Windows.Window
+            var resultsViewModel = new ResultsViewModel(_competitionManager);
+            _windowService.ShowDialog(resultsViewModel, new WindowOptions
             {
                 Title = $"Wyniki - {CategoryName}",
                 Width = 800,
-                Height = 600,
-                Content = new Views.ResultsView
-                {
-                    DataContext = new ResultsViewModel(_competitionManager)
-                }
-            };
-            resultsWindow.ShowDialog();
+                Height = 600
+            });
         }
 
         private bool CanShowFinalScore()

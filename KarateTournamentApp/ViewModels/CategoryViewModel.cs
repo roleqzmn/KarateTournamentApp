@@ -209,7 +209,7 @@ namespace KarateTournamentApp.ViewModels
         private void ViewResults()
         {
             // Create a competition manager with saved results
-            var competitionManager = new IndividualCompetitionManagerViewModel(_category);
+            var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService);
             
             // Load saved rankings if available, otherwise source from raw judging scores.
             var sourceResults = _category.FinalResults.Any()
@@ -296,9 +296,9 @@ namespace KarateTournamentApp.ViewModels
 
         private void StartBracketCompetition()
         {
-            var competitionManager = new CompetitionManagerViewModel(_category);
+            var competitionManager = new CompetitionManagerViewModel(_category, _dialogService);
             var scoreboardViewModel = new ScoreboardViewModel(competitionManager);
-            var judgeViewModel = new ScoreboardJudgeViewModel(competitionManager, scoreboardViewModel);
+            var judgeViewModel = new ScoreboardJudgeViewModel(competitionManager, _dialogService, scoreboardViewModel);
 
             var scoreboardHandle = _windowService.Show(scoreboardViewModel, new WindowOptions
             {
@@ -321,9 +321,9 @@ namespace KarateTournamentApp.ViewModels
 
         private void StartIndividualCompetition()
         {
-            var competitionManager = new IndividualCompetitionManagerViewModel(_category);
+            var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService);
             var scoreboardViewModel = new IndividualScoreboardViewModel(competitionManager);
-            var judgeViewModel = new IndividualJudgeViewModel(competitionManager);
+            var judgeViewModel = new IndividualJudgeViewModel(competitionManager, _windowService);
 
             _windowService.Show(scoreboardViewModel, new WindowOptions
             {

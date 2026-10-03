@@ -20,9 +20,10 @@ namespace KarateTournamentApp.Services.Navigation
             return new WpfWindowHandle(window);
         }
 
-        public bool? ShowDialog(object viewModel, WindowOptions? options = null)
+        public bool? ShowDialog(object viewModel, WindowOptions? options = null, Action<IWindowHandle>? onOpened = null)
         {
             var window = CreateWindow(viewModel, options);
+            onOpened?.Invoke(new WpfWindowHandle(window));
             return window.ShowDialog();
         }
 

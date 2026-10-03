@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows.Input;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
+using KarateTournamentApp.Services.Dialogs;
 
 namespace KarateTournamentApp.ViewModels
 {
@@ -18,6 +19,7 @@ namespace KarateTournamentApp.ViewModels
         private const int ChukokuHansokuThreshold = 4;
 
         private readonly Category _category;
+        private readonly IDialogService _dialogService;
         private int _currentMatchIndex;
         
         public Category Category => _category;
@@ -73,9 +75,10 @@ namespace KarateTournamentApp.ViewModels
         public ICommand StartOvertimeCommand { get; }
         public ICommand SetTimeCommand { get; }
 
-        public CompetitionManagerViewModel(Category category)
+        public CompetitionManagerViewModel(Category category, IDialogService dialogService)
         {
             _category = category;
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
 
             bool isKumiteCategory = _category.CategoryType == CategoryType.Kumite;
             bool hasLegacyMatchTypes = isKumiteCategory
@@ -161,22 +164,22 @@ namespace KarateTournamentApp.ViewModels
                             var winnerId = shobuMatch.HasSenshuAka ? CurrentMatch.Aka : CurrentMatch.Shiro;
                             CompleteMatch(winnerId, false, true);
                             
-                            System.Windows.MessageBox.Show(
+                            _dialogService.ShowMessage(
                                 $"Remis! Zwyci�zca przez SENSHU: {(shobuMatch.HasSenshuAka ? "AKA" : "SHIRO")}",
                                 "Rozstrzygni�cie przez Senshu",
-                                System.Windows.MessageBoxButton.OK,
-                                System.Windows.MessageBoxImage.Information);
+                                DialogButtons.Ok,
+                                DialogIcon.Information);
                         }
                         else
                         {
                             // Draw without Senshu - need overtime
-                            var result = System.Windows.MessageBox.Show(
+                            var result = _dialogService.ShowMessage(
                                 "Remis! Czy rozpocz�� dogrywk� (+60 sekund)?",
                                 "Dogrywka",
-                                System.Windows.MessageBoxButton.YesNo,
-                                System.Windows.MessageBoxImage.Question);
+                                DialogButtons.YesNo,
+                                DialogIcon.Question);
 
-                            if (result == System.Windows.MessageBoxResult.Yes)
+                            if (result == DialogResult.Yes)
                             {
                                 StartOvertime();
                                 return; // Don't finish the match yet
@@ -184,11 +187,11 @@ namespace KarateTournamentApp.ViewModels
                             else
                             {
                                 // Manual decision or cancel
-                                System.Windows.MessageBox.Show(
+                                _dialogService.ShowMessage(
                                     "Walka niezako�czona. U�yj DrawResolver lub r�cznie wybierz zwyci�zc�.",
                                     "Uwaga",
-                                    System.Windows.MessageBoxButton.OK,
-                                    System.Windows.MessageBoxImage.Warning);
+                                    DialogButtons.Ok,
+                                    DialogIcon.Warning);
                                 return;
                             }
                         }
@@ -196,8 +199,8 @@ namespace KarateTournamentApp.ViewModels
                     else
                     {
                         // Non-Shobu Sanbon draw (shouldn't happen, but handle it)
-                        System.Windows.MessageBox.Show("Remis! R�cznie wybierz zwyci�zc�.", "Remis", 
-                            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                        _dialogService.ShowMessage("Remis! R�cznie wybierz zwyci�zc�.", "Remis",
+                            DialogButtons.Ok, DialogIcon.Warning);
                         return;
                     }
                 }
@@ -242,11 +245,11 @@ namespace KarateTournamentApp.ViewModels
                 OnPropertyChanged(nameof(CurrentMatch));
                 OnPropertyChanged(nameof(IsInOvertime));
                 
-                System.Windows.MessageBox.Show(
+                _dialogService.ShowMessage(
                     $"Dogrywka {shobuMatch.OvertimeCount} rozpocz�ta!\n+60 sekund dodane.\nSenshu zresetowane.",
                     "Dogrywka",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
+                    DialogButtons.Ok,
+                    DialogIcon.Information);
             }
         }
 
@@ -356,20 +359,20 @@ namespace KarateTournamentApp.ViewModels
                 if (akaHansoku)
                 {
                     CompleteMatch(CurrentMatch.Shiro, true, true);
-                    System.Windows.MessageBox.Show(
+                    _dialogService.ShowMessage(
                         "AKA otrzymuje HANSOKU. Zwyci�a SHIRO.",
                         "Dyskwalifikacja",
-                        System.Windows.MessageBoxButton.OK,
-                        System.Windows.MessageBoxImage.Information);
+                        DialogButtons.Ok,
+                        DialogIcon.Information);
                 }
                 else if (shiroHansoku)
                 {
                     CompleteMatch(CurrentMatch.Aka, true, true);
-                    System.Windows.MessageBox.Show(
+                    _dialogService.ShowMessage(
                         "SHIRO otrzymuje HANSOKU. Zwyci�a AKA.",
                         "Dyskwalifikacja",
-                        System.Windows.MessageBoxButton.OK,
-                        System.Windows.MessageBoxImage.Information);
+                        DialogButtons.Ok,
+                        DialogIcon.Information);
                 }
 
                 OnPropertyChanged(nameof(CurrentMatch));
