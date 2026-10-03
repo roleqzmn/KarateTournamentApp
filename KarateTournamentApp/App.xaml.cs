@@ -2,6 +2,7 @@
 using System.Data;
 using System.Windows;
 using KarateTournamentApp.Services;
+using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.ViewModels;
 
 namespace KarateTournamentApp
@@ -16,7 +17,8 @@ namespace KarateTournamentApp
             base.OnStartup(e);
 
             var categoryManager = new CategoryManager();
-            var mainViewModel = new MainViewModel(categoryManager);
+            var dialogService = new WpfDialogService();
+            var mainViewModel = new MainViewModel(categoryManager, dialogService);
 
             var mainWindow = new MainWindow
             {

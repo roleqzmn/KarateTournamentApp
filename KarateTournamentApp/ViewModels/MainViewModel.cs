@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
-using System.Windows;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Services;
+using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.Commands;
 using System;
 using KarateTournamentApp.Models.ViewItems;
@@ -87,6 +87,8 @@ namespace KarateTournamentApp.ViewModels
 
         private readonly ExportService _exportService;
 
+        private readonly IDialogService _dialogService;
+
         private bool _isLoading;
         public bool IsLoading
         {
@@ -98,9 +100,10 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public MainViewModel(CategoryManager categoryManager)
+        public MainViewModel(CategoryManager categoryManager, IDialogService dialogService)
         {
             _categoryManager = categoryManager;
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _importService = new ImportService();
             _exportService = new ExportService();
 
@@ -171,22 +174,22 @@ namespace KarateTournamentApp.ViewModels
 
         private void OnDeleteRequested(CategoryViewModel categoryToDelete)
         {
-            var result = MessageBox.Show(
+            var result = _dialogService.ShowMessage(
                 $"Czy na pewno chcesz usunąć tę kategorię?\n\n" +
                 $"Nazwa: '{categoryToDelete.Name}'\n" +
                 $"Zawodnicy: {categoryToDelete.ParticipantCount}\n\n" +
                 $"Uwaga: Ta operacja jest nieodwracalna!\n" +
                 $"Zawodnicy pozostaną w systemie, ale zostaną usunięci z tej kategorii.",
-                "Potwierdź usunięcie kategorii", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                "Potwierdź usunięcie kategorii", DialogButtons.YesNo, DialogIcon.Warning);
 
-            if (result == MessageBoxResult.Yes)
+            if (result == DialogResult.Yes)
             {
                 _categoryManager.DefinedCategories.Remove(categoryToDelete.Category);
                 
                 RefreshCategories();
                 
-                MessageBox.Show($"Kategoria '{categoryToDelete.Name}' została pomyślnie usunięta!",
-                    "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                _dialogService.ShowMessage($"Kategoria '{categoryToDelete.Name}' została pomyślnie usunięta!",
+                    "Sukces", DialogButtons.Ok, DialogIcon.Information);
             }
         }
 
@@ -199,21 +202,21 @@ namespace KarateTournamentApp.ViewModels
             else if (SelectedCategoryForMerge == requestingCategory)
             {
                 SelectedCategoryForMerge = null;
-                MessageBox.Show("Anulowano wybór kategorii.", "Anulowano", MessageBoxButton.OK, MessageBoxImage.Information);
+                _dialogService.ShowMessage("Anulowano wybór kategorii.", "Anulowano", DialogButtons.Ok, DialogIcon.Information);
             }
             else
             {
                 if (SelectedCategoryForMerge.Category.CategoryType != requestingCategory.Category.CategoryType)
                 {
-                    MessageBox.Show("Nie można połączyć kategorii różnych typów!\n\n" +
+                    _dialogService.ShowMessage("Nie można połączyć kategorii różnych typów!\n\n" +
                         $"Wybrana: {SelectedCategoryForMerge.CategoryTypeDisplay}\n" +
                         $"Druga: {requestingCategory.CategoryTypeDisplay}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
+                        "Błąd", DialogButtons.Ok, DialogIcon.Error);
                     SelectedCategoryForMerge = null;
                     return;
                 }
 
-                var result = MessageBox.Show(
+                var result = _dialogService.ShowMessage(
                     $"Czy na pewno chcesz połączyć kategorie:\n\n" +
                     $"'{SelectedCategoryForMerge.Name}'\n" +
                     $"Zawodnicy: {SelectedCategoryForMerge.ParticipantCount}\n\n" +
@@ -221,9 +224,9 @@ namespace KarateTournamentApp.ViewModels
                     $"'{requestingCategory.Name}'\n" +
                     $"Zawodnicy: {requestingCategory.ParticipantCount}\n\n" +
                     $"Po połączeniu: {SelectedCategoryForMerge.ParticipantCount + requestingCategory.ParticipantCount} zawodników",
-                    "Potwierdź połączenie", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    "Potwierdź połączenie", DialogButtons.YesNo, DialogIcon.Question);
 
-                if (result == MessageBoxResult.Yes)
+                if (result == DialogResult.Yes)
                 {
                     requestingCategory.Category.MergeWith(SelectedCategoryForMerge.Category);
                     _categoryManager.DefinedCategories.Remove(SelectedCategoryForMerge.Category);
@@ -231,7 +234,7 @@ namespace KarateTournamentApp.ViewModels
                     SelectedCategoryForMerge = null;
                     RefreshCategories();
                     
-                    MessageBox.Show("Kategorie zostały pomyślnie połączone!", "Sukces", MessageBoxButton.OK, MessageBoxImage.Information);
+                    _dialogService.ShowMessage("Kategorie zostały pomyślnie połączone!", "Sukces", DialogButtons.Ok, DialogIcon.Information);
                 }
             }
         }
