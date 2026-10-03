@@ -3,7 +3,9 @@ using System.Data;
 using System.Windows;
 using KarateTournamentApp.Services;
 using KarateTournamentApp.Services.Dialogs;
+using KarateTournamentApp.Services.Navigation;
 using KarateTournamentApp.ViewModels;
+using KarateTournamentApp.Views;
 
 namespace KarateTournamentApp
 {
@@ -18,7 +20,10 @@ namespace KarateTournamentApp
 
             var categoryManager = new CategoryManager();
             var dialogService = new WpfDialogService();
-            var mainViewModel = new MainViewModel(categoryManager, dialogService);
+            var windowService = new WpfWindowService();
+            RegisterViews(windowService);
+
+            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService);
 
             var mainWindow = new MainWindow
             {
@@ -26,6 +31,15 @@ namespace KarateTournamentApp
             };
 
             mainWindow.Show();
+        }
+
+        private static void RegisterViews(IWindowService windowService)
+        {
+            windowService.Register<ScoreboardViewModel, ScoreboardView>();
+            windowService.Register<ScoreboardJudgeViewModel, ScoreboardJudge>();
+            windowService.Register<IndividualScoreboardViewModel, IndividualScoreboardView>();
+            windowService.Register<IndividualJudgeViewModel, IndividualJudgeView>();
+            windowService.Register<ResultsViewModel, ResultsView>();
         }
     }
 

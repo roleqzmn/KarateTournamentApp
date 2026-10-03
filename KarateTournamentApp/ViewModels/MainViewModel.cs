@@ -5,6 +5,7 @@ using System.Windows.Input;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Services;
 using KarateTournamentApp.Services.Dialogs;
+using KarateTournamentApp.Services.Navigation;
 using KarateTournamentApp.Commands;
 using System;
 using KarateTournamentApp.Models.ViewItems;
@@ -88,6 +89,7 @@ namespace KarateTournamentApp.ViewModels
         private readonly ExportService _exportService;
 
         private readonly IDialogService _dialogService;
+        private readonly IWindowService _windowService;
 
         private bool _isLoading;
         public bool IsLoading
@@ -100,10 +102,11 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public MainViewModel(CategoryManager categoryManager, IDialogService dialogService)
+        public MainViewModel(CategoryManager categoryManager, IDialogService dialogService, IWindowService windowService)
         {
             _categoryManager = categoryManager;
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+            _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
             _importService = new ImportService();
             _exportService = new ExportService();
 
@@ -167,7 +170,7 @@ namespace KarateTournamentApp.ViewModels
             Categories.Clear();
             foreach (var category in _categoryManager.DefinedCategories)
             {
-                Categories.Add(new CategoryViewModel(category, OnMergeRequested, OnDeleteRequested));
+                Categories.Add(new CategoryViewModel(category, OnMergeRequested, OnDeleteRequested, _dialogService, _windowService));
             }
             CommandManager.InvalidateRequerySuggested();
         }

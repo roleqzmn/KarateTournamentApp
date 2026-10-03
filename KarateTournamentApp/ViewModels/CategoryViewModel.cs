@@ -1,7 +1,8 @@
 using System.Windows.Input;
 using KarateTournamentApp.Models;
-using KarateTournamentApp.Views;
 using KarateTournamentApp.Commands;
+using KarateTournamentApp.Services.Dialogs;
+using KarateTournamentApp.Services.Navigation;
 
 namespace KarateTournamentApp.ViewModels
 {
@@ -10,12 +11,21 @@ namespace KarateTournamentApp.ViewModels
         private readonly Category _category;
         private readonly Action<CategoryViewModel> _mergeRequestCallback;
         private readonly Action<CategoryViewModel> _deleteRequestCallback;
+        private readonly IDialogService _dialogService;
+        private readonly IWindowService _windowService;
 
-        public CategoryViewModel(Category category, Action<CategoryViewModel> mergeRequestCallback, Action<CategoryViewModel> deleteRequestCallback)
+        public CategoryViewModel(
+            Category category,
+            Action<CategoryViewModel> mergeRequestCallback,
+            Action<CategoryViewModel> deleteRequestCallback,
+            IDialogService dialogService,
+            IWindowService windowService)
         {
             _category = category;
             _mergeRequestCallback = mergeRequestCallback;
             _deleteRequestCallback = deleteRequestCallback;
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+            _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
             MergeCommand = new RelayCommand(o => RequestMerge(), o => true);
             RenameCommand = new RelayCommand(o => RenameCategory(), o => true);
             RemoveParticipantCommand = new RelayCommand(RemoveParticipant, o => true);
@@ -92,75 +102,16 @@ namespace KarateTournamentApp.ViewModels
 
         private void RenameCategory()
         {
-            var textBox = new System.Windows.Controls.TextBox
-            {
-                Text = _category.Name,
-                Margin = new System.Windows.Thickness(0, 0, 0, 12),
-                MinWidth = 260,
-                Padding = new System.Windows.Thickness(8)
-            };
-
-            var okButton = new System.Windows.Controls.Button
-            {
-                Content = "Zapisz",
-                IsDefault = true,
-                Width = 90,
-                Margin = new System.Windows.Thickness(0, 0, 8, 0)
-            };
-
-            var cancelButton = new System.Windows.Controls.Button
-            {
-                Content = "Anuluj",
-                IsCancel = true,
-                Width = 90
-            };
-
-            var buttonsPanel = new System.Windows.Controls.StackPanel
-            {
-                Orientation = System.Windows.Controls.Orientation.Horizontal,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
-            };
-            buttonsPanel.Children.Add(okButton);
-            buttonsPanel.Children.Add(cancelButton);
-
-            var panel = new System.Windows.Controls.StackPanel
-            {
-                Margin = new System.Windows.Thickness(16)
-            };
-            panel.Children.Add(new System.Windows.Controls.TextBlock
-            {
-                Text = "Podaj nowa nazwe kategorii:",
-                Margin = new System.Windows.Thickness(0, 0, 0, 8),
-                FontWeight = System.Windows.FontWeights.SemiBold
-            });
-            panel.Children.Add(textBox);
-            panel.Children.Add(buttonsPanel);
-
-            var dialog = new System.Windows.Window
-            {
-                Title = "Zmiana nazwy kategorii",
-                Width = 360,
-                Height = 170,
-                ResizeMode = System.Windows.ResizeMode.NoResize,
-                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterScreen,
-                Content = panel
-            };
-
-            okButton.Click += (_, _) => dialog.DialogResult = true;
-
-            if (dialog.ShowDialog() != true)
+            var newName = _dialogService.ShowTextInput("Zmiana nazwy kategorii", "Podaj nowa nazwe kategorii:", _category.Name);
+            if (newName == null)
             {
                 return;
             }
 
-            string newName = textBox.Text.Trim();
+            newName = newName.Trim();
             if (string.IsNullOrWhiteSpace(newName))
             {
-                System.Windows.MessageBox.Show(
-                    "Nazwa kategorii nie moze byc pusta.",
-                    "Bledna nazwa",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Warning);
+                _dialogService.ShowMessage("Nazwa kategorii nie moze byc pusta.", "Bledna nazwa", DialogButtons.Ok, DialogIcon.Warning);
                 return;
             }
 
@@ -209,24 +160,24 @@ namespace KarateTournamentApp.ViewModels
                     _category.InitializeBracket();
                 else
                     _category.Participants.OrderBy(p => p.Id);
-                System.Windows.MessageBox.Show(
+                _dialogService.ShowMessage(
                     $"Drabinka została zainicjalizowana!\n\n" +
                     $"Kategoria: {_category.Name}\n" +
                     $"Liczba zawodników: {_category.Participants.Count}\n" +
                     $"Liczba meczy: {_category.BracketMatches.Count}",
-                    "Sukces", 
-                    System.Windows.MessageBoxButton.OK, 
-                    System.Windows.MessageBoxImage.Information);
-                
+                    "Sukces",
+                    DialogButtons.Ok,
+                    DialogIcon.Information);
+
                 Refresh();
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show(
+                _dialogService.ShowMessage(
                     $"Błąd podczas inicjalizacji drabinki:\n{ex.Message}",
                     "Błąd",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Error);
+                    DialogButtons.Ok,
+                    DialogIcon.Error);
             }
         }
 
@@ -270,18 +221,13 @@ namespace KarateTournamentApp.ViewModels
                 competitionManager.Results.Add(result);
             }
 
-            // Open results window
-            var resultsWindow = new System.Windows.Window
+            var resultsViewModel = new ResultsViewModel(competitionManager);
+            _windowService.ShowDialog(resultsViewModel, new WindowOptions
             {
                 Title = $"Wyniki - {_category.Name}",
                 Width = 800,
-                Height = 600,
-                Content = new Views.ResultsView
-                {
-                    DataContext = new ResultsViewModel(competitionManager)
-                }
-            };
-            resultsWindow.ShowDialog();
+                Height = 600
+            });
         }
 
         private List<ParticipantResult> BuildResultsFromJudgingScores()
@@ -352,72 +298,47 @@ namespace KarateTournamentApp.ViewModels
         {
             var competitionManager = new CompetitionManagerViewModel(_category);
             var scoreboardViewModel = new ScoreboardViewModel(competitionManager);
-            
-            // Create and show Scoreboard View (public display)
-            var scoreboardWindow = new System.Windows.Window
+            var judgeViewModel = new ScoreboardJudgeViewModel(competitionManager, scoreboardViewModel);
+
+            var scoreboardHandle = _windowService.Show(scoreboardViewModel, new WindowOptions
             {
                 Title = $"Tablica wynikow - {_category.Name}",
                 Width = 1200,
                 Height = 800,
-                WindowState = System.Windows.WindowState.Maximized,
-                Content = new ScoreboardView
-                {
-                    DataContext = scoreboardViewModel
-                }
-            };
+                SizeState = WindowSizeState.Maximized
+            });
 
-            // Create and show Judge Panel
-            var judgeWindow = new System.Windows.Window
+            var judgeHandle = _windowService.Show(judgeViewModel, new WindowOptions
             {
                 Title = $"Panel sedziowski - {_category.Name}",
                 Width = 800,
-                Height = 600,
-                Content = new ScoreboardJudge
-                {
-                    DataContext = new ScoreboardJudgeViewModel(competitionManager, scoreboardViewModel)
-                }
-            };
+                Height = 600
+            });
 
-            scoreboardWindow.Show();
-            judgeWindow.Show();
-
-            judgeWindow.Closed += (s, e) => Refresh();
-            scoreboardWindow.Closed += (s, e) => Refresh();
+            judgeHandle.Closed += (s, e) => Refresh();
+            scoreboardHandle.Closed += (s, e) => Refresh();
         }
 
         private void StartIndividualCompetition()
         {
             var competitionManager = new IndividualCompetitionManagerViewModel(_category);
             var scoreboardViewModel = new IndividualScoreboardViewModel(competitionManager);
+            var judgeViewModel = new IndividualJudgeViewModel(competitionManager);
 
-            
-            // Create and show Scoreboard View (public display)
-            var scoreboardWindow = new System.Windows.Window
+            _windowService.Show(scoreboardViewModel, new WindowOptions
             {
                 Title = $"Tablica wynikow - {_category.Name}",
                 Width = 1200,
                 Height = 800,
-                WindowState = System.Windows.WindowState.Maximized,
-                Content = new IndividualScoreboardView
-                {
-                    DataContext = scoreboardViewModel
-                }
-            };
+                SizeState = WindowSizeState.Maximized
+            });
 
-            // Create and show Judge Panel
-            var judgeWindow = new System.Windows.Window
+            _windowService.Show(judgeViewModel, new WindowOptions
             {
                 Title = $"Panel sedziowski - {_category.Name}",
                 Width = 900,
-                Height = 700,
-                Content = new IndividualJudgeView
-                {
-                    DataContext = new IndividualJudgeViewModel(competitionManager)
-                }
-            };
-
-            scoreboardWindow.Show();
-            judgeWindow.Show();
+                Height = 700
+            });
         }
     }
 
