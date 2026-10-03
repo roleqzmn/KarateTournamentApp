@@ -1,7 +1,6 @@
 ﻿using KarateTournamentApp.Models;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Windows;
 using System.Xml.Linq;
 
@@ -51,115 +50,83 @@ namespace KarateTournamentApp.Services
         }
         public void AssignSenior(Participant p)
         {
-            foreach(var categoryType in p.Categories)
-            {
-                var targetCategory = DefinedCategories.FirstOrDefault(c =>
-                   c.MinAge >= 18 &&
-                   c.AllowedBelts.Contains(p.Belt) &&
-                   (p.Sex == c.Sex || c.Sex == Sex.Unisex) &&
-                   categoryType == c.CategoryType);
-
-                if (targetCategory != null)
-                {
-                    targetCategory.Participants.Add(p);
-                }
-                else
-                {
-                    var cat = new Category(AllBelts, categoryType, p.Sex, 18, 99);
-                    if (categoryType == CategoryType.Kumite)
-                    {
-                        cat = new ShobuSanbonCategory(AllBelts, categoryType, p.Sex, 18, 99);
-                    }
-                    cat.Participants.Add(p);
-                    DefinedCategories.Add(cat);
-                }
-            }
+            AssignParticipantToCategories(
+                p,
+                category => category.MinAge >= 18 && category.AllowedBelts.Contains(p.Belt),
+                categoryType => CreateParticipantCategory(AllBelts, categoryType, p.Sex, 18, 99));
         }
+
         public void AssignByBelt(Participant p)
         {
-            foreach (var categoryType in p.Categories)
-            {
-                var targetCategory = DefinedCategories.FirstOrDefault(c =>
-                c.MaxAge < 18 &&
-                c.AllowedBelts.Contains(p.Belt) &&
-                (p.Sex == c.Sex || c.Sex == Sex.Unisex) &&
-                categoryType == c.CategoryType);
-
-                if (targetCategory != null)
-                {
-                    targetCategory.Participants.Add(p);
-                }
-                else
-                {
-                    var cat = new Category(p.Belt, categoryType, p.Sex, 1, 17);
-                    if (categoryType == CategoryType.Kumite)
-                    {
-                        cat = new ShobuSanbonCategory(p.Belt, categoryType, p.Sex, 1, 17);
-                    }
-                    cat.Participants.Add(p);
-                    DefinedCategories.Add(cat);
-                }
-            }
+            AssignParticipantToCategories(
+                p,
+                category => category.MaxAge < 18 && category.AllowedBelts.Contains(p.Belt),
+                categoryType => CreateParticipantCategory(p.Belt, categoryType, p.Sex, 1, 17));
         }
+
         public void AssignByAge(Participant p)
         {
-            foreach (var categoryType in p.Categories)
-            {
-                var targetCategory = DefinedCategories.FirstOrDefault(c =>
-                    p.Age >= c.MinAge &&
-                    p.Age <= c.MaxAge &&
-                    (p.Sex == c.Sex || c.Sex == Sex.Unisex) &&
-                    categoryType == c.CategoryType);
-
-                if (targetCategory != null)
-                {
-                    targetCategory.Participants.Add(p);
-                }
-                else
-                { 
-                    var cat = new Category(AllBelts, categoryType, p.Sex, p.Age, p.Age);
-                    if (categoryType == CategoryType.Kumite)
-                    {
-                        cat = new ShobuSanbonCategory(AllBelts, categoryType, p.Sex, p.Age, p.Age);
-                    }
-                    cat.Participants.Add(p);
-                    DefinedCategories.Add(cat);
-                }
-            }
+            AssignParticipantToCategories(
+                p,
+                category => p.Age >= category.MinAge && p.Age <= category.MaxAge,
+                categoryType => CreateParticipantCategory(AllBelts, categoryType, p.Sex, p.Age, p.Age));
         }
+
         public void AssignByBoth(Participant p)
         {
-            foreach (var categoryType in p.Categories)
-            {
-                var targetCategory = DefinedCategories.FirstOrDefault(c =>
-                    p.Age >= c.MinAge &&
-                    p.Age <= c.MaxAge &&
-                    c.AllowedBelts.Contains(p.Belt) &&
-                    (p.Sex == c.Sex || c.Sex == Sex.Unisex) &&
-                    categoryType == c.CategoryType);
+            AssignParticipantToCategories(
+                p,
+                category => p.Age >= category.MinAge
+                    && p.Age <= category.MaxAge
+                    && category.AllowedBelts.Contains(p.Belt),
+                categoryType => CreateParticipantCategory(p.Belt, categoryType, p.Sex, p.Age, p.Age));
+        }
 
-                if (targetCategory != null)
+        private void AssignParticipantToCategories(
+            Participant participant,
+            Func<Category, bool> additionalMatch,
+            Func<CategoryType, Category> createCategory)
+        {
+            foreach (var categoryType in participant.Categories)
+            {
+                var targetCategory = DefinedCategories.FirstOrDefault(category =>
+                    category.CategoryType == categoryType
+                    && (participant.Sex == category.Sex || category.Sex == Sex.Unisex)
+                    && additionalMatch(category));
+
+                var isNewCategory = targetCategory == null;
+                targetCategory ??= createCategory(categoryType);
+                targetCategory.Participants.Add(participant);
+
+                if (isNewCategory)
                 {
-                    targetCategory.Participants.Add(p);
-                }
-                else
-                {
-                    StringBuilder sb = new StringBuilder();
-                    sb.Append(p.Belt.ToString());
-                    sb.Append(" ");
-                    sb.Append(p.Age.ToString());
-                    string name = sb.ToString();
-                    var cat = new Category(p.Belt, categoryType, p.Sex, p.Age, p.Age);
-                    if (categoryType == CategoryType.Kumite)
-                    {
-                        cat = new ShobuSanbonCategory(p.Belt, categoryType, p.Sex, p.Age, p.Age);
-                    }
-                    cat.Participants.Add(p);
-                    DefinedCategories.Add(cat);
+                    DefinedCategories.Add(targetCategory);
                 }
             }
         }
-        
-            
+
+        private static Category CreateParticipantCategory(
+            List<Belts> belts,
+            CategoryType categoryType,
+            Sex sex,
+            int minAge,
+            int maxAge)
+        {
+            return categoryType == CategoryType.Kumite
+                ? new ShobuSanbonCategory(belts, categoryType, sex, minAge, maxAge)
+                : new Category(belts, categoryType, sex, minAge, maxAge);
+        }
+
+        private static Category CreateParticipantCategory(
+            Belts belt,
+            CategoryType categoryType,
+            Sex sex,
+            int minAge,
+            int maxAge)
+        {
+            return categoryType == CategoryType.Kumite
+                ? new ShobuSanbonCategory(belt, categoryType, sex, minAge, maxAge)
+                : new Category(belt, categoryType, sex, minAge, maxAge);
+        }
     }
 }
