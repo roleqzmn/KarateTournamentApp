@@ -242,42 +242,18 @@ namespace KarateTournamentApp.ViewModels
                     continue;
                 }
 
-                var discarded = GetDiscardedIndexes(scores);
-                var discardedSet = new HashSet<int>(discarded);
-                var finalScore = scores
-                    .Where((score, index) => !discardedSet.Contains(index))
-                    .Sum();
+                var scoreCalculation = JudgingScoreCalculator.CalculateFinalScore(scores);
 
                 results.Add(new ParticipantResult
                 {
                     Participant = participant,
-                    Score = finalScore,
+                    Score = scoreCalculation.FinalScore,
                     JudgeScores = new List<decimal>(scores),
-                    DiscardedJudgeScoreIndexes = discarded
+                    DiscardedJudgeScoreIndexes = scoreCalculation.DiscardedScoreIndexes
                 });
             }
 
             return results;
-        }
-
-        private static List<int> GetDiscardedIndexes(IReadOnlyList<decimal> scores)
-        {
-            if (scores.Count <= 3)
-            {
-                return new List<int>();
-            }
-
-            var indexed = scores
-                .Select((score, index) => new { score, index })
-                .OrderBy(x => x.score)
-                .ThenBy(x => x.index)
-                .ToList();
-
-            return new List<int>
-            {
-                indexed[0].index,
-                indexed[indexed.Count - 1].index
-            };
         }
 
         private void StartCompetition()

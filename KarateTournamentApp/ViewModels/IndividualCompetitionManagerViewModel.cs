@@ -63,11 +63,7 @@ namespace KarateTournamentApp.ViewModels
             {
                 if (!IsParticipantFinished || JudgeScores.Count < 3) return 0;
 
-                var discardedIndexes = GetDiscardedScoreIndexes(JudgeScores.ToList());
-                var discarded = new HashSet<int>(discardedIndexes);
-                return JudgeScores
-                    .Where((score, index) => !discarded.Contains(index))
-                    .Sum();
+                return JudgingScoreCalculator.CalculateFinalScore(JudgeScores).FinalScore;
             }
         }
 
@@ -134,13 +130,14 @@ namespace KarateTournamentApp.ViewModels
             if (CurrentParticipant != null && JudgeScores.Count >= 3)
             {
                 IsParticipantFinished = true;
-                
+
+                var scoreCalculation = JudgingScoreCalculator.CalculateFinalScore(JudgeScores);
                 var result = new ParticipantResult
                 {
                     Participant = CurrentParticipant,
-                    Score = FinalScore, 
+                    Score = scoreCalculation.FinalScore,
                     JudgeScores = new List<decimal>(JudgeScores),
-                    DiscardedJudgeScoreIndexes = GetDiscardedScoreIndexes(JudgeScores.ToList())
+                    DiscardedJudgeScoreIndexes = scoreCalculation.DiscardedScoreIndexes
                 };
                 
                 Results.Add(result);
@@ -322,27 +319,6 @@ namespace KarateTournamentApp.ViewModels
             }
             
             return results;
-        }
-
-        private static List<int> GetDiscardedScoreIndexes(IReadOnlyList<decimal> scores)
-        {
-            // For exactly 3 scores none are discarded; above 3 discard one lowest and one highest.
-            if (scores.Count <= 3)
-            {
-                return new List<int>();
-            }
-
-            var indexed = scores
-                .Select((score, index) => new { score, index })
-                .OrderBy(x => x.score)
-                .ThenBy(x => x.index)
-                .ToList();
-
-            return new List<int>
-            {
-                indexed[0].index,
-                indexed[indexed.Count - 1].index
-            };
         }
 
         private void SwapResults(ObservableCollection<ParticipantResult> results, int index1, int index2)

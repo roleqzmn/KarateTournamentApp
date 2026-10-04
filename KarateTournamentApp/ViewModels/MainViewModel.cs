@@ -79,8 +79,6 @@ namespace KarateTournamentApp.ViewModels
         public ICommand AddParticipantCommand { get; }
         public ICommand ImportCommand { get; }
         public ICommand ExportCommand { get; }
-        public ICommand ImportXmlCommand { get; }
-        public ICommand CreateXmlTemplateCommand { get; }
         public ICommand ImportExcelCommand { get; }
         public ICommand CreateExcelTemplateCommand { get; }
 
@@ -126,8 +124,6 @@ namespace KarateTournamentApp.ViewModels
             AddParticipantCommand = new RelayCommand(o => CreateParticipant(), o => CanCreateParticipant());
             ImportCommand = new AsyncRelayCommand(ImportDataAsync);
             ExportCommand = new AsyncRelayCommand(ExportDataAsync, () => _categoryManager.DefinedCategories.Any());
-            ImportXmlCommand = new AsyncRelayCommand(ImportXmlDataAsync, () => DivideByAge || DivideByBelt);
-            CreateXmlTemplateCommand = new AsyncRelayCommand(CreateXmlTemplateAsync);
             ImportExcelCommand = new AsyncRelayCommand(ImportExcelDataAsync, () => DivideByAge || DivideByBelt);
             CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync);
         }
@@ -267,25 +263,6 @@ namespace KarateTournamentApp.ViewModels
             {
                 IsLoading = false;
             }
-        }
-
-        private async Task ImportXmlDataAsync()
-        {
-            IsLoading = true;
-            try
-            {
-                await _importService.ImportParticipantsFromXmlAsync(_categoryManager, AllParticipants, DivideByBelt, DivideByAge);
-                RefreshCategories();
-            }
-            finally
-            {
-                IsLoading = false;
-            }
-        }
-
-        private async Task CreateXmlTemplateAsync()
-        {
-            await _importService.CreateSampleXmlFileAsync();
         }
 
         private async Task ImportExcelDataAsync()

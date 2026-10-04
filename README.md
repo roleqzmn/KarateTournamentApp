@@ -18,7 +18,7 @@ Karate Tournament Manager is a Windows desktop application designed to streamlin
 ### Participant Management
 - **Registration System**: Easy participant registration with detailed information
 - **Category Assignment**: Automatic categorization by age, belt rank, or both
-- **Import/Export**: Support for XML, Excel, and JSON formats
+- **Import/Export**: Support for Excel and JSON formats
 - **Duplicate Detection**: Automatic checking for duplicate participants
 
 ### Kumite Features
@@ -41,7 +41,6 @@ Karate Tournament Manager is a Windows desktop application designed to streamlin
 
 ### Data Management
 - **JSON Storage**: Tournament data persistence in JSON format
-- **XML Import**: Bulk participant import from XML files
 - **Excel Import**: Direct import from Excel spreadsheets
 - **Templates**: Automatic generation of import templates
 - **Async Operations**: Non-blocking I/O with loading indicators
@@ -54,7 +53,6 @@ Karate Tournament Manager is a Windows desktop application designed to streamlin
 - **Async/Await**: Full asynchronous I/O operations
 - **JSON**: System.Text.Json for serialization
 - **Excel**: EPPlus for Excel file handling
-- **XML**: LINQ to XML for XML parsing
 
 ## System Requirements (recommended)
 
@@ -101,8 +99,8 @@ dotnet run --project KarateTournamentApp/KarateTournamentApp.csproj
    - Click "Add Participant"
 
 2. **Import Participants**
-   - Use "Import XML" or "Import Excel" from the side menu
-   - Generate templates using "Szablon XML" or "Szablon Excel"
+   - Use "Import Excel" from the side menu
+   - Generate a template using "Szablon Excel"
    - Fill in participant data
    - Import the completed file
 
@@ -184,7 +182,6 @@ KarateTournamentApp/
 ├── Services/            # Business logic services
 │   ├── CategoryManager.cs
 │   ├── JsonService.cs
-│   ├── XmlImportService.cs
 │   ├── ExcelImportService.cs
 │   ├── ImportService.cs
 │   └── ExportService.cs
@@ -284,7 +281,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Senshu and overtime support
 - Draw resolution system
 - Public scoreboard display
-- Excel/XML/JSON import/export
+- Excel/JSON import/export
 
 ## Support
 

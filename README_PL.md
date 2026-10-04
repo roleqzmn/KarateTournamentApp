@@ -18,7 +18,7 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 ### Zarządzanie Zawodnikami
 - **System Rejestracji**: Łatwa rejestracja zawodników ze szczegółowymi informacjami
 - **Przypisywanie Kategorii**: Automatyczna kategoryzacja według wieku, pasa lub obu
-- **Import/Export**: Obsługa formatów XML, Excel i JSON
+- **Import/Export**: Obsługa formatów Excel i JSON
 - **Wykrywanie Duplikatów**: Automatyczne sprawdzanie duplikatów zawodników
 
 ### Funkcje Shobu Sanbon
@@ -41,7 +41,6 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 
 ### Zarządzanie Danymi
 - **Przechowywanie JSON**: Trwałość danych turnieju w formacie JSON
-- **Import XML**: Masowy import zawodników z plików XML
 - **Import Excel**: Bezpośredni import z arkuszy Excel
 - **Szablony**: Automatyczne generowanie szablonów importu
 - **Operacje Asynchroniczne**: Nieblokujące operacje I/O z wskaźnikami ładowania
@@ -54,7 +53,6 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 - **Async/Await**: Pełne asynchroniczne operacje I/O
 - **JSON**: System.Text.Json do serializacji
 - **Excel**: EPPlus do obsługi plików Excel
-- **XML**: LINQ to XML do parsowania XML
 
 ## Wymagania Systemowe (rekomendowane)
 
@@ -101,8 +99,8 @@ dotnet run --project KarateTournamentApp/KarateTournamentApp.csproj
    - Kliknij "Dodaj Zawodnika"
 
 2. **Import Zawodników**
-   - Użyj "Import XML" lub "Import Excel" z menu bocznego
-   - Wygeneruj szablony używając "Szablon XML" lub "Szablon Excel"
+   - Użyj "Import Excel" z menu bocznego
+   - Wygeneruj szablon używając "Szablon Excel"
    - Wypełnij dane zawodników
    - Importuj wypełniony plik
 
@@ -184,7 +182,6 @@ KarateTournamentApp/
 ├── Services/            # Serwisy logiki biznesowej
 │   ├── CategoryManager.cs
 │   ├── JsonService.cs
-│   ├── XmlImportService.cs
 │   ├── ExcelImportService.cs
 │   ├── ImportService.cs
 │   └── ExportService.cs
@@ -284,7 +281,7 @@ Ten projekt jest licencjonowany na licencji MIT - zobacz plik LICENSE dla szczeg
 - Obsługa Senshu i dogrywek
 - System rozstrzygania remisów
 - Publiczne wyświetlanie tablicy wyników
-- Import/export Excel/XML/JSON
+- Import/export Excel/JSON
 
 ## Wsparcie
 

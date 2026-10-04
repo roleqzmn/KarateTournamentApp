@@ -2,14 +2,8 @@
 
 ## Dostępne Formaty
 
-Aplikacja obsługuje dwa formaty importu zawodników:
+Aplikacja obsługuje import zawodników z plików Excel (.xlsx, .xls).
 
-### **XML** (.xml)
-- Idealny dla automatyzacji
-- Łatwy do edycji w edytorach tekstu
-- Dobry do integracji z innymi systemami
-
-### **Excel** (.xlsx, .xls)
 - Najwygodniejszy dla ręcznej edycji
 - Znany interfejs (Microsoft Excel, LibreOffice, Google Sheets)
 - Łatwa walidacja danych
@@ -19,27 +13,24 @@ Aplikacja obsługuje dwa formaty importu zawodników:
 
 ## Jak Zacząć?
 
-### Krok 1: Wybierz Format
-Zdecyduj, który format jest dla Ciebie wygodniejszy.
-
-### Krok 2: Wygeneruj Szablon
+### Krok 1: Wygeneruj Szablon
 W aplikacji:
 1. Otwórz menu boczne (przycisk ☰)
-2. Kliknij **"Szablon XML"** lub **"Szablon Excel"**
+2. Kliknij **"Szablon Excel"**
 3. Zapisz plik w wybranej lokalizacji
 
-### Krok 3: Wypełnij Dane
+### Krok 2: Wypełnij Dane
 Otwórz wygenerowany plik i dodaj zawodników zgodnie z szablonem.
 
-### Krok 4: Ustaw Opcje Podziału
+### Krok 3: Ustaw Opcje Podziału
 W aplikacji zaznacz:
 - **"Podział według wieku"** LUB
 - **"Podział według pasów"**
 
 (Możesz zaznaczyć obie opcje)
 
-### Krok 5: Importuj
-1. Kliknij **"Import XML"** lub **"Import Excel"**
+### Krok 4: Importuj
+1. Kliknij **"Import Excel"**
 2. Wybierz swój plik
 3. Gotowe! Zawodnicy zostaną automatycznie przypisani do kategorii
 
@@ -99,7 +90,6 @@ Zobaczysz komunikat z informacją:
 
 ## Szczegółowa Dokumentacja
 
-- **XML Import**: Zobacz [XML_IMPORT_README.md](XML_IMPORT_README.md)
 - **Excel Import**: Zobacz [EXCEL_IMPORT_README.md](EXCEL_IMPORT_README.md)
 
 ---
@@ -107,7 +97,7 @@ Zobaczysz komunikat z informacją:
 ## Wskazówki
 
 1. **Najpierw wygeneruj szablon** - zawiera przykładowe dane
-2. **Sprawdź nagłówki** - muszą być poprawne (szczególnie w XML)
+2. **Sprawdź nagłówki** - muszą być poprawne
 3. **Testuj na małej liczbie** - zaimportuj 2-3 zawodników na start
 4. **Zachowaj kopię** - zawsze miej backup pliku źródłowego
 5. **Użyj walidacji Excel** - pomaga uniknąć błędów przy wpisywaniu
@@ -127,4 +117,4 @@ Zobaczysz komunikat z informacją:
 - Sprawdź czy zawodnik ma przypisaną przynajmniej jedną kategorię
 
 ### Potrzebujesz pomocy?
-Zobacz szczegółową dokumentację dla wybranego formatu lub wygeneruj szablon z przykładowymi danymi.
+Zobacz dokumentację importu Excel lub wygeneruj szablon z przykładowymi danymi.

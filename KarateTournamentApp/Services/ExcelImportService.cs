@@ -3,7 +3,6 @@ using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace KarateTournamentApp.Services
@@ -59,71 +58,20 @@ namespace KarateTournamentApp.Services
                                 var beltStr = worksheet.Cells[row, 5].Text?.Trim();
                                 var sexStr = worksheet.Cells[row, 6].Text?.Trim();
 
-                                if (string.IsNullOrWhiteSpace(firstName) ||
-                                    string.IsNullOrWhiteSpace(lastName) ||
-                                    string.IsNullOrWhiteSpace(ageStr) ||
-                                    string.IsNullOrWhiteSpace(beltStr) ||
-                                    string.IsNullOrWhiteSpace(sexStr))
-                                {
-                                    continue;
-                                }
-
-                                if (!int.TryParse(ageStr, out int age) || age <= 0)
-                                {
-                                    continue;
-                                }
-
-                                if (!Enum.TryParse<Belts>(beltStr, true, out Belts belt))
-                                {
-                                    continue;
-                                }
-
-                                if (!Enum.TryParse<Sex>(sexStr, true, out Sex sex))
-                                {
-                                    continue;
-                                }
-
-                                var categories = new List<CategoryType>();
-                                int categoryColumn = 7;
-
-                                while (true)
-                                {
-                                    var categoryStr = worksheet.Cells[row, categoryColumn].Text?.Trim();
-
-                                    if (string.IsNullOrWhiteSpace(categoryStr))
-                                    {
-                                        break;
-                                    }
-
-                                    if (Enum.TryParse<CategoryType>(categoryStr, true, out CategoryType categoryType))
-                                    {
-                                        categories.Add(categoryType);
-                                    }
-
-                                    categoryColumn++;
-
-                                    if (categoryColumn > 50)
-                                    {
-                                        break;
-                                    }
-                                }
-
-                                if (!categories.Any())
-                                {
-                                    continue;
-                                }
-
-                                var participant = new Participant(
+                                var participant = ParticipantImportParser.TryCreateParticipant(
                                     firstName,
                                     lastName,
-                                    age,
-                                    belt,
-                                    sex,
-                                    categories,
+                                    ageStr,
+                                    beltStr,
+                                    sexStr,
+                                    ReadCategoryValues(worksheet, row),
                                     club
                                 );
 
-                                participants.Add(participant);
+                                if (participant != null)
+                                {
+                                    participants.Add(participant);
+                                }
                             }
                             catch (Exception)
                             {
@@ -139,6 +87,20 @@ namespace KarateTournamentApp.Services
 
                 return participants;
             });
+        }
+
+        private static IEnumerable<string?> ReadCategoryValues(ExcelWorksheet worksheet, int row)
+        {
+            for (var categoryColumn = 7; categoryColumn <= 50; categoryColumn++)
+            {
+                var categoryValue = worksheet.Cells[row, categoryColumn].Text?.Trim();
+                if (string.IsNullOrWhiteSpace(categoryValue))
+                {
+                    yield break;
+                }
+
+                yield return categoryValue;
+            }
         }
 
         /// <summary>
