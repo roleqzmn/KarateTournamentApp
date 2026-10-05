@@ -281,10 +281,18 @@ namespace KarateTournamentApp.ViewModels
 
         private async Task ImportDataAsync()
         {
+            var filePath = _dialogService.ShowOpenFileDialog(
+                "Import Tournament Data",
+                "JSON files (*.json)|*.json|All files (*.*)|*.*");
+            if (filePath == null)
+            {
+                return;
+            }
+
             IsLoading = true;
             try
             {
-                await _importService.ImportDataAsync(_categoryManager, AllParticipants);
+                await _importService.ImportDataAsync(filePath, _categoryManager, AllParticipants);
                 RefreshCategories();
             }
             finally
@@ -295,10 +303,23 @@ namespace KarateTournamentApp.ViewModels
 
         private async Task ImportExcelDataAsync()
         {
+            var filePath = _dialogService.ShowOpenFileDialog(
+                "Import Participants from Excel",
+                "Excel files (*.xlsx;*.xls)|*.xlsx;*.xls|All files (*.*)|*.*");
+            if (filePath == null)
+            {
+                return;
+            }
+
             IsLoading = true;
             try
             {
-                await _importService.ImportParticipantsFromExcelAsync(_categoryManager, AllParticipants, DivideByBelt, DivideByAge);
+                await _importService.ImportParticipantsFromExcelAsync(
+                    filePath,
+                    _categoryManager,
+                    AllParticipants,
+                    DivideByBelt,
+                    DivideByAge);
                 RefreshCategories();
             }
             finally
@@ -314,10 +335,19 @@ namespace KarateTournamentApp.ViewModels
 
         private async Task ExportDataAsync()
         {
+            var filePath = _dialogService.ShowSaveFileDialog(
+                "Exportuj dane turnieju",
+                "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                $"tournament_data_{DateTime.Now:yyyy-MM-dd_HH-mm}.json");
+            if (filePath == null)
+            {
+                return;
+            }
+
             IsLoading = true;
             try
             {
-                await _exportService.ExportDataAsync(_categoryManager);
+                await _exportService.ExportDataAsync(filePath, _categoryManager);
             }
             finally
             {

@@ -9,6 +9,8 @@ namespace KarateTournamentApp.ViewModels
 {
     public class CategoryViewModel : ViewModelBase
     {
+        private const string PublicCompetitionDisplayKey = "public-competition-display";
+
         private readonly Category _category;
         private readonly Action<CategoryViewModel> _mergeRequestCallback;
         private readonly Action<CategoryViewModel> _deleteRequestCallback;
@@ -280,23 +282,25 @@ namespace KarateTournamentApp.ViewModels
             var scoreboardViewModel = new ScoreboardViewModel(competitionManager);
             var judgeViewModel = new ScoreboardJudgeViewModel(competitionManager, _dialogService, scoreboardViewModel);
 
-            var scoreboardHandle = _windowService.Show(scoreboardViewModel, new WindowOptions
+            _windowService.ShowOrUpdate(PublicCompetitionDisplayKey, scoreboardViewModel, new WindowOptions
             {
                 Title = $"Tablica wynikow - {_category.Name}",
                 Width = 1200,
                 Height = 800,
-                SizeState = WindowSizeState.Maximized
-            });
+                SizeState = WindowSizeState.Maximized,
+                FullScreenMonitor = WindowMonitor.SecondaryIfAvailable
+            }, (_, _) => Refresh());
 
             var judgeHandle = _windowService.Show(judgeViewModel, new WindowOptions
             {
                 Title = $"Panel sedziowski - {_category.Name}",
                 Width = 800,
-                Height = 600
+                Height = 600,
+                FullScreenMonitor = WindowMonitor.Primary
             });
 
             judgeHandle.Closed += (s, e) => Refresh();
-            scoreboardHandle.Closed += (s, e) => Refresh();
+            judgeHandle.Closed += (s, e) => Refresh();
         }
 
         private void StartIndividualCompetition()
@@ -305,19 +309,21 @@ namespace KarateTournamentApp.ViewModels
             var scoreboardViewModel = new IndividualScoreboardViewModel(competitionManager);
             var judgeViewModel = new IndividualJudgeViewModel(competitionManager, _windowService);
 
-            _windowService.Show(scoreboardViewModel, new WindowOptions
+            _windowService.ShowOrUpdate(PublicCompetitionDisplayKey, scoreboardViewModel, new WindowOptions
             {
                 Title = $"Tablica wynikow - {_category.Name}",
                 Width = 1200,
                 Height = 800,
-                SizeState = WindowSizeState.Maximized
-            });
+                SizeState = WindowSizeState.Maximized,
+                FullScreenMonitor = WindowMonitor.SecondaryIfAvailable
+            }, (_, _) => Refresh());
 
             _windowService.Show(judgeViewModel, new WindowOptions
             {
                 Title = $"Panel sedziowski - {_category.Name}",
                 Width = 900,
-                Height = 700
+                Height = 700,
+                FullScreenMonitor = WindowMonitor.Primary
             });
         }
     }

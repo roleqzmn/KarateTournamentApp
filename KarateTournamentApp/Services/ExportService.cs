@@ -16,15 +16,11 @@ namespace KarateTournamentApp.Services
             _jsonService = new JsonService();
         }
 
-        public async Task ExportDataAsync(CategoryManager categoryManager)
+        public async Task ExportDataAsync(string filePath, CategoryManager categoryManager)
         {
-            var filePath = _dialogService.ShowSaveFileDialog(
-                "Exportuj dane turnieju",
-                "JSON files (*.json)|*.json|All files (*.*)|*.*",
-                $"tournament_data_{DateTime.Now:yyyy-MM-dd_HH-mm}.json");
-            if (filePath == null)
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                return;
+                throw new ArgumentException("An export file path is required.", nameof(filePath));
             }
 
             try

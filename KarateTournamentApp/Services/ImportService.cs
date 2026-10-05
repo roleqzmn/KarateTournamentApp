@@ -22,33 +22,35 @@ namespace KarateTournamentApp.Services
             _excelImportService = new ExcelImportService();
         }
 
-        public Task ImportParticipantsFromExcelAsync(CategoryManager categoryManager, ObservableCollection<Participant> allParticipants, bool divideByBelt, bool divideByAge)
+        public Task ImportParticipantsFromExcelAsync(
+            string filePath,
+            CategoryManager categoryManager,
+            ObservableCollection<Participant> allParticipants,
+            bool divideByBelt,
+            bool divideByAge)
         {
             return ImportParticipantsAsync(
+                filePath,
                 categoryManager,
                 allParticipants,
                 divideByBelt,
                 divideByAge,
-                "Excel files (*.xlsx;*.xls)|*.xlsx;*.xls|All files (*.*)|*.*",
-                "Import Participants from Excel",
                 "Excel",
                 _excelImportService.ImportParticipantsFromExcelAsync);
         }
 
         private async Task ImportParticipantsAsync(
+            string filePath,
             CategoryManager categoryManager,
             ObservableCollection<Participant> allParticipants,
             bool divideByBelt,
             bool divideByAge,
-            string fileFilter,
-            string dialogTitle,
             string formatName,
             Func<string, Task<List<Participant>>> importParticipants)
         {
-            var filePath = _dialogService.ShowOpenFileDialog(dialogTitle, fileFilter);
-            if (filePath == null)
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                return;
+                throw new ArgumentException("An import file path is required.", nameof(filePath));
             }
 
             try
@@ -109,14 +111,14 @@ namespace KarateTournamentApp.Services
             }
         }
 
-        public async Task ImportDataAsync(CategoryManager categoryManager, ObservableCollection<Participant> allParticipants)
+        public async Task ImportDataAsync(
+            string filePath,
+            CategoryManager categoryManager,
+            ObservableCollection<Participant> allParticipants)
         {
-            var filePath = _dialogService.ShowOpenFileDialog(
-                "Import Tournament Data",
-                "JSON files (*.json)|*.json|All files (*.*)|*.*");
-            if (filePath == null)
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                return;
+                throw new ArgumentException("An import file path is required.", nameof(filePath));
             }
 
             try

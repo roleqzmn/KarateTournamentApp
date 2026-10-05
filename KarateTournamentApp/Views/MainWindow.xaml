@@ -8,7 +8,7 @@ xmlns:converters="clr-namespace:KarateTournamentApp.Converters"
 xmlns:models="clr-namespace:KarateTournamentApp.Models"
 xmlns:system="clr-namespace:System;assembly=System.Runtime"
 mc:Ignorable="d"
-Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0">
+Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0" WindowState="Maximized">
 
     <Window.Resources>
         <ObjectDataProvider x:Key="BeltsEnum" MethodName="GetValues" ObjectType="{x:Type system:Enum}">
