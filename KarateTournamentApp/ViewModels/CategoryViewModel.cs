@@ -3,6 +3,7 @@ using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
 using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.Services.Navigation;
+using KarateTournamentApp.Services.Scheduling;
 
 namespace KarateTournamentApp.ViewModels
 {
@@ -13,19 +14,22 @@ namespace KarateTournamentApp.ViewModels
         private readonly Action<CategoryViewModel> _deleteRequestCallback;
         private readonly IDialogService _dialogService;
         private readonly IWindowService _windowService;
+        private readonly IUiScheduler _uiScheduler;
 
         public CategoryViewModel(
             Category category,
             Action<CategoryViewModel> mergeRequestCallback,
             Action<CategoryViewModel> deleteRequestCallback,
             IDialogService dialogService,
-            IWindowService windowService)
+            IWindowService windowService,
+            IUiScheduler uiScheduler)
         {
             _category = category;
             _mergeRequestCallback = mergeRequestCallback;
             _deleteRequestCallback = deleteRequestCallback;
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
+            _uiScheduler = uiScheduler ?? throw new ArgumentNullException(nameof(uiScheduler));
             MergeCommand = new RelayCommand(o => RequestMerge(), o => true);
             RenameCommand = new RelayCommand(o => RenameCategory(), o => true);
             RemoveParticipantCommand = new RelayCommand(RemoveParticipant, o => true);
@@ -209,7 +213,7 @@ namespace KarateTournamentApp.ViewModels
         private void ViewResults()
         {
             // Create a competition manager with saved results
-            var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService);
+            var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService, _uiScheduler);
             
             // Load saved rankings if available, otherwise source from raw judging scores.
             var sourceResults = _category.FinalResults.Any()
@@ -297,7 +301,7 @@ namespace KarateTournamentApp.ViewModels
 
         private void StartIndividualCompetition()
         {
-            var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService);
+            var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService, _uiScheduler);
             var scoreboardViewModel = new IndividualScoreboardViewModel(competitionManager);
             var judgeViewModel = new IndividualJudgeViewModel(competitionManager, _windowService);
 

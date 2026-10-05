@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
@@ -10,8 +11,9 @@ namespace KarateTournamentApp.Commands
     public class AsyncRelayCommand : ICommand
     {
         private readonly Func<Task> _execute;
+        private readonly Action<Exception> _onError;
         private readonly Func<bool>? _canExecute;
-        private bool _isExecuting;
+        private int _isExecuting;
 
         public event EventHandler? CanExecuteChanged
         {
@@ -19,36 +21,63 @@ namespace KarateTournamentApp.Commands
             remove { CommandManager.RequerySuggested -= value; }
         }
 
-        public AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute = null)
+        public AsyncRelayCommand(
+            Func<Task> execute,
+            Action<Exception> onError,
+            Func<bool>? canExecute = null)
         {
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _onError = onError ?? throw new ArgumentNullException(nameof(onError));
             _canExecute = canExecute;
         }
 
         public bool CanExecute(object? parameter)
         {
-            if (_isExecuting)
+            if (Volatile.Read(ref _isExecuting) != 0)
                 return false;
 
             return _canExecute?.Invoke() ?? true;
         }
 
-        public async void Execute(object? parameter)
+        public void Execute(object? parameter)
         {
-            if (_isExecuting)
+            _ = ExecuteAndHandleErrorsAsync();
+        }
+
+        public Task ExecuteAsync()
+        {
+            if (!CanExecute(null))
+                return Task.CompletedTask;
+
+            return ExecuteCoreAsync();
+        }
+
+        private async Task ExecuteCoreAsync()
+        {
+            if (Interlocked.CompareExchange(ref _isExecuting, 1, 0) != 0)
                 return;
 
-            _isExecuting = true;
             RaiseCanExecuteChanged();
-
             try
             {
                 await _execute();
             }
             finally
             {
-                _isExecuting = false;
+                Volatile.Write(ref _isExecuting, 0);
                 RaiseCanExecuteChanged();
+            }
+        }
+
+        private async Task ExecuteAndHandleErrorsAsync()
+        {
+            try
+            {
+                await ExecuteAsync();
+            }
+            catch (Exception exception)
+            {
+                _onError(exception);
             }
         }
 
@@ -64,8 +93,9 @@ namespace KarateTournamentApp.Commands
     public class AsyncRelayCommand<T> : ICommand
     {
         private readonly Func<T, Task> _execute;
+        private readonly Action<Exception> _onError;
         private readonly Func<T, bool>? _canExecute;
-        private bool _isExecuting;
+        private int _isExecuting;
 
         public event EventHandler? CanExecuteChanged
         {
@@ -73,45 +103,90 @@ namespace KarateTournamentApp.Commands
             remove { CommandManager.RequerySuggested -= value; }
         }
 
-        public AsyncRelayCommand(Func<T, Task> execute, Func<T, bool>? canExecute = null)
+        public AsyncRelayCommand(
+            Func<T, Task> execute,
+            Action<Exception> onError,
+            Func<T, bool>? canExecute = null)
         {
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+            _onError = onError ?? throw new ArgumentNullException(nameof(onError));
             _canExecute = canExecute;
         }
 
         public bool CanExecute(object? parameter)
         {
-            if (_isExecuting)
+            if (Volatile.Read(ref _isExecuting) != 0
+                || !TryGetParameter(parameter, out var typedParameter))
                 return false;
-
-            if (parameter is not T typedParameter)
-                return _canExecute?.Invoke(default!) ?? true;
 
             return _canExecute?.Invoke(typedParameter) ?? true;
         }
 
-        public async void Execute(object? parameter)
+        public void Execute(object? parameter)
         {
-            if (_isExecuting)
+            _ = ExecuteAndHandleErrorsAsync(parameter);
+        }
+
+        public Task ExecuteAsync(T parameter)
+        {
+            if (!CanExecute(parameter))
+                return Task.CompletedTask;
+
+            return ExecuteCoreAsync(parameter);
+        }
+
+        private async Task ExecuteCoreAsync(T parameter)
+        {
+            if (Interlocked.CompareExchange(ref _isExecuting, 1, 0) != 0)
                 return;
 
-            _isExecuting = true;
             RaiseCanExecuteChanged();
-
             try
             {
-                await _execute((T)parameter!);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"AsyncRelayCommand<T> error: {ex.Message}");
-                throw;
+                await _execute(parameter);
             }
             finally
             {
-                _isExecuting = false;
+                Volatile.Write(ref _isExecuting, 0);
                 RaiseCanExecuteChanged();
             }
+        }
+
+        private async Task ExecuteAndHandleErrorsAsync(object? parameter)
+        {
+            try
+            {
+                if (!TryGetParameter(parameter, out var typedParameter))
+                {
+                    throw new ArgumentException(
+                        $"Expected a command parameter of type {typeof(T).Name}.",
+                        nameof(parameter));
+                }
+
+                await ExecuteAsync(typedParameter);
+            }
+            catch (Exception exception)
+            {
+                _onError(exception);
+            }
+        }
+
+        private static bool TryGetParameter(object? parameter, out T typedParameter)
+        {
+            if (parameter is T value)
+            {
+                typedParameter = value;
+                return true;
+            }
+
+            if (parameter == null && default(T) == null)
+            {
+                typedParameter = default!;
+                return true;
+            }
+
+            typedParameter = default!;
+            return false;
         }
 
         public void RaiseCanExecuteChanged()

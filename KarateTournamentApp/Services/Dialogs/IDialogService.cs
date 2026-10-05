@@ -28,5 +28,7 @@ namespace KarateTournamentApp.Services.Dialogs
     {
         DialogResult ShowMessage(string message, string title, DialogButtons buttons = DialogButtons.Ok, DialogIcon icon = DialogIcon.Information);
         string? ShowTextInput(string title, string prompt, string defaultValue = "");
+        string? ShowOpenFileDialog(string title, string filter);
+        string? ShowSaveFileDialog(string title, string filter, string defaultFileName);
     }
 }

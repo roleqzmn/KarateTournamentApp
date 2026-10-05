@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 
 namespace KarateTournamentApp.Services.Dialogs
 {
@@ -70,6 +71,29 @@ namespace KarateTournamentApp.Services.Dialogs
             okButton.Click += (_, _) => dialog.DialogResult = true;
 
             return dialog.ShowDialog() == true ? textBox.Text : null;
+        }
+
+        public string? ShowOpenFileDialog(string title, string filter)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = filter,
+                Title = title
+            };
+
+            return dialog.ShowDialog() == true ? dialog.FileName : null;
+        }
+
+        public string? ShowSaveFileDialog(string title, string filter, string defaultFileName)
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = filter,
+                Title = title,
+                FileName = defaultFileName
+            };
+
+            return dialog.ShowDialog() == true ? dialog.FileName : null;
         }
 
         private static MessageBoxButton ToMessageBoxButton(DialogButtons buttons) => buttons switch

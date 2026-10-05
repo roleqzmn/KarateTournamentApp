@@ -4,6 +4,7 @@ using System.Windows;
 using KarateTournamentApp.Services;
 using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.Services.Navigation;
+using KarateTournamentApp.Services.Scheduling;
 using KarateTournamentApp.ViewModels;
 using KarateTournamentApp.Views;
 
@@ -21,9 +22,10 @@ namespace KarateTournamentApp
             var categoryManager = new CategoryManager();
             var dialogService = new WpfDialogService();
             var windowService = new WpfWindowService();
+            var uiScheduler = new WpfUiScheduler();
             RegisterViews(windowService);
 
-            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService);
+            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler);
 
             var mainWindow = new MainWindow
             {

@@ -1,43 +1,42 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
+using KarateTournamentApp.Services.Dialogs;
 
 namespace KarateTournamentApp.Services
 {
     public class ExportService
     {
         private readonly JsonService _jsonService;
+        private readonly IDialogService _dialogService;
 
-        public ExportService()
+        public ExportService(IDialogService dialogService)
         {
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _jsonService = new JsonService();
         }
 
-        public async Task ExportDataAsync(CategoryManager _categoryManager)
+        public async Task ExportDataAsync(CategoryManager categoryManager)
         {
-            var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            var filePath = _dialogService.ShowSaveFileDialog(
+                "Exportuj dane turnieju",
+                "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                $"tournament_data_{DateTime.Now:yyyy-MM-dd_HH-mm}.json");
+            if (filePath == null)
             {
-                Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
-                Title = "Exportuj dane turnieju",
-                FileName = $"tournament_data_{DateTime.Now:yyyy-MM-dd_HH-mm}.json"
-            };
+                return;
+            }
 
-            if (saveFileDialog.ShowDialog() == true)
+            try
             {
-                try
-                {
-                    await _jsonService.SaveTournamentDataAsync(saveFileDialog.FileName, _categoryManager.DefinedCategories);
-                    MessageBox.Show($"Pomyślnie wyeksportowano {_categoryManager.DefinedCategories.Count} kategorii!",
-                        "Export zakończony", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Błąd podczas exportu danych:\n{ex.Message}",
-                        "Błąd", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                await _jsonService.SaveTournamentDataAsync(filePath, categoryManager.DefinedCategories);
+                _dialogService.ShowMessage($"Pomyślnie wyeksportowano {categoryManager.DefinedCategories.Count} kategorii!",
+                    "Export zakończony", DialogButtons.Ok, DialogIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                _dialogService.ShowMessage($"Błąd podczas exportu danych:\n{ex.Message}",
+                    "Błąd", DialogButtons.Ok, DialogIcon.Error);
             }
         }
     }

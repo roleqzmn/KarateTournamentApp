@@ -6,6 +6,7 @@ using KarateTournamentApp.Models;
 using KarateTournamentApp.Services;
 using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.Services.Navigation;
+using KarateTournamentApp.Services.Scheduling;
 using KarateTournamentApp.Commands;
 using System;
 using KarateTournamentApp.Models.ViewItems;
@@ -88,6 +89,7 @@ namespace KarateTournamentApp.ViewModels
 
         private readonly IDialogService _dialogService;
         private readonly IWindowService _windowService;
+        private readonly IUiScheduler _uiScheduler;
 
         private bool _isLoading;
         public bool IsLoading
@@ -100,13 +102,18 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public MainViewModel(CategoryManager categoryManager, IDialogService dialogService, IWindowService windowService)
+        public MainViewModel(
+            CategoryManager categoryManager,
+            IDialogService dialogService,
+            IWindowService windowService,
+            IUiScheduler uiScheduler)
         {
             _categoryManager = categoryManager;
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
-            _importService = new ImportService();
-            _exportService = new ExportService();
+            _uiScheduler = uiScheduler ?? throw new ArgumentNullException(nameof(uiScheduler));
+            _importService = new ImportService(_dialogService);
+            _exportService = new ExportService(_dialogService);
 
             CategorySelections = new ObservableCollection<CategorySelectionItem>
             {
@@ -122,10 +129,25 @@ namespace KarateTournamentApp.ViewModels
             Categories = new ObservableCollection<CategoryViewModel>();
 
             AddParticipantCommand = new RelayCommand(o => CreateParticipant(), o => CanCreateParticipant());
-            ImportCommand = new AsyncRelayCommand(ImportDataAsync);
-            ExportCommand = new AsyncRelayCommand(ExportDataAsync, () => _categoryManager.DefinedCategories.Any());
-            ImportExcelCommand = new AsyncRelayCommand(ImportExcelDataAsync, () => DivideByAge || DivideByBelt);
-            CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync);
+            ImportCommand = new AsyncRelayCommand(ImportDataAsync, HandleAsyncCommandError);
+            ExportCommand = new AsyncRelayCommand(
+                ExportDataAsync,
+                HandleAsyncCommandError,
+                () => _categoryManager.DefinedCategories.Any());
+            ImportExcelCommand = new AsyncRelayCommand(
+                ImportExcelDataAsync,
+                HandleAsyncCommandError,
+                () => DivideByAge || DivideByBelt);
+            CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync, HandleAsyncCommandError);
+        }
+
+        private void HandleAsyncCommandError(Exception exception)
+        {
+            _dialogService.ShowMessage(
+                $"Wystąpił nieoczekiwany błąd:\n{exception.Message}",
+                "Błąd",
+                DialogButtons.Ok,
+                DialogIcon.Error);
         }
 
         private bool CanCreateParticipant()
@@ -166,7 +188,13 @@ namespace KarateTournamentApp.ViewModels
             Categories.Clear();
             foreach (var category in _categoryManager.DefinedCategories)
             {
-                Categories.Add(new CategoryViewModel(category, OnMergeRequested, OnDeleteRequested, _dialogService, _windowService));
+                Categories.Add(new CategoryViewModel(
+                    category,
+                    OnMergeRequested,
+                    OnDeleteRequested,
+                    _dialogService,
+                    _windowService,
+                    _uiScheduler));
             }
             CommandManager.InvalidateRequerySuggested();
         }

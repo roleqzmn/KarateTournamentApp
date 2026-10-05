@@ -4,9 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
+using KarateTournamentApp.Services.Dialogs;
 
 namespace KarateTournamentApp.Services
 {
@@ -14,9 +13,11 @@ namespace KarateTournamentApp.Services
     {
         private readonly JsonService _jsonService;
         private readonly ExcelImportService _excelImportService;
+        private readonly IDialogService _dialogService;
 
-        public ImportService()
+        public ImportService(IDialogService dialogService)
         {
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _jsonService = new JsonService();
             _excelImportService = new ExcelImportService();
         }
@@ -44,20 +45,15 @@ namespace KarateTournamentApp.Services
             string formatName,
             Func<string, Task<List<Participant>>> importParticipants)
         {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = fileFilter,
-                Title = dialogTitle
-            };
-
-            if (openFileDialog.ShowDialog() != true)
+            var filePath = _dialogService.ShowOpenFileDialog(dialogTitle, fileFilter);
+            if (filePath == null)
             {
                 return;
             }
 
             try
             {
-                var importedParticipants = await importParticipants(openFileDialog.FileName);
+                var importedParticipants = await importParticipants(filePath);
 
                 if (importedParticipants != null && importedParticipants.Any())
                 {
@@ -72,93 +68,91 @@ namespace KarateTournamentApp.Services
                         }
                     }
 
-                    MessageBox.Show($"Successfully imported {addedCount} of {importedParticipants.Count} participants!\n\n" +
+                    _dialogService.ShowMessage($"Successfully imported {addedCount} of {importedParticipants.Count} participants!\n\n" +
                         $"Skipped: {importedParticipants.Count - addedCount} (duplicates or invalid data)",
-                        "Import Completed", MessageBoxButton.OK, MessageBoxImage.Information);
+                        "Import Completed", DialogButtons.Ok, DialogIcon.Information);
                 }
                 else
                 {
-                    MessageBox.Show("File does not contain any valid participant data.",
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    _dialogService.ShowMessage("File does not contain any valid participant data.",
+                        "Error", DialogButtons.Ok, DialogIcon.Warning);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error importing data from {formatName}:\n{ex.Message}",
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                _dialogService.ShowMessage($"Error importing data from {formatName}:\n{ex.Message}",
+                    "Error", DialogButtons.Ok, DialogIcon.Error);
             }
         }
 
         public async Task CreateSampleExcelFileAsync()
         {
-            var saveFileDialog = new Microsoft.Win32.SaveFileDialog
+            var filePath = _dialogService.ShowSaveFileDialog(
+                "Save Excel Template",
+                "Excel files (*.xlsx)|*.xlsx",
+                "participants_template.xlsx");
+            if (filePath == null)
             {
-                Filter = "Excel files (*.xlsx)|*.xlsx",
-                Title = "Save Excel Template",
-                FileName = "participants_template.xlsx"
-            };
+                return;
+            }
 
-            if (saveFileDialog.ShowDialog() == true)
+            try
             {
-                try
-                {
-                    await _excelImportService.CreateSampleExcelFileAsync(saveFileDialog.FileName);
-                    MessageBox.Show($"Excel template has been saved!\n\nPath: {saveFileDialog.FileName}",
-                        "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error creating template:\n{ex.Message}",
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                await _excelImportService.CreateSampleExcelFileAsync(filePath);
+                _dialogService.ShowMessage($"Excel template has been saved!\n\nPath: {filePath}",
+                    "Success", DialogButtons.Ok, DialogIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                _dialogService.ShowMessage($"Error creating template:\n{ex.Message}",
+                    "Error", DialogButtons.Ok, DialogIcon.Error);
             }
         }
 
         public async Task ImportDataAsync(CategoryManager categoryManager, ObservableCollection<Participant> allParticipants)
         {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            var filePath = _dialogService.ShowOpenFileDialog(
+                "Import Tournament Data",
+                "JSON files (*.json)|*.json|All files (*.*)|*.*");
+            if (filePath == null)
             {
-                Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
-                Title = "Import Tournament Data"
-            };
+                return;
+            }
 
-            if (openFileDialog.ShowDialog() == true)
+            try
             {
-                try
+                var importedCategories = await _jsonService.LoadTournamentDataAsync(filePath);
+
+                if (importedCategories != null && importedCategories.Any())
                 {
-                    var importedCategories = await _jsonService.LoadTournamentDataAsync(openFileDialog.FileName);
+                    categoryManager.DefinedCategories.Clear();
+                    categoryManager.DefinedCategories.AddRange(importedCategories);
 
-                    if (importedCategories != null && importedCategories.Any())
+                    allParticipants.Clear();
+                    foreach (var category in importedCategories)
                     {
-                        categoryManager.DefinedCategories.Clear();
-                        categoryManager.DefinedCategories.AddRange(importedCategories);
-
-                        allParticipants.Clear();
-                        foreach (var category in importedCategories)
+                        foreach (var participant in category.Participants)
                         {
-                            foreach (var participant in category.Participants)
+                            if (!allParticipants.Any(p => p.Id == participant.Id))
                             {
-                                if (!allParticipants.Any(p => p.Id == participant.Id))
-                                {
-                                    allParticipants.Add(participant);
-                                }
+                                allParticipants.Add(participant);
                             }
                         }
+                    }
 
-                        MessageBox.Show($"Successfully imported {importedCategories.Count} categories and {allParticipants.Count} participants!",
-                            "Import Completed", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show("File does not contain any data.",
-                            "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
+                    _dialogService.ShowMessage($"Successfully imported {importedCategories.Count} categories and {allParticipants.Count} participants!",
+                        "Import Completed", DialogButtons.Ok, DialogIcon.Information);
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show($"Error importing data:\n{ex.Message}",
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    _dialogService.ShowMessage("File does not contain any data.",
+                        "Error", DialogButtons.Ok, DialogIcon.Warning);
                 }
+            }
+            catch (Exception ex)
+            {
+                _dialogService.ShowMessage($"Error importing data:\n{ex.Message}",
+                    "Error", DialogButtons.Ok, DialogIcon.Error);
             }
         }
     }

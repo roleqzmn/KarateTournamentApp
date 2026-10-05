@@ -6,16 +6,15 @@ using System.Windows.Input;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
 using KarateTournamentApp.Services.Navigation;
+using KarateTournamentApp.Services.Scheduling;
 
 namespace KarateTournamentApp.ViewModels
 {
-    /// <summary>
-    /// Manages individual competitions where participants perform one at a time (Kata, Kumite judging, etc.)
-    /// </summary>
     public class IndividualCompetitionManagerViewModel : ViewModelBase
     {
         private readonly Category _category;
         private readonly IWindowService _windowService;
+        private readonly IUiScheduler _uiScheduler;
         private int _currentParticipantIndex;
         
         public Category Category => _category;
@@ -75,10 +74,14 @@ namespace KarateTournamentApp.ViewModels
         public ICommand AddJudgeScoreCommand { get; }
         public ICommand RemoveLastJudgeScoreCommand { get; }
 
-        public IndividualCompetitionManagerViewModel(Category category, IWindowService windowService)
+        public IndividualCompetitionManagerViewModel(
+            Category category,
+            IWindowService windowService,
+            IUiScheduler uiScheduler)
         {
             _category = category;
             _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
+            _uiScheduler = uiScheduler ?? throw new ArgumentNullException(nameof(uiScheduler));
             _currentParticipantIndex = 0;
             
             JudgeScores = new ObservableCollection<decimal>();
@@ -189,13 +192,10 @@ namespace KarateTournamentApp.ViewModels
             {
                 winner = selectedWinner;
 
-                System.Threading.Tasks.Task.Delay(3000).ContinueWith(_ =>
+                _uiScheduler.Schedule(TimeSpan.FromSeconds(3), () =>
                 {
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        scoreboardHandle.Close();
-                        judgeHandle?.Close();
-                    });
+                    scoreboardHandle.Close();
+                    judgeHandle?.Close();
                 });
             };
 
@@ -226,92 +226,11 @@ namespace KarateTournamentApp.ViewModels
             
             if (results.Count < 2) return results;
 
-            if (results[0].Score == results[1].Score)
-            {
-                System.Diagnostics.Debug.WriteLine($"Draw detected between 1st ({results[0].Participant.FullName}) and 2nd ({results[1].Participant.FullName})");
-                
-                var sortedScores1 = new List<decimal>(results[0].JudgeScores).OrderBy(s => s).ToList();
-                var sortedScores2 = new List<decimal>(results[1].JudgeScores).OrderBy(s => s).ToList();
-                
-                if (sortedScores1.Count >= 3 && sortedScores2.Count >= 3)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Scores count OK. Comparing highest and lowest scores.");
-                    System.Diagnostics.Debug.WriteLine($"Player 1 scores: {string.Join(", ", sortedScores1)}");
-                    System.Diagnostics.Debug.WriteLine($"Player 2 scores: {string.Join(", ", sortedScores2)}");
-                    
-                    var highest1 = sortedScores1[sortedScores1.Count - 1];
-                    var highest2 = sortedScores2[sortedScores2.Count - 1];
-                    
-                    if (highest1 < highest2)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Swapping based on highest score: {highest1} < {highest2}");
-                        SwapResults(results, 0, 1);
-                    }
-    
-                    else if (highest1 == highest2)
-                    {
-                        var lowest1 = sortedScores1[0];
-                        var lowest2 = sortedScores2[0];
-                        
-                        if (lowest1 < lowest2)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Swapping based on lowest score: {lowest1} < {lowest2}");
-                            SwapResults(results, 0, 1);
-                        }
-                        // If still tied, resolve with 1v1 match
-                        else if (lowest1 == lowest2)
-                        {
-                            System.Diagnostics.Debug.WriteLine("Still tied - opening DrawResolver window");
-                            var winner = ResolveDraw(results[0], results[1]);
-                            if (winner == results[1])
-                            {
-                                SwapResults(results, 0, 1);
-                            }
-                        }
-                    }
-                }
-            }
+            ResolveRankingTie(results, 0);
 
             if (results.Count < 3) return results;
 
-            // Resolve draw between 2nd and 3rd place
-            if (results[1].Score == results[2].Score)
-            {
-                System.Diagnostics.Debug.WriteLine($"Draw detected between 2nd ({results[1].Participant.FullName}) and 3rd ({results[2].Participant.FullName})");
-                
-                var sortedScores1 = new List<decimal>(results[1].JudgeScores).OrderBy(s => s).ToList();
-                var sortedScores2 = new List<decimal>(results[2].JudgeScores).OrderBy(s => s).ToList();
-                
-                if (sortedScores1.Count >= 3 && sortedScores2.Count >= 3)
-                {
-                    var highest1 = sortedScores1[sortedScores1.Count - 1];
-                    var highest2 = sortedScores2[sortedScores2.Count - 1];
-                    
-                    if (highest1 < highest2)
-                    {
-                        SwapResults(results, 1, 2);
-                    }
-                    else if (highest1 == highest2)
-                    {
-                        var lowest1 = sortedScores1[0];
-                        var lowest2 = sortedScores2[0];
-                        
-                        if (lowest1 < lowest2)
-                        {
-                            SwapResults(results, 1, 2);
-                        }
-                        else if (lowest1 == lowest2)
-                        {
-                            System.Diagnostics.Debug.WriteLine("Still tied - opening DrawResolver window");
-                            var winner = ResolveDraw(results[1], results[2]);
-                            if (winner == results[2])
-                            {
-                                SwapResults(results, 1, 2);
-                            }
-                        }
-                    }
-                }
-            }
+            ResolveRankingTie(results, 1);
 
             if (_category.IsFinished)
             {
@@ -319,6 +238,56 @@ namespace KarateTournamentApp.ViewModels
             }
             
             return results;
+        }
+
+        private void ResolveRankingTie(ObservableCollection<ParticipantResult> results, int firstIndex)
+        {
+            var first = results[firstIndex];
+            var second = results[firstIndex + 1];
+            if (first.Score != second.Score)
+            {
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine(
+                $"Draw detected between {first.Participant.FullName} and {second.Participant.FullName}");
+
+            var firstScores = first.JudgeScores.OrderBy(score => score).ToList();
+            var secondScores = second.JudgeScores.OrderBy(score => score).ToList();
+            if (firstScores.Count < 3 || secondScores.Count < 3)
+            {
+                return;
+            }
+
+            var highestScoreComparison = firstScores[firstScores.Count - 1]
+                .CompareTo(secondScores[secondScores.Count - 1]);
+            if (highestScoreComparison < 0)
+            {
+                SwapResults(results, firstIndex, firstIndex + 1);
+                return;
+            }
+
+            if (highestScoreComparison > 0)
+            {
+                return;
+            }
+
+            var lowestScoreComparison = firstScores[0].CompareTo(secondScores[0]);
+            if (lowestScoreComparison < 0)
+            {
+                SwapResults(results, firstIndex, firstIndex + 1);
+                return;
+            }
+
+            if (lowestScoreComparison == 0)
+            {
+                System.Diagnostics.Debug.WriteLine("Still tied - opening DrawResolver window");
+                var winner = ResolveDraw(first, second);
+                if (winner == second)
+                {
+                    SwapResults(results, firstIndex, firstIndex + 1);
+                }
+            }
         }
 
         private void SwapResults(ObservableCollection<ParticipantResult> results, int index1, int index2)
