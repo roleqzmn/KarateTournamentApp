@@ -1,6 +1,6 @@
 ﻿# Karate Tournament Manager
 
-Kompleksowa aplikacja desktopowa do zarządzania turniejami karate, zbudowana w WPF i .NET 8.
+Kompleksowa aplikacja desktopowa do zarządzania turniejami karate, zbudowana w WPF i .NET 10.
 
 ## Przegląd
 
@@ -47,7 +47,7 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 
 ## Stos Technologiczny
 
-- **Framework**: .NET 8
+- **Framework**: .NET 10
 - **UI**: Windows Presentation Foundation (WPF)
 - **Architektura**: MVVM (Model-View-ViewModel)
 - **Async/Await**: Pełne asynchroniczne operacje I/O
@@ -57,7 +57,7 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 ## Wymagania Systemowe (rekomendowane)
 
 - Windows 10 lub nowszy
-- .NET 8 Runtime
+- .NET 10 Desktop Runtime
 - Minimum 2GB RAM
 - 50MB wolnej przestrzeni dyskowej
 - Rozdzielczość ekranu: 1024x768 lub wyższa (1920x1080 zalecana dla konfiguracji z dwoma monitorami do tablicy wyników)
@@ -72,7 +72,7 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 
 ### Wymagania
 - Visual Studio 2022 lub nowszy
-- .NET 8 SDK
+- .NET 10 SDK
 - Git
 
 ### Kroki
@@ -249,7 +249,7 @@ Wkład jest mile widziany! Proszę przestrzegać tych wytycznych:
 ### Częste Problemy
 
 **Problem**: Aplikacja nie uruchamia się
-- Rozwiązanie: Upewnij się, że .NET 8 Runtime jest zainstalowany
+- Rozwiązanie: Upewnij się, że .NET 10 Desktop Runtime jest zainstalowany
 
 **Problem**: Import nie działa
 - Rozwiązanie: Sprawdź czy format pliku pasuje do struktury szablonu
