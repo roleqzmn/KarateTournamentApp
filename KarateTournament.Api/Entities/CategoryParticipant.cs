@@ -1,13 +1,10 @@
 namespace KarateTournament.Api.Entities;
 
-public class ParticipantResult
+public class CategoryParticipant
 {
-    public int Id { get; set; }
     public int CategoryId { get; set; }
     public Category Category { get; set; } = null!;
     public int ParticipantId { get; set; }
     public Participant Participant { get; set; } = null!;
-    public int? Rank { get; set; }
-    public decimal Score { get; set; }
-    public ICollection<ParticipantJudgeScore> JudgeScores { get; set; } = [];
+    public int SortOrder { get; set; }
 }
