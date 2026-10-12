@@ -23,9 +23,11 @@ For deployment, provide `ConnectionStrings__TournamentDatabase` as an environmen
 
 Check database connectivity at `https://localhost:7086/health/database`. The endpoint returns `503` when PostgreSQL cannot be reached.
 
-The EF Core model maps categories, participants, teams, bracket matches, results, and
-individual judge scores. Ordered relationships preserve participant, team, bracket,
-and judge-score ordering. Each database represents one tournament.
+On startup, the API creates the EF Core schema when the database is empty. The model
+maps categories, participants, teams, bracket matches, results, and individual judge
+scores. Ordered relationships preserve participant, team, bracket, and judge-score
+ordering. Each database represents one tournament.
 
-This setup does not create application tables or run EF Core migrations. The API does
-not yet expose tournament read/write endpoints.
+Schema setup uses `EnsureCreated`; it does not run EF Core migrations or update an
+existing schema. Future model changes will need an explicit schema-upgrade strategy.
+The API does not yet expose tournament read/write endpoints.

@@ -31,7 +31,17 @@ namespace KarateTournamentApp.Models
     /// </summary>
     public class Participant
     {
-        public int Id { get; set; }
+        private int _id = LocalIdGenerator.Next();
+
+        public int Id
+        {
+            get => _id;
+            set
+            {
+                _id = value;
+                LocalIdGenerator.Reserve(value);
+            }
+        }
         public string FirstName { get ; set; }
         public string LastName { get; set; }
         public int Age { get; set; }

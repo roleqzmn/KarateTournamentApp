@@ -17,6 +17,15 @@ builder.Services.AddDbContext<TournamentDbContext>(options =>
 
 var app = builder.Build();
 
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<TournamentDbContext>();
+    if (await dbContext.Database.EnsureCreatedAsync())
+    {
+        app.Logger.LogInformation("Created the tournament database schema.");
+    }
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

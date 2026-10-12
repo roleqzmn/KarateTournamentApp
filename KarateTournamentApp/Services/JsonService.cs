@@ -37,7 +37,10 @@ namespace KarateTournamentApp.Services
                 return new List<Category>();
 
             string jsonString = await File.ReadAllTextAsync(filePath);
-            return JsonSerializer.Deserialize<List<Category>>(jsonString, GetOptions());
+            var categories = JsonSerializer.Deserialize<List<Category>>(jsonString, GetOptions())
+                ?? throw new InvalidDataException("The tournament JSON file does not contain a category list.");
+            TournamentIdentityNormalizer.Normalize(categories);
+            return categories;
         }
     }
 }

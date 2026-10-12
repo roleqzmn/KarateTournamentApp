@@ -23,7 +23,17 @@ namespace KarateTournamentApp.Models
     [JsonDerivedType(typeof(TeamCategory), typeDiscriminator: "team")]
     public class Category
     {
-        public int Id { get; set; }
+        private int _id = LocalIdGenerator.Next();
+
+        public int Id
+        {
+            get => _id;
+            set
+            {
+                _id = value;
+                LocalIdGenerator.Reserve(value);
+            }
+        }
         public string Name { get; set; } = "";
         public ObservableCollection<Participant> Participants { get; set; } = new ObservableCollection<Participant>();
         public List<Belts> AllowedBelts { get; set; } = new List<Belts> { };
@@ -149,7 +159,7 @@ namespace KarateTournamentApp.Models
                 BracketMatches.Add(new Match());
             }
 
-            var shuffledParticipants = Participants.OrderBy(a => Guid.NewGuid()).ToList(); //pseudo shuffling by guid
+            var shuffledParticipants = GetShuffledParticipants();
 
             for (int i = 0; i < size; i++)
             {
@@ -175,6 +185,13 @@ namespace KarateTournamentApp.Models
                     PromoteWinner(i);
                 }
             }
+        }
+
+        protected Participant[] GetShuffledParticipants()
+        {
+            var shuffledParticipants = Participants.ToArray();
+            Random.Shared.Shuffle(shuffledParticipants.AsSpan());
+            return shuffledParticipants;
         }
     }
 
@@ -225,7 +242,7 @@ namespace KarateTournamentApp.Models
                 BracketMatches.Add(new ShobuSanbonMatch());
             }
 
-            var shuffledParticipants = Participants.OrderBy(a => Guid.NewGuid()).ToList(); //pseudo shuffling by guid
+            var shuffledParticipants = GetShuffledParticipants();
 
             for (int i = 0; i < size; i++)
             {
