@@ -1,4 +1,5 @@
 using KarateTournament.Api.Data;
+using KarateTournament.Api.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +31,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.MapTournamentEndpoints();
 
 app.UseHttpsRedirection();
 

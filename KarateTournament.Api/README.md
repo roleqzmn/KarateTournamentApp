@@ -30,4 +30,10 @@ ordering. Each database represents one tournament.
 
 Schema setup uses `EnsureCreated`; it does not run EF Core migrations or update an
 existing schema. Future model changes will need an explicit schema-upgrade strategy.
-The API does not yet expose tournament read/write endpoints.
+
+## Read the tournament snapshot
+
+`GET /api/tournament` returns all participants and categories, including ordered
+category members, belts, bracket matches, teams, final results, and judge scores.
+The endpoint reads these related records from one consistent database snapshot.
+Write endpoints and WPF integration will be added in later steps.
