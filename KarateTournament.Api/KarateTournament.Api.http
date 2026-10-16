@@ -1,5 +1,16 @@
 @KarateTournament.Api_HostAddress = https://localhost:7086
 
+GET {{KarateTournament.Api_HostAddress}}/api/categories
+Accept: application/json
+
+###
+
+# Replace with an existing category ID (also returned in POST Location).
+GET {{KarateTournament.Api_HostAddress}}/api/categories/1
+Accept: application/json
+
+###
+
 GET {{KarateTournament.Api_HostAddress}}/api/tournament
 Accept: application/json
 

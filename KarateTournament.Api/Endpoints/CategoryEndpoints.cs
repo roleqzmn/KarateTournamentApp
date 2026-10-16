@@ -1,3 +1,4 @@
+using System.Data;
 using System.ComponentModel.DataAnnotations;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
@@ -11,7 +12,38 @@ public static class CategoryEndpoints
     public static IEndpointRouteBuilder MapCategoryEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPost("/api/categories", CreateCategory).WithName("CreateCategory");
+        endpoints.MapGet("/api/categories", GetCategories).WithName("GetCategories");
+        endpoints.MapGet("/api/categories/{categoryId:int}", GetCategory).WithName("GetCategory");
         return endpoints;
+    }
+
+    private static async Task<IResult> GetCategories(
+        TournamentDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var categories = await dbContext.Categories.AsNoTracking()
+            .OrderBy(category => category.Id)
+            .Select(category => new CategorySummaryDto(
+                category.Id, category.Name, category.CategoryType, category.Sex,
+                category.MinAge, category.MaxAge, category.IsFinished,
+                category.ParticipantLinks.Count, category.Teams.Count))
+            .ToArrayAsync(cancellationToken);
+        return Results.Ok(categories);
+    }
+
+    private static async Task<IResult> GetCategory(
+        int categoryId,
+        TournamentDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        // WithDetails runs several queries; all must see the same database snapshot.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.RepeatableRead, cancellationToken);
+        var category = await dbContext.Categories.WithDetails()
+            .SingleOrDefaultAsync(category => category.Id == categoryId, cancellationToken);
+        var dto = category is null ? null : CategoryReadModel.ToDto(category);
+        await transaction.CommitAsync(cancellationToken);
+        return dto is null ? Results.NotFound() : Results.Ok(dto);
     }
 
     private static async Task<IResult> CreateCategory(
@@ -63,9 +95,7 @@ public static class CategoryEndpoints
         dbContext.Categories.Add(category);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var dto = new CategoryDto(
-            category.Id, category.Name, category.MinAge, category.MaxAge, category.IsFinished,
-            category.Sex, category.CategoryType, request.AllowedBelts!, participantIds, [], [], []);
-        return Results.CreatedAtRoute("GetTournamentSnapshot", value: dto);
+        return Results.CreatedAtRoute("GetCategory", new { categoryId = category.Id },
+            CategoryReadModel.ToDto(category));
     }
 }

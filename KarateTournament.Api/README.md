@@ -73,7 +73,7 @@ positive and exist in the database. Invalid input returns 400 with field errors.
 
 The database assigns the category ID. One SaveChanges operation atomically saves
 the category, its belts and memberships in request order. The response is 201
-with CategoryDto; Location points to `/api/tournament`, where the new category can
+with CategoryDto; Location points to `/api/categories/{id}`, where the new category can
 be read. A category starts unfinished, with no matches, teams or results.
 Assignments are explicit: this operation does not automatically group participants
 or check eligibility by age, sex, belt or discipline. It does not generate brackets.
@@ -81,3 +81,22 @@ or check eligibility by age, sex, belt or discipline. It does not generate brack
 For a PostgreSQL smoke test, create a participant and then a category using its ID.
 Verify the snapshot contains the category with the requested member/belt order.
 An unknown participant ID must return 400 and leave no partially created category.
+
+## Read categories
+
+`GET /api/categories` returns summaries ordered by ID: name, discipline, sex,
+age bounds, completion flag, participant count and team count. It returns `[]`
+when there are no categories. The query does not load brackets or results.
+
+`GET /api/categories/{id}` returns a full CategoryDto, or 404 if it does not exist.
+It uses the same mapping and ordering as `/api/tournament`. Related collections
+are loaded with split queries in a repeatable-read transaction for a consistent
+snapshot. This is a read operation; it does not claim or lock the category.
+
+## Automated integration tests
+
+Start Docker Desktop (Linux containers), then run `dotnet test KarateTournament.Api.Tests`.
+Tests marked `Category=Integration` start an isolated PostgreSQL 17 container per test,
+bound to loopback, and run the API through WebApplicationFactory. No local tournament
+database or user secrets are needed. Containers are disposed after each test.
+To run only tests without Docker, add `--filter "Category!=Integration"`.
