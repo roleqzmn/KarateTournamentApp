@@ -25,3 +25,19 @@ GET {{KarateTournament.Api_HostAddress}}/api/participants/1
 Accept: application/json
 
 ###
+
+# Replace participantIds with IDs returned by participant creation, or use [].
+POST {{KarateTournament.Api_HostAddress}}/api/categories
+Content-Type: application/json
+
+{
+  "name": "Kata 10-12",
+  "minAge": 10,
+  "maxAge": 12,
+  "sex": 3,
+  "categoryType": 0,
+  "allowedBelts": [8, 7],
+  "participantIds": [1]
+}
+
+###

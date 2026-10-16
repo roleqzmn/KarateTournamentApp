@@ -62,3 +62,22 @@ For a PostgreSQL smoke test, start the API with the https launch profile and use
 KarateTournament.Api.http. Verify POST returns 201, GET by the returned ID and
 GET /api/tournament contain the participant, and the data survives an API restart.
 Also verify an invalid request returns 400 without adding a participant.
+
+## Create a category
+
+`POST /api/categories` accepts name, optional minAge/maxAge, sex, categoryType,
+a non-empty allowedBelts array, and participantIds (which may be empty).
+Age bounds must be non-negative and minAge must not exceed maxAge. Enums must be
+defined, belts and participant IDs must not repeat, and participant IDs must be
+positive and exist in the database. Invalid input returns 400 with field errors.
+
+The database assigns the category ID. One SaveChanges operation atomically saves
+the category, its belts and memberships in request order. The response is 201
+with CategoryDto; Location points to `/api/tournament`, where the new category can
+be read. A category starts unfinished, with no matches, teams or results.
+Assignments are explicit: this operation does not automatically group participants
+or check eligibility by age, sex, belt or discipline. It does not generate brackets.
+
+For a PostgreSQL smoke test, create a participant and then a category using its ID.
+Verify the snapshot contains the category with the requested member/belt order.
+An unknown participant ID must return 400 and leave no partially created category.
