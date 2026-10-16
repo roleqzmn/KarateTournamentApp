@@ -1,4 +1,4 @@
-using static KarateClassLibrary.Enums;
+using KarateClassLibrary;
 
 namespace KarateTournament.Api.Entities;
 

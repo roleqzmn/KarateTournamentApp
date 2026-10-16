@@ -7,17 +7,6 @@ using System.Text.Json.Serialization;
 
 namespace KarateTournamentApp.Models
 {
-    public enum CategoryType
-    {
-        Kata,
-        Kumite,
-        Kihon,
-        KobudoShort,
-        KobudoLong,
-        Grappling,
-        Team
-    }
-
     [JsonDerivedType(typeof(Category), typeDiscriminator: "base")]
     [JsonDerivedType(typeof(ShobuSanbonCategory), typeDiscriminator: "shobu")]
     [JsonDerivedType(typeof(TeamCategory), typeDiscriminator: "team")]

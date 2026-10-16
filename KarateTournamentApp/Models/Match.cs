@@ -4,12 +4,6 @@ using System.Text.Json.Serialization;
 
 namespace KarateTournamentApp.Models
 {
-    public enum PenaltyType
-    {
-        Atenai,
-        Chukoku
-    }
-
     [JsonDerivedType(typeof(Match), typeDiscriminator: "match")]
     [JsonDerivedType(typeof(ShobuSanbonMatch), typeDiscriminator: "shobuSanbon")]
     public class Match
