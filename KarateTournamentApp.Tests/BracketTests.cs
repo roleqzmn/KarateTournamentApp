@@ -6,6 +6,55 @@ namespace KarateTournamentApp.Tests;
 public class BracketTests
 {
     [Theory]
+    [InlineData(false, 3, 3)]
+    [InlineData(true, 3, 3)]
+    [InlineData(false, 8, 7)]
+    [InlineData(true, 8, 7)]
+    public void GeneratedBracketHasCorrectSizeAndEachParticipantStartsExactlyOnce(
+        bool shobu, int participantCount, int expectedMatches)
+    {
+        Category category = shobu ? new ShobuSanbonCategory() : new Category();
+        for (var id = 1; id <= participantCount; id++)
+            category.Participants.Add(new Participant { Id = id });
+
+        category.InitializeBracket();
+
+        Assert.Equal(expectedMatches, category.BracketMatches.Count);
+        var firstRoundStart = expectedMatches / 2;
+        var firstRound = category.BracketMatches.Skip(firstRoundStart).ToArray();
+        var startingIds = firstRound.SelectMany(match => new[] { match.Aka, match.Shiro })
+            .Where(id => id.HasValue).Select(id => id!.Value).OrderBy(id => id).ToArray();
+        Assert.Equal(Enumerable.Range(1, participantCount), startingIds);
+        Assert.False(category.IsFinished);
+        if (shobu)
+            Assert.All(category.BracketMatches, match => Assert.IsType<ShobuSanbonMatch>(match));
+
+        if (participantCount == 3)
+        {
+            var bye = Assert.Single(firstRound, match => match.Aka.HasValue != match.Shiro.HasValue);
+            Assert.True(bye.IsFinished);
+            Assert.Equal(bye.Aka ?? bye.Shiro, bye.WinnerId);
+            var byeIndex = category.BracketMatches.IndexOf(bye);
+            var final = category.BracketMatches[0];
+            Assert.Equal(bye.WinnerId, byeIndex % 2 != 0 ? final.Aka : final.Shiro);
+            Assert.False(final.IsFinished);
+        }
+        else
+        {
+            Assert.All(category.BracketMatches, match =>
+            {
+                Assert.False(match.IsFinished);
+                Assert.Null(match.WinnerId);
+            });
+            Assert.All(category.BracketMatches.Take(firstRoundStart), match =>
+            {
+                Assert.Null(match.Aka);
+                Assert.Null(match.Shiro);
+            });
+        }
+    }
+
+    [Theory]
     [InlineData(42, null, 42, true)]
     [InlineData(null, 43, 43, true)]
     [InlineData(42, 43, null, false)]

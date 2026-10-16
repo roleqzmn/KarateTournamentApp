@@ -49,9 +49,29 @@ Timeout w WaitAsync jest zabezpieczeniem przed zawieszeniem testu, nie opóźnie
 Sprawdza deduplikację po ID, zachowanie istniejącego obiektu przy kolizji,
 połączenie pasów i zakresów wieku, płeć oraz brak zmian w kategorii źródłowej.
 
+Generowanie drabinki sprawdzamy dla 3 zawodników (wolny los) i 8 zawodników
+(pełna obsada), w obu typach kategorii. Test nie zakłada kolejności losowania:
+sprawdza rozmiar, kompletność i unikalność obsady pierwszej rundy oraz awans
+z wolnego losu. Wykrył i zabezpiecza poprawkę nadmiarowych meczów w generatorach.
+
+`LocalIdGeneratorTests` sprawdza unikalność dodatnich ID przy równoległym
+generowaniu i rezerwację ID wczytanego z pliku. Starsza rezerwacja nie może
+cofnąć licznika. Testy nie resetują statycznego stanu i nie wymagają kolejnych
+wartości bez luk, więc inne równoległe testy mogą korzystać z tego samego licznika.
+Test równoległy nie stanowi formalnego dowodu bezpieczeństwa współbieżności.
+
 ## Osobna weryfikacja integracyjna
 
-Testy jednostkowe nie potwierdzają transakcji PostgreSQL, ograniczeń kluczy obcych,
+`JsonServiceTests` to testy integracyjne komponentów aplikacji, umieszczone
+w istniejącym projekcie testowym. Łączą serializer, rzeczywisty plik tymczasowy
+i normalizację ID. Każdy test ma unikalną ścieżkę i usuwa plik po zakończeniu.
+Sprawdzają wyniki i precyzję ocen, surowe noty, stan Shobu, drużyny, polskie znaki,
+nadpisywanie pliku oraz odrzucanie nieprawidłowego JSON i niespójnych referencji.
+
+Test surowych ocen ujawnił pomijanie pól ValueTuple przez serializer. IncludeFields
+zachowuje teraz Item1 (oceny) i Item2 (ID zawodnika). Dawnych zapisów zawierających
+już tylko puste obiekty nie da się na tej podstawie odtworzyć.
+
+Obecny zestaw nie potwierdza transakcji PostgreSQL, ograniczeń kluczy obcych,
 odpowiedzi HTTP ani działania okien. Te scenariusze wymagają osobnych testów
-integracyjnych. Również losowanie większych drabinek i przejmowanie konkurencji
-powinny dostać testy przy implementacji odpowiednich reguł.
+integracyjnych. Przejmowanie konkurencji wymaga osobnych testów przy implementacji.
