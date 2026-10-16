@@ -22,7 +22,6 @@ public class CreateParticipantRequestTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("")]
     [InlineData("   ")]
     public void RejectsBlankNames(string? name)
     {

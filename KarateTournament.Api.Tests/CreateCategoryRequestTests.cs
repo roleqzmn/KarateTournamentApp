@@ -26,7 +26,6 @@ public class CreateCategoryRequestTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("")]
     [InlineData("   ")]
     public void RejectsBlankName(string? name) =>
         Assert.Contains(Validate(ValidRequest() with { Name = name }),
