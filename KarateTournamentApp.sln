@@ -10,12 +10,18 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarateClassLibrary", "Karat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarateTournament.Api.Tests", "KarateTournament.Api.Tests\KarateTournament.Api.Tests.csproj", "{E5E591FF-F86D-4E2A-AD6C-21FD77BF3BD3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KarateTournamentApp.Tests", "KarateTournamentApp.Tests\KarateTournamentApp.Tests.csproj", "{C19DD381-1B06-47D3-9C19-A038811A75B1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C19DD381-1B06-47D3-9C19-A038811A75B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C19DD381-1B06-47D3-9C19-A038811A75B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C19DD381-1B06-47D3-9C19-A038811A75B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C19DD381-1B06-47D3-9C19-A038811A75B1}.Release|Any CPU.Build.0 = Release|Any CPU
 		{9880E245-911B-48AE-A08A-855A6CC50361}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{9880E245-911B-48AE-A08A-855A6CC50361}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9880E245-911B-48AE-A08A-855A6CC50361}.Release|Any CPU.ActiveCfg = Release|Any CPU
