@@ -35,6 +35,7 @@ if (app.Environment.IsDevelopment())
 app.MapTournamentEndpoints();
 app.MapParticipantEndpoints();
 app.MapCategoryEndpoints();
+app.MapCategoryClaimEndpoints();
 
 app.UseHttpsRedirection();
 

@@ -26,7 +26,8 @@ public static class CategoryEndpoints
             .Select(category => new CategorySummaryDto(
                 category.Id, category.Name, category.CategoryType, category.Sex,
                 category.MinAge, category.MaxAge, category.IsFinished,
-                category.ParticipantLinks.Count, category.Teams.Count))
+                category.ParticipantLinks.Count, category.Teams.Count,
+                category.ClaimToken.HasValue, category.ClaimedBy))
             .ToArrayAsync(cancellationToken);
         return Results.Ok(categories);
     }

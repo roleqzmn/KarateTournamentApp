@@ -11,4 +11,6 @@ public sealed record CategorySummaryDto(
     int? MaxAge,
     bool IsFinished,
     int ParticipantCount,
-    int TeamCount);
+    int TeamCount,
+    bool IsClaimed,
+    string? ClaimedBy);

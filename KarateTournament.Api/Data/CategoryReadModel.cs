@@ -32,7 +32,7 @@ public static class CategoryReadModel
                 result.JudgeScores.OrderBy(score => score.Ordinal)
                     .Select(score => new JudgeScoreDto(score.Ordinal, score.Score, score.IsDiscarded))
                     .ToArray()))
-            .ToArray());
+            .ToArray(), category.ClaimToken.HasValue, category.ClaimedBy);
 
     private static MatchDto ToMatchDto(Match match) => new(
         match.Id, match.BracketPosition, match.AkaParticipantId, match.ShiroParticipantId,

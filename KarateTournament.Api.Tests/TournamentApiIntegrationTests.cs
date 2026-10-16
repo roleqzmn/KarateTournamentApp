@@ -10,7 +10,7 @@ using Xunit;
 namespace KarateTournament.Api.Tests;
 
 [Trait("Category", "Integration")]
-public class TournamentApiIntegrationTests : IAsyncLifetime
+public partial class TournamentApiIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithCreateParameterModifier(parameters =>
@@ -25,6 +25,11 @@ public class TournamentApiIntegrationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _database.StartAsync();
+        StartApi();
+    }
+
+    private void StartApi()
+    {
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.UseSetting("ConnectionStrings:TournamentDatabase", _database.GetConnectionString()));
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions

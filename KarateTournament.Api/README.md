@@ -100,3 +100,24 @@ Tests marked `Category=Integration` start an isolated PostgreSQL 17 container pe
 bound to loopback, and run the API through WebApplicationFactory. No local tournament
 database or user secrets are needed. Containers are disposed after each test.
 To run only tests without Docker, add `--filter "Category!=Integration"`.
+
+## Claim a category for local judging
+
+`POST /api/categories/{id}/claim` takes `{ "sessionToken": "<UUID>", "stationName": "Tatami 1" }`.
+The client generates a fresh random UUID per judging session and persists it locally
+before sending. Keep this token private; stationName is a display label (1–100 trimmed
+characters), not an identity. A conditional database UPDATE grants one owner. Retrying
+with the same token and label succeeds. Finished or differently claimed categories
+return 409; missing categories return 404; invalid input returns 400. Success is 204.
+
+`POST /api/categories/{id}/release` takes `{ "sessionToken": "<UUID>" }`. Only the
+current token can release an active claim (204); another token gets 409. Releasing
+an already free category also returns 204. A delayed old release cannot clear a new
+claim. Claims survive API restarts and do not expire on disconnection. Read endpoints
+expose isClaimed/claimedBy, never the token. Results submission, organizer recovery,
+and authentication are separate future steps; this token is not user authentication.
+
+For an existing schema, explicitly apply `Data/Schema/add-category-claims.sql` with
+your database tool before starting this version. It adds nullable columns without
+deleting data and can be repeated. This is not an automatic schema upgrade; no EF
+migrations or local database reset are performed. Fresh test databases use EnsureCreated.

@@ -17,5 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\KarateTournament.Api\KarateTournament.Api.csproj" />
+    <None Include="..\KarateTournament.Api\Data\Schema\add-category-claims.sql"
+          Link="add-category-claims.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
