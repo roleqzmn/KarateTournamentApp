@@ -36,4 +36,29 @@ existing schema. Future model changes will need an explicit schema-upgrade strat
 `GET /api/tournament` returns all participants and categories, including ordered
 category members, belts, bracket matches, teams, final results, and judge scores.
 The endpoint reads these related records from one consistent database snapshot.
-Write endpoints and WPF integration will be added in later steps.
+WPF integration will be added in later steps.
+
+## Create a participant
+
+`POST /api/participants` accepts firstName, lastName, age, optional club, belt,
+sex, and a non-empty categoryTypes array. Enums use their numeric values from
+KarateClassLibrary. Names must not be blank, age must be non-negative, enum
+values must be defined, and category types must not repeat. Invalid data returns
+400 with field errors. Names and club are trimmed; an empty club is stored as null.
+
+The database assigns the ID. A single SaveChanges operation atomically saves the
+participant and their category types. The response is 201 with ParticipantDto and
+a Location header pointing to `GET /api/participants/{id}` (404 if not found).
+Category types declare disciplines; this endpoint does not assign categories or
+generate brackets. Participants with identical names are allowed.
+
+Run validation tests with:
+
+```powershell
+dotnet test .\KarateTournament.Api.Tests\KarateTournament.Api.Tests.csproj
+```
+
+For a PostgreSQL smoke test, start the API with the https launch profile and use
+KarateTournament.Api.http. Verify POST returns 201, GET by the returned ID and
+GET /api/tournament contain the participant, and the data survives an API restart.
+Also verify an invalid request returns 400 without adding a participant.
