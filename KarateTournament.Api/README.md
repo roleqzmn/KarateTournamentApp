@@ -121,3 +121,21 @@ For an existing schema, explicitly apply `Data/Schema/add-category-claims.sql` w
 your database tool before starting this version. It adds nullable columns without
 deleting data and can be repeated. This is not an automatic schema upgrade; no EF
 migrations or local database reset are performed. Fresh test databases use EnsureCreated.
+
+## Complete an individually scored category
+
+`POST /api/categories/{id}/individual-results` accepts sessionToken and results:
+`[{ "participantId": 1, "rank": 1, "judgeScores": [7, 8, 9] }]`.
+It supports Kata, Kihon and both Kobudo disciplines. Results must cover all category
+participants once, with ranks 1..N and at least three notes each (0–10, two decimals).
+Final scores and discarded notes are calculated by the shared calculator: sum all
+three notes, or discard one minimum and one maximum if there are more than three.
+Ranks must follow descending scores; the client resolves equal-score ties.
+
+Only the claiming session can finish the category. One transaction saves notes and
+results, finishes the category and releases its claim. A write failure rolls back
+all of these changes. Success returns 204, invalid input 400, a missing category 404,
+and ownership/completion conflicts 409. The same session can retry identical results
+even after an API restart. A canonical payload hash rejects changed submissions.
+Apply `Data/Schema/add-category-completion.sql` explicitly to existing databases
+before starting this version. Completion tokens and hashes are not exposed in DTOs.

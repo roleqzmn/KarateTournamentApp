@@ -36,6 +36,7 @@ app.MapTournamentEndpoints();
 app.MapParticipantEndpoints();
 app.MapCategoryEndpoints();
 app.MapCategoryClaimEndpoints();
+app.MapIndividualResultEndpoints();
 
 app.UseHttpsRedirection();
 

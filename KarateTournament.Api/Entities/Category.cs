@@ -13,6 +13,8 @@ public class Category
     public CategoryType CategoryType { get; set; }
     public Guid? ClaimToken { get; set; }
     public string? ClaimedBy { get; set; }
+    public Guid? CompletionToken { get; set; }
+    public string? CompletionHash { get; set; }
 
     public ICollection<CategoryParticipant> ParticipantLinks { get; set; } = [];
     public ICollection<CategoryAllowedBelt> AllowedBeltLinks { get; set; } = [];

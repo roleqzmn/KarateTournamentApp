@@ -19,5 +19,7 @@
     <ProjectReference Include="..\KarateTournament.Api\KarateTournament.Api.csproj" />
     <None Include="..\KarateTournament.Api\Data\Schema\add-category-claims.sql"
           Link="add-category-claims.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KarateTournament.Api\Data\Schema\add-category-completion.sql"
+          Link="add-category-completion.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

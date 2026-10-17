@@ -23,6 +23,7 @@ public sealed class TournamentDbContext : DbContext
             entity.HasKey(category => category.Id);
             entity.Property(category => category.Name).IsRequired();
             entity.Property(category => category.ClaimedBy).HasMaxLength(100);
+            entity.Property(category => category.CompletionHash).HasMaxLength(64);
             entity.HasMany(category => category.ParticipantLinks)
                 .WithOne(link => link.Category)
                 .HasForeignKey(link => link.CategoryId)
