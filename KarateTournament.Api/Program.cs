@@ -56,3 +56,5 @@ app.MapGet("/health/database", async (
 .WithName("GetDatabaseHealth");
 
 app.Run();
+
+public partial class Program { }

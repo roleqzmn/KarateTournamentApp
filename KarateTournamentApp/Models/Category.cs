@@ -153,8 +153,10 @@ namespace KarateTournamentApp.Models
 
             for (int i = 0; i < size; i++)
             {
-                int bracketIndex = firstRoundStart + (i / 2);
-                if (i % 2 == 0)
+                // Fill every first-round match before adding opponents to avoid empty branches.
+                int firstRoundMatchCount = participantSlots / 2;
+                int bracketIndex = firstRoundStart + (i % firstRoundMatchCount);
+                if (i < firstRoundMatchCount)
                 {
                     BracketMatches[bracketIndex].Aka = shuffledParticipants[i].Id;
                 }
@@ -237,8 +239,10 @@ namespace KarateTournamentApp.Models
 
             for (int i = 0; i < size; i++)
             {
-                int bracketIndex = firstRoundStart + (i / 2);
-                if (i % 2 == 0)
+                // Fill every first-round match before adding opponents to avoid empty branches.
+                int firstRoundMatchCount = participantSlots / 2;
+                int bracketIndex = firstRoundStart + (i % firstRoundMatchCount);
+                if (i < firstRoundMatchCount)
                 {
                     BracketMatches[bracketIndex].Aka = shuffledParticipants[i].Id;
                 }

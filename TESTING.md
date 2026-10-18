@@ -62,6 +62,28 @@ Test równoległy nie stanowi formalnego dowodu bezpieczeństwa współbieżnoś
 
 ## Osobna weryfikacja integracyjna
 
+`IndividualRankingsTests` testuje ViewModel bez prawdziwych okien: sortowanie,
+obecną kolejność porównywania not przy remisie, potwierdzoną decyzję sędziego,
+zachowanie wcześniej zapisanego rankingu oraz zakończenie występów. Prosty fake
+IWindowService wybiera i potwierdza zwycięzcę komendami DrawResolverViewModel.
+Testy wykryły brak zapisu FinalResults dla jednego i dwóch zawodników.
+Nie rozstrzygają poprawności regulaminowej reguł ani remisów wielostronnych;
+sprawdzają obecny mechanizm parowego porównywania najwyższej i najniższej noty.
+
+`CompetitionResumeTests` łączy generowanie drabinki, awanse i zapis/odczyt JSON.
+Po dwóch walkach zapisuje konkurencję, odtwarza nowe obiekty i kończy ją równolegle
+z nieprzerwanym wariantem odniesienia. Porównuje obsadę, wyniki i liczbę pozostałych
+walk. Uwzględnia wolne losy, Shobu, zatrzymany timer i kary oraz zapis ukończonej
+konkurencji. Nie uruchamia ViewModeli ani okien i nie definiuje zachowania
+automatycznego wznowienia pracującego timera po restarcie.
+
+`BracketProgressionTests` symuluje całą konkurencję dla 5, 6, 8 i 9 zawodników
+w zwykłej kategorii i Shobu. Sprawdza dojście do finału, N-1 rozegranych walk
+i jednokrotne odpadnięcie każdego zawodnika poza zwycięzcą. Zawsze wygrywa niższe
+ID, dzięki czemu wynik jest przewidywalny niezależnie od losowania. Test wykrył
+puste gałęzie przy niepełnej obsadzie: generator teraz najpierw obsadza każdą
+walkę pierwszej rundy, a potem dodaje przeciwników.
+
 `JsonServiceTests` to testy integracyjne komponentów aplikacji, umieszczone
 w istniejącym projekcie testowym. Łączą serializer, rzeczywisty plik tymczasowy
 i normalizację ID. Każdy test ma unikalną ścieżkę i usuwa plik po zakończeniu.
