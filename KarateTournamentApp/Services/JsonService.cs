@@ -14,6 +14,8 @@ namespace KarateTournamentApp.Services
             {
                 WriteIndented = true,
                 PropertyNameCaseInsensitive = true,
+                // JudgingScores uses ValueTuple, whose components are public fields.
+                IncludeFields = true,
                 Converters = { new JsonStringEnumConverter() },
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             };

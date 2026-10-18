@@ -33,6 +33,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapTournamentEndpoints();
+app.MapParticipantEndpoints();
+app.MapCategoryEndpoints();
 
 app.UseHttpsRedirection();
 
@@ -54,3 +56,5 @@ app.MapGet("/health/database", async (
 .WithName("GetDatabaseHealth");
 
 app.Run();
+
+public partial class Program { }

@@ -36,4 +36,67 @@ existing schema. Future model changes will need an explicit schema-upgrade strat
 `GET /api/tournament` returns all participants and categories, including ordered
 category members, belts, bracket matches, teams, final results, and judge scores.
 The endpoint reads these related records from one consistent database snapshot.
-Write endpoints and WPF integration will be added in later steps.
+WPF integration will be added in later steps.
+
+## Create a participant
+
+`POST /api/participants` accepts firstName, lastName, age, optional club, belt,
+sex, and a non-empty categoryTypes array. Enums use their numeric values from
+KarateClassLibrary. Names must not be blank, age must be non-negative, enum
+values must be defined, and category types must not repeat. Invalid data returns
+400 with field errors. Names and club are trimmed; an empty club is stored as null.
+
+The database assigns the ID. A single SaveChanges operation atomically saves the
+participant and their category types. The response is 201 with ParticipantDto and
+a Location header pointing to `GET /api/participants/{id}` (404 if not found).
+Category types declare disciplines; this endpoint does not assign categories or
+generate brackets. Participants with identical names are allowed.
+
+Run validation tests with:
+
+```powershell
+dotnet test .\KarateTournament.Api.Tests\KarateTournament.Api.Tests.csproj
+```
+
+For a PostgreSQL smoke test, start the API with the https launch profile and use
+KarateTournament.Api.http. Verify POST returns 201, GET by the returned ID and
+GET /api/tournament contain the participant, and the data survives an API restart.
+Also verify an invalid request returns 400 without adding a participant.
+
+## Create a category
+
+`POST /api/categories` accepts name, optional minAge/maxAge, sex, categoryType,
+a non-empty allowedBelts array, and participantIds (which may be empty).
+Age bounds must be non-negative and minAge must not exceed maxAge. Enums must be
+defined, belts and participant IDs must not repeat, and participant IDs must be
+positive and exist in the database. Invalid input returns 400 with field errors.
+
+The database assigns the category ID. One SaveChanges operation atomically saves
+the category, its belts and memberships in request order. The response is 201
+with CategoryDto; Location points to `/api/categories/{id}`, where the new category can
+be read. A category starts unfinished, with no matches, teams or results.
+Assignments are explicit: this operation does not automatically group participants
+or check eligibility by age, sex, belt or discipline. It does not generate brackets.
+
+For a PostgreSQL smoke test, create a participant and then a category using its ID.
+Verify the snapshot contains the category with the requested member/belt order.
+An unknown participant ID must return 400 and leave no partially created category.
+
+## Read categories
+
+`GET /api/categories` returns summaries ordered by ID: name, discipline, sex,
+age bounds, completion flag, participant count and team count. It returns `[]`
+when there are no categories. The query does not load brackets or results.
+
+`GET /api/categories/{id}` returns a full CategoryDto, or 404 if it does not exist.
+It uses the same mapping and ordering as `/api/tournament`. Related collections
+are loaded with split queries in a repeatable-read transaction for a consistent
+snapshot. This is a read operation; it does not claim or lock the category.
+
+## Automated integration tests
+
+Start Docker Desktop (Linux containers), then run `dotnet test KarateTournament.Api.Tests`.
+Tests marked `Category=Integration` start an isolated PostgreSQL 17 container per test,
+bound to loopback, and run the API through WebApplicationFactory. No local tournament
+database or user secrets are needed. Containers are disposed after each test.
+To run only tests without Docker, add `--filter "Category!=Integration"`.

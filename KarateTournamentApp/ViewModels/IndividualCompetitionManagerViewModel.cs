@@ -224,13 +224,15 @@ namespace KarateTournamentApp.ViewModels
             
             System.Diagnostics.Debug.WriteLine($"GetFinalRankings called. Total results: {results.Count}");
             
-            if (results.Count < 2) return results;
+            if (results.Count >= 2)
+            {
+                ResolveRankingTie(results, 0);
+            }
 
-            ResolveRankingTie(results, 0);
-
-            if (results.Count < 3) return results;
-
-            ResolveRankingTie(results, 1);
+            if (results.Count >= 3)
+            {
+                ResolveRankingTie(results, 1);
+            }
 
             if (_category.IsFinished)
             {

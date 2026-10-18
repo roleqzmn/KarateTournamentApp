@@ -1,6 +1,54 @@
-@KarateTournament.Api_HostAddress = http://localhost:5168
+@KarateTournament.Api_HostAddress = https://localhost:7086
 
-GET {{KarateTournament.Api_HostAddress}}/weatherforecast/
+GET {{KarateTournament.Api_HostAddress}}/api/categories
 Accept: application/json
+
+###
+
+# Replace with an existing category ID (also returned in POST Location).
+GET {{KarateTournament.Api_HostAddress}}/api/categories/1
+Accept: application/json
+
+###
+
+GET {{KarateTournament.Api_HostAddress}}/api/tournament
+Accept: application/json
+
+###
+
+POST {{KarateTournament.Api_HostAddress}}/api/participants
+Content-Type: application/json
+
+{
+  "firstName": "Jan",
+  "lastName": "Kowalski",
+  "age": 12,
+  "club": "Klub Karate",
+  "belt": 8,
+  "sex": 1,
+  "categoryTypes": [0, 1]
+}
+
+###
+
+# Replace with the ID returned by POST (Location header).
+GET {{KarateTournament.Api_HostAddress}}/api/participants/1
+Accept: application/json
+
+###
+
+# Replace participantIds with IDs returned by participant creation, or use [].
+POST {{KarateTournament.Api_HostAddress}}/api/categories
+Content-Type: application/json
+
+{
+  "name": "Kata 10-12",
+  "minAge": 10,
+  "maxAge": 12,
+  "sex": 3,
+  "categoryType": 0,
+  "allowedBelts": [8, 7],
+  "participantIds": [1]
+}
 
 ###

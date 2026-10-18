@@ -30,7 +30,9 @@ namespace KarateTournamentApp.Services
             }
 
             if (!Enum.TryParse(beltText, true, out Belts belt)
-                || !Enum.TryParse(sexText, true, out Sex sex))
+                || !Enum.IsDefined(belt)
+                || !Enum.TryParse(sexText, true, out Sex sex)
+                || !Enum.IsDefined(sex))
             {
                 return null;
             }
@@ -38,7 +40,8 @@ namespace KarateTournamentApp.Services
             var categories = new List<CategoryType>();
             foreach (var categoryValue in categoryValues)
             {
-                if (Enum.TryParse(categoryValue, true, out CategoryType categoryType))
+                if (Enum.TryParse(categoryValue, true, out CategoryType categoryType)
+                    && Enum.IsDefined(categoryType))
                 {
                     categories.Add(categoryType);
                 }
