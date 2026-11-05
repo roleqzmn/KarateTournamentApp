@@ -37,6 +37,7 @@ app.MapParticipantEndpoints();
 app.MapCategoryEndpoints();
 app.MapCategoryClaimEndpoints();
 app.MapIndividualResultEndpoints();
+app.MapKumiteResultEndpoints();
 
 app.UseHttpsRedirection();
 

@@ -139,3 +139,22 @@ and ownership/completion conflicts 409. The same session can retry identical res
 even after an API restart. A canonical payload hash rejects changed submissions.
 Apply `Data/Schema/add-category-completion.sql` explicitly to existing databases
 before starting this version. Completion tokens and hashes are not exposed in DTOs.
+
+## Complete Kumite
+
+`POST /api/categories/{id}/kumite-results` takes sessionToken, matches, and
+rankedParticipantIds. Matches use KumiteMatchResultRequest: bracket position,
+participant/winner IDs, points, penalties, final time, senshu and overtime state.
+The server assigns database match IDs. All timers are stored stopped.
+Positions form a complete binary tree (final at 0, children at 2*i+1 and 2*i+2).
+Every category participant starts exactly once in the leaves. Winners must advance
+to the correct parent slot, and the final winner must rank first. Empty subtrees
+and byes are allowed. Remaining ranking order is the local judge's decision.
+As in WPF, the result score is N-rank+1, not the sum of fight points; points remain
+on individual matches. Refereeing decisions are not recalculated by the server.
+
+Only the current session can submit. One transaction saves the whole bracket and
+ranking, finishes the category and releases its claim. Existing competition data
+is not overwritten. Identical retries, including reordered match arrays, return
+204; changed submissions or a wrong owner return 409; malformed results return
+400; unknown categories return 404. No additional schema changes are required.
