@@ -15,6 +15,16 @@ public sealed class TournamentDbContext : DbContext
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<ParticipantResult> ParticipantResults => Set<ParticipantResult>();
+    public DbSet<RevokedCategoryClaim> RevokedCategoryClaims => Set<RevokedCategoryClaim>();
+
+    // Call inside a transaction that holds the lock until the category change commits.
+    internal async Task<Category?> LockCategoryAsync(int categoryId, CancellationToken cancellationToken)
+    {
+        var rows = await Categories
+            .FromSql($"""SELECT * FROM "Categories" WHERE "Id" = {categoryId} FOR UPDATE""")
+            .ToListAsync(cancellationToken);
+        return rows.SingleOrDefault();
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +54,14 @@ public sealed class TournamentDbContext : DbContext
                 .WithOne(result => result.Category)
                 .HasForeignKey(result => result.CategoryId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RevokedCategoryClaim>(entity =>
+        {
+            entity.HasKey(claim => new { claim.CategoryId, claim.ClaimReference });
+            entity.Property(claim => claim.ClaimReference).HasMaxLength(64);
+            entity.HasOne<Category>().WithMany()
+                .HasForeignKey(claim => claim.CategoryId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Participant>(entity =>

@@ -144,15 +144,39 @@ return 409; missing categories return 404; invalid input returns 400. Success is
 
 `POST /api/categories/{id}/release` takes `{ "sessionToken": "<UUID>" }`. Only the
 current token can release an active claim (204); another token gets 409. Releasing
-an already free category also returns 204. A delayed old release cannot clear a new
-claim. Claims survive API restarts and do not expire on disconnection. Read endpoints
-expose isClaimed/claimedBy, never the token. Results submission, organizer recovery,
-and authentication are separate future steps; this token is not user authentication.
+an already free category also returns 204. After release, generate a fresh session
+token for the next claim. Claims survive API restarts and do not expire on
+disconnection. Read endpoints expose isClaimed/claimedBy and keep the token private.
 
 For an existing schema, explicitly apply `Data/Schema/add-category-claims.sql` with
 your database tool before starting this version. It adds nullable columns without
 deleting data and can be repeated. This is not an automatic schema upgrade; no EF
 migrations or local database reset are performed. Fresh test databases use EnsureCreated.
+
+## Recover a claimed category
+
+Set `Organizer:RecoveryKey` in local user secrets or `Organizer__RecoveryKey` in
+the API host environment. Use a random 32-byte key encoded as 64 hex characters
+and send it over HTTPS as `Authorization: Bearer <key>`. Keep the key on the
+organizer's station. The key protects the recovery routes. Recovery is disabled
+with 503 until a valid configuration is present, and missing or wrong credentials
+return 401 when it is enabled.
+
+1. `GET /api/categories/{id}/claim-recovery` returns the current station name and
+   an opaque `claimReference` for that session. Confirm it is the session to recover.
+2. `POST /api/categories/{id}/claim-recovery` takes
+   `{ "claimReference": "<reference from GET>" }`. It releases that session and
+   permanently revokes its token for this category in the same transaction.
+
+Recovery returns 204 on success, 400 for an invalid reference, 404 for a missing
+category, or 409 when the reference is stale or the category has no active claim.
+An old session cannot reclaim the category or overwrite results. Start a new
+session with a fresh token. Recovery releases the server-side claim. Any work
+saved locally on the old station remains there.
+
+Apply `Data/Schema/add-category-claim-revocations.sql` explicitly to an existing
+schema before starting this version. It creates the revocation table without
+changing current claims and can be applied again safely.
 
 ## Complete an individually scored category
 

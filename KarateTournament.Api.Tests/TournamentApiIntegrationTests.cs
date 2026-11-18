@@ -28,10 +28,11 @@ public partial class TournamentApiIntegrationTests : IAsyncLifetime
         StartApi();
     }
 
-    private void StartApi()
+    private void StartApi(string? organizerRecoveryKey = null)
     {
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("ConnectionStrings:TournamentDatabase", _database.GetConnectionString()));
+            builder.UseSetting("ConnectionStrings:TournamentDatabase", _database.GetConnectionString())
+                .UseSetting("Organizer:RecoveryKey", organizerRecoveryKey ?? string.Empty));
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false

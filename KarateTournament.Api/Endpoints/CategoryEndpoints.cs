@@ -83,7 +83,7 @@ public static class CategoryEndpoints
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, cancellationToken);
 
-        var category = await LockCategory(categoryId, dbContext, cancellationToken);
+        var category = await dbContext.LockCategoryAsync(categoryId, cancellationToken);
         if (category is null)
             return Results.NotFound();
 
@@ -111,7 +111,7 @@ public static class CategoryEndpoints
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, cancellationToken);
-        var category = await LockCategory(categoryId, dbContext, cancellationToken);
+        var category = await dbContext.LockCategoryAsync(categoryId, cancellationToken);
         if (category is null)
             return Results.NotFound();
         if (await HasCompetitionData(category, dbContext, cancellationToken))
@@ -121,16 +121,6 @@ public static class CategoryEndpoints
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return Results.NoContent();
-    }
-
-    private static async Task<Category?> LockCategory(
-        int categoryId, TournamentDbContext dbContext, CancellationToken cancellationToken)
-    {
-        // Lock the row used by claim and completion before checking state or changing relationships.
-        var rows = await dbContext.Categories
-            .FromSql($"""SELECT * FROM "Categories" WHERE "Id" = {categoryId} FOR UPDATE""")
-            .ToListAsync(cancellationToken);
-        return rows.SingleOrDefault();
     }
 
     private static async Task<bool> HasCompetitionData(

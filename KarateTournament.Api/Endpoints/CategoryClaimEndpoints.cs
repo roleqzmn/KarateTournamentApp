@@ -1,5 +1,10 @@
+using System.Data;
+using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
+using KarateTournament.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace KarateTournament.Api.Endpoints;
@@ -10,6 +15,11 @@ public static class CategoryClaimEndpoints
     {
         endpoints.MapPost("/api/categories/{categoryId:int}/claim", ClaimCategory).WithName("ClaimCategory");
         endpoints.MapPost("/api/categories/{categoryId:int}/release", ReleaseCategory).WithName("ReleaseCategory");
+
+        var recovery = endpoints.MapGroup("/api/categories/{categoryId:int}")
+            .AddEndpointFilter(RequireOrganizerRecoveryKey);
+        recovery.MapGet("/claim-recovery", GetRecoveryTarget).WithName("GetCategoryClaimRecovery");
+        recovery.MapPost("/claim-recovery", RecoverClaim).WithName("RecoverCategoryClaim");
         return endpoints;
     }
 
@@ -22,17 +32,28 @@ public static class CategoryClaimEndpoints
             return Results.Problem(statusCode: StatusCodes.Status400BadRequest,
                 title: "A non-empty session token and a station name of 1–100 characters are required.");
 
-        // One conditional UPDATE arbitrates competing clients in PostgreSQL.
-        // Repeating a claim with the same token and station is idempotent.
-        var affected = await dbContext.Categories
-            .Where(category => category.Id == categoryId && !category.IsFinished
-                && (category.ClaimToken == null
-                    || (category.ClaimToken == request.SessionToken && category.ClaimedBy == stationName)))
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(category => category.ClaimToken, (Guid?)request.SessionToken)
-                .SetProperty(category => category.ClaimedBy, stationName), cancellationToken);
-        return affected > 0 ? Results.NoContent()
-            : await UnavailableCategory(categoryId, dbContext, cancellationToken);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
+        var category = await dbContext.LockCategoryAsync(categoryId, cancellationToken);
+        if (category is null)
+            return Results.NotFound();
+        if (category.IsFinished)
+            return ClaimConflict();
+        if (category.ClaimToken.HasValue)
+            return category.ClaimToken == request.SessionToken && category.ClaimedBy == stationName
+                ? Results.NoContent() : ClaimConflict();
+
+        // A separate query after acquiring the lock sees revocations that committed while we waited.
+        var claimReference = GetClaimReference(request.SessionToken);
+        if (await dbContext.RevokedCategoryClaims.AnyAsync(
+            claim => claim.CategoryId == categoryId && claim.ClaimReference == claimReference, cancellationToken))
+            return ClaimConflict();
+
+        category.ClaimToken = request.SessionToken;
+        category.ClaimedBy = stationName;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.NoContent();
     }
 
     private static async Task<IResult> ReleaseCategory(
@@ -43,21 +64,95 @@ public static class CategoryClaimEndpoints
             return Results.Problem(statusCode: StatusCodes.Status400BadRequest,
                 title: "A non-empty session token is required.");
 
-        // A delayed release from an old session cannot clear a newer session's claim.
-        var affected = await dbContext.Categories
-            .Where(category => category.Id == categoryId
-                && (category.ClaimToken == request.SessionToken || category.ClaimToken == null))
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(category => category.ClaimToken, (Guid?)null)
-                .SetProperty(category => category.ClaimedBy, (string?)null), cancellationToken);
-        return affected > 0 ? Results.NoContent()
-            : await UnavailableCategory(categoryId, dbContext, cancellationToken);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
+        var category = await dbContext.LockCategoryAsync(categoryId, cancellationToken);
+        if (category is null)
+            return Results.NotFound();
+        if (category.ClaimToken is null)
+            return Results.NoContent();
+        if (category.ClaimToken != request.SessionToken)
+            return ClaimConflict();
+
+        await RevokeClaim(category, GetClaimReference(request.SessionToken), dbContext, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.NoContent();
     }
 
-    private static async Task<IResult> UnavailableCategory(
-        int categoryId, TournamentDbContext dbContext, CancellationToken cancellationToken) =>
-        await dbContext.Categories.AnyAsync(category => category.Id == categoryId, cancellationToken)
-            ? Results.Problem(statusCode: StatusCodes.Status409Conflict,
-                title: "Category is finished or belongs to another session.")
-            : Results.NotFound();
+    private static async Task<IResult> GetRecoveryTarget(
+        int categoryId, TournamentDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var category = await dbContext.Categories.AsNoTracking()
+            .SingleOrDefaultAsync(category => category.Id == categoryId, cancellationToken);
+        if (category is null)
+            return Results.NotFound();
+        if (category.IsFinished || category.ClaimToken is not Guid token)
+            return RecoveryConflict();
+        return Results.Ok(new ClaimRecoveryDto(GetClaimReference(token), category.ClaimedBy));
+    }
+
+    private static async Task<IResult> RecoverClaim(
+        int categoryId, RecoverCategoryClaimRequest request, TournamentDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        if (!IsHexDigest(request.ClaimReference))
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest,
+                title: "Provide a valid claim reference from GET claim-recovery.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
+        var category = await dbContext.LockCategoryAsync(categoryId, cancellationToken);
+        if (category is null)
+            return Results.NotFound();
+        if (category.IsFinished || category.ClaimToken is not Guid token
+            || !string.Equals(GetClaimReference(token), request.ClaimReference, StringComparison.OrdinalIgnoreCase))
+            return RecoveryConflict();
+
+        await RevokeClaim(category, GetClaimReference(token), dbContext, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task RevokeClaim(
+        Category category, string claimReference, TournamentDbContext dbContext, CancellationToken cancellationToken)
+    {
+        dbContext.RevokedCategoryClaims.Add(new RevokedCategoryClaim
+        {
+            CategoryId = category.Id,
+            ClaimReference = claimReference
+        });
+        category.ClaimToken = null;
+        category.ClaimedBy = null;
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async ValueTask<object?> RequireOrganizerRecoveryKey(
+        EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var http = context.HttpContext;
+        http.Response.Headers.CacheControl = "no-store";
+        var key = http.RequestServices.GetRequiredService<IConfiguration>()["Organizer:RecoveryKey"];
+        if (!IsHexDigest(key))
+            return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable,
+                title: "Organizer claim recovery is not configured.");
+
+        if (!AuthenticationHeaderValue.TryParse(http.Request.Headers.Authorization, out var authorization)
+            || !authorization.Scheme.Equals("Bearer", StringComparison.OrdinalIgnoreCase)
+            || authorization.Parameter is not { Length: 64 } provided
+            || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(key!), Encoding.UTF8.GetBytes(provided)))
+        {
+            http.Response.Headers.WWWAuthenticate = "Bearer";
+            return Results.Unauthorized();
+        }
+
+        return await next(context);
+    }
+
+    private static bool IsHexDigest(string? value) => value is { Length: 64 } && value.All(Uri.IsHexDigit);
+    private static string GetClaimReference(Guid token) => Convert.ToHexString(SHA256.HashData(token.ToByteArray()));
+
+    private static IResult ClaimConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,
+        title: "Category is finished, belongs to another session, or the session was revoked.");
+    private static IResult RecoveryConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,
+        title: "The expected claim is not active. Refresh the category before attempting recovery.");
 }
