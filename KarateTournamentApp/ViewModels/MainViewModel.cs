@@ -18,6 +18,7 @@ namespace KarateTournamentApp.ViewModels
     public class MainViewModel : ViewModelBase
     {
         private readonly CategoryManager _categoryManager;
+        private readonly Func<CreateParticipantRequest, CancellationToken, Task<ParticipantDto>>? _createApiParticipant;
 
         // Form data
         private string _firstName;
@@ -65,6 +66,7 @@ namespace KarateTournamentApp.ViewModels
         public ObservableCollection<CategorySelectionItem> CategorySelections { get; set; }
 
         public ObservableCollection<Participant> AllParticipants { get; set; }
+        public ObservableCollection<ParticipantDto> ApiParticipants { get; } = new();
 
         public ObservableCollection<CategoryViewModel> Categories { get; set; }
 
@@ -96,11 +98,13 @@ namespace KarateTournamentApp.ViewModels
                 _isApiPreview = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsLocalTournament));
+                OnPropertyChanged(nameof(AddParticipantLabel));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
 
         public bool IsLocalTournament => !IsApiPreview;
+        public string AddParticipantLabel => IsApiPreview ? "ZAPISZ ZAWODNIKA W API" : "DODAJ ZAWODNIKA";
 
         private readonly ImportService _importService;
 
@@ -127,9 +131,11 @@ namespace KarateTournamentApp.ViewModels
             IDialogService dialogService,
             IWindowService windowService,
             IUiScheduler uiScheduler,
-            Func<CancellationToken, Task<TournamentSnapshotDto>>? loadApiSnapshot = null)
+            Func<CancellationToken, Task<TournamentSnapshotDto>>? loadApiSnapshot = null,
+            Func<CreateParticipantRequest, CancellationToken, Task<ParticipantDto>>? createApiParticipant = null)
         {
             _categoryManager = categoryManager;
+            _createApiParticipant = createApiParticipant;
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
             _uiScheduler = uiScheduler ?? throw new ArgumentNullException(nameof(uiScheduler));
@@ -149,7 +155,7 @@ namespace KarateTournamentApp.ViewModels
             AllParticipants = new ObservableCollection<Participant>();
             Categories = new ObservableCollection<CategoryViewModel>();
 
-            AddParticipantCommand = new RelayCommand(o => CreateParticipant(), o => CanCreateParticipant());
+            AddParticipantCommand = new AsyncRelayCommand(CreateParticipantAsync, HandleAsyncCommandError, CanCreateParticipant);
             ImportCommand = new AsyncRelayCommand(ImportDataAsync, HandleAsyncCommandError,
                 () => IsLocalTournament && !IsLoading);
             ExportCommand = new AsyncRelayCommand(
@@ -181,6 +187,9 @@ namespace KarateTournamentApp.ViewModels
                 Categories.Clear();
                 foreach (var category in categories)
                     Categories.Add(category);
+                ApiParticipants.Clear();
+                foreach (var participant in snapshot.Participants.OrderByDescending(participant => participant.Id))
+                    ApiParticipants.Add(participant);
                 IsApiPreview = true;
             }
             finally
@@ -215,28 +224,49 @@ namespace KarateTournamentApp.ViewModels
 
         private bool CanCreateParticipant()
         {
-            return IsLocalTournament && !IsLoading &&
-                   !string.IsNullOrWhiteSpace(FirstName) &&
-                   !string.IsNullOrWhiteSpace(LastName) &&
-                   Age.HasValue && Age > 0 &&
-                   CategorySelections.Any(c => c.IsSelected) &&
-                   (DivideByAge || DivideByBelt);
+            if (IsLoading || string.IsNullOrWhiteSpace(FirstName) || string.IsNullOrWhiteSpace(LastName)
+                || Age is not int age || !CategorySelections.Any(category => category.IsSelected))
+                return false;
+
+            return IsApiPreview
+                ? _createApiParticipant is not null && age >= 0 && Enum.IsDefined(SelectedSex) && Enum.IsDefined(SelectedBelt)
+                : age > 0 && (DivideByAge || DivideByBelt);
         }
 
-        private void CreateParticipant()
+        private async Task CreateParticipantAsync()
         {
+            if (Age is not int age)
+                return;
             var selectedCategories = CategorySelections
                 .Where(c => c.IsSelected)
                 .Select(c => c.CategoryType)
-                .ToList();
+                .ToArray();
+
+            if (IsApiPreview && _createApiParticipant is not null)
+            {
+                var request = new CreateParticipantRequest(FirstName, LastName, age, Club,
+                    SelectedBelt, SelectedSex, selectedCategories);
+                IsLoading = true;
+                try
+                {
+                    var saved = await _createApiParticipant(request, CancellationToken.None);
+                    ApiParticipants.Insert(0, saved);
+                    ResetForm();
+                }
+                finally
+                {
+                    IsLoading = false;
+                }
+                return;
+            }
 
             var newParticipant = new Participant(
                 FirstName,
                 LastName,
-                Age.Value,
+                age,
                 SelectedBelt,
                 SelectedSex,
-                selectedCategories,
+                selectedCategories.ToList(),
                 Club
             );
 

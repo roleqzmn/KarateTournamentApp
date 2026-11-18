@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using KarateClassLibrary;
-using KarateTournament.Api.Contracts;
+using KarateClassLibrary.Contracts;
 using Xunit;
 
 namespace KarateTournament.Api.Tests;

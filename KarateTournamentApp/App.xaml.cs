@@ -33,7 +33,7 @@ namespace KarateTournamentApp
             var api = new TournamentApiClient(_tournamentHttpClient,
                 Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_API_URL"));
             var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler,
-                cancellationToken => api.GetSnapshotAsync(cancellationToken));
+                api.GetSnapshotAsync, api.CreateParticipantAsync);
 
             var mainWindow = new MainWindow
             {

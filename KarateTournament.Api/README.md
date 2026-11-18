@@ -42,7 +42,6 @@ select **Pobierz turniej z API**. The default URL is `https://localhost:7086`.
 Set `KARATE_TOURNAMENT_API_URL` before launching WPF to use another API address.
 The preview shows category availability, rosters and saved results. Use
 **Wróć do turnieju lokalnego** to resume working with the local tournament.
-WPF integration will be added in later steps.
 
 ## Create a participant
 
@@ -57,6 +56,11 @@ participant and their category types. The response is 201 with ParticipantDto an
 a Location header pointing to `GET /api/participants/{id}` (404 if not found).
 Category types declare disciplines; this endpoint does not assign categories or
 generate brackets. Participants with identical names are allowed.
+
+In WPF, open the API tournament and use **Zapisz zawodnika w API**. The registry
+includes unassigned participants. On a confirmed save, WPF displays the assigned
+ID and clears the form. Rejected data stays in the form for correction. If a
+response is lost, refresh the registry and check for the participant before retrying.
 
 Run validation tests with:
 
