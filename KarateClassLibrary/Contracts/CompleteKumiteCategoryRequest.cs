@@ -1,4 +1,4 @@
-namespace KarateTournament.Api.Contracts;
+namespace KarateClassLibrary.Contracts;
 
 public sealed record CompleteKumiteCategoryRequest(
     Guid SessionToken, KumiteMatchResultRequest[]? Matches, int[]? RankedParticipantIds);

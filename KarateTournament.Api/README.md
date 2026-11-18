@@ -171,6 +171,14 @@ your database tool before starting this version. It adds nullable columns withou
 deleting data and can be repeated. This is not an automatic schema upgrade; no EF
 migrations or local database reset are performed. Fresh test databases use EnsureCreated.
 
+In WPF, **Przejmij i rozpocznij** opens the judge panel and public scoreboard
+for Kumite and individually scored categories. WPF saves the session token
+before claiming and checkpoints progress every two seconds and on close.
+Use **Wznów sesję** to reopen local progress during a network outage. An
+unconfirmed claim is retried with the same token. The timer starts paused after
+reopening a checkpoint. **Zwolnij blokadę** discards the local checkpoint after
+the API confirms the release.
+
 ## Recover a claimed category
 
 Set `Organizer:RecoveryKey` in local user secrets or `Organizer__RecoveryKey` in

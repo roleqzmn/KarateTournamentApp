@@ -1,4 +1,4 @@
-namespace KarateTournament.Api.Contracts;
+namespace KarateClassLibrary.Contracts;
 
 public sealed record ClaimCategoryRequest(Guid SessionToken, string? StationName);
 public sealed record ReleaseCategoryRequest(Guid SessionToken);

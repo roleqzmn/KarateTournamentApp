@@ -1,3 +1,4 @@
+using KarateClassLibrary.Contracts;
 namespace KarateTournament.Api.Contracts;
 
 public static class KumiteResultValidator

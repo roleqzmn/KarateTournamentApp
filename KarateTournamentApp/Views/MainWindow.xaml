@@ -377,6 +377,22 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                     </StackPanel>
                     <TextBlock Text="Konkurencje z API" Margin="0,6,0,0"
                                Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <TextBlock Text="{Binding JudgingWarning}" TextWrapping="Wrap" Foreground="#A52A2A"/>
+                    <ItemsControl ItemsSource="{Binding JudgingSessions}" Margin="0,4,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <WrapPanel Margin="0,2">
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Button Content="Wznów sesję" Padding="6,4" Margin="0,0,6,0"
+                                            Command="{Binding DataContext.ResumeApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                    <Button Content="Zwolnij blokadę" Padding="6,4"
+                                            Command="{Binding DataContext.ReleaseApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </WrapPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
@@ -469,6 +485,9 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                             CommandParameter="{Binding}"/>
                                                     <Button Content="Usuń konkurencję" Padding="6,4"
                                                             Command="{Binding DataContext.DeleteApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Content="Przejmij i rozpocznij" Padding="6,4" Margin="6,0,0,0"
+                                                            Command="{Binding DataContext.StartApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"/>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding KumiteWinnerDisplay}"

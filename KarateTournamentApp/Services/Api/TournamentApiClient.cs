@@ -9,6 +9,8 @@ namespace KarateTournamentApp.Services.Api;
 
 internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAddress)
 {
+    public string SessionScope => (string.IsNullOrWhiteSpace(baseAddress) ? "https://localhost:7086" : baseAddress.Trim()).TrimEnd('/');
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         RespectRequiredConstructorParameters = true,
@@ -92,6 +94,10 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
 
     public Task DeleteParticipantAsync(int id) => WriteAsync<object>(HttpMethod.Delete, $"api/participants/{id}");
     public Task DeleteCategoryAsync(int id) => WriteAsync<object>(HttpMethod.Delete, $"api/categories/{id}");
+    public Task ClaimCategoryAsync(int id, ClaimCategoryRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/claim", request);
+    public Task ReleaseCategoryAsync(int id, ReleaseCategoryRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/release", request);
 
     private async Task<T> WriteAsync<T>(HttpMethod method, string path, object? payload = null)
     {
@@ -144,7 +150,7 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
 
     private Uri GetEndpoint(string path)
     {
-        var address = string.IsNullOrWhiteSpace(baseAddress) ? "https://localhost:7086" : baseAddress.Trim();
+        var address = SessionScope;
         if (!Uri.TryCreate(address.TrimEnd('/') + "/", UriKind.Absolute, out var baseUri)
             || (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps)
             || baseUri.UserInfo.Length > 0 || baseUri.Query.Length > 0 || baseUri.Fragment.Length > 0)

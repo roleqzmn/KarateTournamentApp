@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using System.Windows.Threading;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
 using KarateTournamentApp.Services.Dialogs;
@@ -281,9 +282,14 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        private void StartBracketCompetition()
+        internal IWindowHandle OpenApiJudge(IndividualJudgeDraft? draft, Action<IndividualJudgeDraft?> checkpoint) =>
+            _category.CategoryType == CategoryType.Kumite
+                ? StartBracketCompetition(() => checkpoint(null))
+                : StartIndividualCompetition(draft ?? IndividualJudgeDraft.Empty, checkpoint);
+
+        private IWindowHandle StartBracketCompetition(Action? onClosed = null)
         {
-            var competitionManager = new CompetitionManagerViewModel(_category, _dialogService);
+            var competitionManager = new CompetitionManagerViewModel(_category, _dialogService, preserveBracket: onClosed is not null);
             var scoreboardViewModel = new ScoreboardViewModel(competitionManager);
             var judgeViewModel = new ScoreboardJudgeViewModel(competitionManager, _dialogService, scoreboardViewModel);
 
@@ -304,13 +310,22 @@ namespace KarateTournamentApp.ViewModels
                 FullScreenMonitor = WindowMonitor.Primary
             });
 
-            judgeHandle.Closed += (s, e) => Refresh();
-            judgeHandle.Closed += (s, e) => Refresh();
+            judgeHandle.Closed += (_, _) =>
+            {
+                scoreboardViewModel.StopTimer();
+                Refresh();
+            };
+            if (onClosed is not null)
+                AttachCheckpoint(judgeHandle, onClosed);
+            return judgeHandle;
         }
 
-        private void StartIndividualCompetition()
+        private IWindowHandle StartIndividualCompetition(
+            IndividualJudgeDraft? draft = null, Action<IndividualJudgeDraft?>? onClosed = null)
         {
             var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService, _uiScheduler);
+            if (draft is not null)
+                competitionManager.RestoreDraft(draft);
             var scoreboardViewModel = new IndividualScoreboardViewModel(competitionManager);
             var judgeViewModel = new IndividualJudgeViewModel(competitionManager, _windowService);
 
@@ -323,13 +338,29 @@ namespace KarateTournamentApp.ViewModels
                 FullScreenMonitor = WindowMonitor.SecondaryIfAvailable
             }, (_, _) => Refresh());
 
-            _windowService.Show(judgeViewModel, new WindowOptions
+            var judgeHandle = _windowService.Show(judgeViewModel, new WindowOptions
             {
                 Title = $"Panel sedziowski - {_category.Name}",
                 Width = 900,
                 Height = 700,
                 FullScreenMonitor = WindowMonitor.Primary
             });
+            if (onClosed is not null)
+                AttachCheckpoint(judgeHandle, () => onClosed(competitionManager.CaptureDraft()));
+            return judgeHandle;
+        }
+
+        private static void AttachCheckpoint(IWindowHandle handle, Action save)
+        {
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            timer.Tick += (_, _) => save();
+            handle.Closed += (_, _) =>
+            {
+                timer.Stop();
+                save();
+            };
+            save();
+            timer.Start();
         }
     }
 

@@ -2,6 +2,7 @@ using System.Data;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;

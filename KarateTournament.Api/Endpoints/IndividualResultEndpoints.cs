@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using KarateClassLibrary;
 using KarateClassLibrary.Scoring;
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;

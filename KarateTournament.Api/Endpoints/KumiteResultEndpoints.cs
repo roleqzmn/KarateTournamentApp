@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using KarateClassLibrary;
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;

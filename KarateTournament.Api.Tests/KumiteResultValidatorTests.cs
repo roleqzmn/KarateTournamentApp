@@ -1,3 +1,4 @@
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Contracts;
 using Xunit;
 

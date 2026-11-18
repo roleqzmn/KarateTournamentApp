@@ -133,6 +133,8 @@ namespace KarateTournamentApp.ViewModels
             : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync, api.CreateParticipantAsync)
         {
             _api = api;
+            _sessions = new JudgingSessionStore(api.SessionScope);
+            RefreshJudgingSessions();
         }
 
         public MainViewModel(
@@ -180,7 +182,13 @@ namespace KarateTournamentApp.ViewModels
                 () => LoadApiTournamentAsync(loadApiSnapshot!), HandleAsyncCommandError,
                 () => loadApiSnapshot is not null && !IsLoading);
             ReturnToLocalTournamentCommand = new RelayCommand(_ => ReturnToLocalTournament(),
-                _ => IsApiPreview && !IsLoading);
+                _ => IsApiPreview && !IsLoading && _activeJudgeLock is null);
+            StartApiJudgingCommand = new AsyncRelayCommand<CategoryViewModel>(StartApiJudgingAsync,
+                HandleAsyncCommandError, CanStartApiJudging);
+            ResumeApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ResumeApiJudgingAsync,
+                HandleAsyncCommandError, session => CanUseSessions() && session.Category?.IsFinished != true);
+            ReleaseApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ReleaseApiJudgingAsync,
+                HandleAsyncCommandError, _ => CanUseSessions());
             CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
             EditApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
             DeleteApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);

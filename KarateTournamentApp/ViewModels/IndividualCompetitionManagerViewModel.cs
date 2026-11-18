@@ -16,6 +16,7 @@ namespace KarateTournamentApp.ViewModels
         private readonly IWindowService _windowService;
         private readonly IUiScheduler _uiScheduler;
         private int _currentParticipantIndex;
+        private bool _requireEveryParticipant;
         
         public Category Category => _category;
         
@@ -100,7 +101,7 @@ namespace KarateTournamentApp.ViewModels
 
         private bool CanMoveToNext()
         {
-            return _currentParticipantIndex < _category.Participants.Count - 1;
+            return !_requireEveryParticipant && _currentParticipantIndex < _category.Participants.Count - 1;
         }
 
         private bool CanFinishParticipant()
@@ -152,15 +153,42 @@ namespace KarateTournamentApp.ViewModels
 
         private void AddJudgeScore(object parameter)
         {
-            if (parameter is string scoreText && decimal.TryParse(scoreText, out decimal score))
-            {
-                if (score >= 0 && score <= 10) 
-                {
-                    JudgeScores.Add(score);
-                    OnPropertyChanged(nameof(FinalScore));
-                }
-            }
+            TryAddScore(parameter as string);
         }
+
+        internal bool TryAddScore(string? input)
+        {
+            if (CurrentParticipant is null || !decimal.TryParse(input, out var score) || score is < 0 or > 10
+                || (_requireEveryParticipant && decimal.Round(score, 2) != score))
+                return false;
+            JudgeScores.Add(score);
+            OnPropertyChanged(nameof(FinalScore));
+            return true;
+        }
+
+        internal void RestoreDraft(IndividualJudgeDraft draft)
+        {
+            _requireEveryParticipant = true;
+            _currentParticipantIndex = draft.ParticipantIndex;
+            CurrentParticipant = _category.IsFinished ? null : _category.Participants[draft.ParticipantIndex];
+            Results.Clear();
+            foreach (var result in draft.Results)
+            {
+                var (score, discarded) = JudgingScoreCalculator.CalculateFinalScore(result.Notes);
+                Results.Add(new ParticipantResult
+                {
+                    Participant = _category.Participants.Single(person => person.Id == result.ParticipantId),
+                    Score = score,
+                    JudgeScores = result.Notes.ToList(),
+                    DiscardedJudgeScoreIndexes = discarded
+                });
+            }
+            foreach (var note in draft.CurrentScores)
+                JudgeScores.Add(note);
+        }
+
+        internal IndividualJudgeDraft CaptureDraft() => new(_currentParticipantIndex, JudgeScores.ToArray(),
+            Results.Select(result => new IndividualDraftScore(result.Participant.Id, result.JudgeScores.ToArray())).ToArray());
 
         private void RemoveLastScore()
         {
@@ -224,13 +252,10 @@ namespace KarateTournamentApp.ViewModels
             
             System.Diagnostics.Debug.WriteLine($"GetFinalRankings called. Total results: {results.Count}");
             
-            if (results.Count < 2) return results;
-
-            ResolveRankingTie(results, 0);
-
-            if (results.Count < 3) return results;
-
-            ResolveRankingTie(results, 1);
+            if (results.Count >= 2)
+                ResolveRankingTie(results, 0);
+            if (results.Count >= 3)
+                ResolveRankingTie(results, 1);
 
             if (_category.IsFinished)
             {
