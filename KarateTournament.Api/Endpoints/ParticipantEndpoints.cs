@@ -12,6 +12,7 @@ public static class ParticipantEndpoints
     {
         endpoints.MapPost("/api/participants", CreateParticipant)
             .WithName("CreateParticipant");
+        endpoints.MapPost("/api/participants/batch", ImportParticipants).WithName("ImportParticipants");
         endpoints.MapGet("/api/participants/{participantId:int}", GetParticipant)
             .WithName("GetParticipant");
         endpoints.MapPut("/api/participants/{participantId:int}", UpdateParticipant)
@@ -60,6 +61,34 @@ public static class ParticipantEndpoints
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return Results.Ok(ToDto(participant));
+    }
+
+    private static async Task<IResult> ImportParticipants(
+        CreateParticipantRequest?[] requests, TournamentDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (requests.Length == 0)
+            errors["rows"] = ["At least one participant is required."];
+        for (var index = 0; index < requests.Length; index++)
+        {
+            if (requests[index] is not { } request)
+                errors[$"rows[{index + 1}]"] = ["A participant is required."];
+            else if (RequestValidation.GetErrors(request) is { } validation)
+                foreach (var (field, messages) in validation)
+                    errors[$"rows[{index + 1}].{field}"] = messages;
+        }
+        if (errors.Count > 0)
+            return Results.ValidationProblem(errors);
+
+        var participants = requests.Select(request =>
+        {
+            var participant = new Participant();
+            ApplyProfile(participant, request!);
+            return participant;
+        }).ToArray();
+        dbContext.Participants.AddRange(participants);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return Results.Json(participants.Select(ToDto).ToArray(), statusCode: StatusCodes.Status201Created);
     }
 
     private static async Task<IResult> DeleteParticipant(

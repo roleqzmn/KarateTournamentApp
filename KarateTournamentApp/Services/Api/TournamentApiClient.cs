@@ -82,6 +82,9 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
     public Task<ParticipantDto> UpdateParticipantAsync(int id, CreateParticipantRequest request) =>
         WriteAsync<ParticipantDto>(HttpMethod.Put, $"api/participants/{id}", request);
 
+    public Task<ParticipantDto[]> ImportParticipantsAsync(CreateParticipantRequest[] requests) =>
+        WriteAsync<ParticipantDto[]>(HttpMethod.Post, "api/participants/batch", requests);
+
     public Task<CategoryDto> SaveCategoryAsync(int? id, CreateCategoryRequest request) =>
         id.HasValue
             ? WriteAsync<CategoryDto>(HttpMethod.Put, $"api/categories/{id}", request)
@@ -158,7 +161,9 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         {
             var problem = await response.Content.ReadFromJsonAsync<ValidationErrorResponse>(cancellationToken)
                 .ConfigureAwait(false);
-            var messages = problem?.Errors?.Values.SelectMany(errors => errors).Distinct().ToArray();
+            var messages = problem?.Errors?.SelectMany(entry => entry.Value.Select(message =>
+                entry.Key.StartsWith("rows[", StringComparison.Ordinal) ? $"{entry.Key}: {message}" : message))
+                .Distinct().ToArray();
             return messages is { Length: > 0 } ? string.Join(Environment.NewLine, messages) : null;
         }
         catch (JsonException)

@@ -62,6 +62,14 @@ includes unassigned participants. On a confirmed save, WPF displays the assigned
 ID and clears the form. Rejected data stays in the form for correction. If a
 response is lost, refresh the registry and check for the participant before retrying.
 
+In API mode, **Import Excel** sends one batch to `POST /api/participants/batch`.
+The API validates the entire batch before saving in one transaction. A 400
+response names the rejected entries and adds nobody. Valid entries are added
+to the registry. Importing the same file again creates additional records.
+Use **Nowa konkurencja** or **Edytuj ustawienia i skład** to assign participants
+and adjust their order. On the registry list, **Edytuj** opens a participant's
+profile in the registration form.
+
 Run validation tests with:
 
 ```powershell

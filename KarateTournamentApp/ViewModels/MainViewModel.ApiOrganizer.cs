@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using KarateClassLibrary.Contracts;
+using KarateTournamentApp.Services;
 using KarateTournamentApp.Services.Api;
 using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.Services.Navigation;
@@ -140,4 +141,23 @@ public partial class MainViewModel
 
     private bool ConfirmApiDelete(string message) =>
         _dialogService.ShowMessage(message, "Potwierdź usunięcie", DialogButtons.YesNo, DialogIcon.Warning) == DialogResult.Yes;
+
+    private async Task ImportApiParticipantsAsync(string filePath)
+    {
+        var participants = await new ExcelImportService().ImportParticipantsFromExcelAsync(filePath, rejectInvalidRows: true);
+        if (participants.Count == 0)
+        {
+            _dialogService.ShowMessage("Plik nie zawiera zawodników.", "Import Excel");
+            return;
+        }
+        if (_dialogService.ShowMessage($"Dodać do rejestru {participants.Count} zawodników z pliku?",
+            "Import Excel", DialogButtons.YesNo, DialogIcon.Question) != DialogResult.Yes)
+            return;
+
+        var requests = participants.Select(person => new CreateParticipantRequest(person.FirstName, person.LastName,
+            person.Age, person.Club, person.Belt, person.Sex, person.Categories.ToArray())).ToArray();
+        var saved = await _api!.ImportParticipantsAsync(requests);
+        ShowApiSnapshot(_apiSnapshot! with { Participants = _apiSnapshot.Participants.Concat(saved).ToArray() });
+        _dialogService.ShowMessage($"Zapisano zawodników: {saved.Length}.", "Import Excel");
+    }
 }

@@ -174,7 +174,7 @@ namespace KarateTournamentApp.ViewModels
             ImportExcelCommand = new AsyncRelayCommand(
                 ImportExcelDataAsync,
                 HandleAsyncCommandError,
-                () => IsLocalTournament && !IsLoading && (DivideByAge || DivideByBelt));
+                () => !IsLoading && (CanManageApi || (IsLocalTournament && (DivideByAge || DivideByBelt))));
             CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync, HandleAsyncCommandError);
             LoadApiTournamentCommand = new AsyncRelayCommand(
                 () => LoadApiTournamentAsync(loadApiSnapshot!), HandleAsyncCommandError,
@@ -423,6 +423,11 @@ namespace KarateTournamentApp.ViewModels
             IsLoading = true;
             try
             {
+                if (IsApiPreview)
+                {
+                    await ImportApiParticipantsAsync(filePath);
+                    return;
+                }
                 await _importService.ImportParticipantsFromExcelAsync(
                     filePath,
                     _categoryManager,
