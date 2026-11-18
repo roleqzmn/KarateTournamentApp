@@ -95,12 +95,7 @@ public partial class TournamentApiIntegrationTests
         Assert.Equal(1, await claim.ExecuteNonQueryAsync(timeout.Token));
 
         var update = _client.PutAsJsonAsync(path, request, timeout.Token);
-        await using var blocked = new NpgsqlCommand(
-            "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE @owner = ANY(pg_blocking_pids(pid)))", observer);
-        blocked.Parameters.AddWithValue("owner", owner.ProcessID);
-        while (!update.IsCompleted && !(bool)(await blocked.ExecuteScalarAsync(timeout.Token))!)
-            await Task.Delay(25, timeout.Token);
-        Assert.False(update.IsCompleted, "The edit should wait for the transaction holding the category row.");
+        await WaitForBlockedRequest(update, observer, owner.ProcessID, timeout.Token);
         await transaction.CommitAsync(timeout.Token);
         using var response = await update;
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);

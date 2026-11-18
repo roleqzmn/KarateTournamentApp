@@ -1,3 +1,4 @@
+using System.Data;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;
@@ -15,6 +16,8 @@ public static class ParticipantEndpoints
             .WithName("GetParticipant");
         endpoints.MapPut("/api/participants/{participantId:int}", UpdateParticipant)
             .WithName("UpdateParticipant");
+        endpoints.MapDelete("/api/participants/{participantId:int}", DeleteParticipant)
+            .WithName("DeleteParticipant");
         return endpoints;
     }
 
@@ -57,6 +60,38 @@ public static class ParticipantEndpoints
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return Results.Ok(ToDto(participant));
+    }
+
+    private static async Task<IResult> DeleteParticipant(
+        int participantId,
+        TournamentDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
+        var rows = await dbContext.Participants
+            .FromSql($"""SELECT * FROM "Participants" WHERE "Id" = {participantId} FOR UPDATE""")
+            .ToListAsync(cancellationToken);
+        var participant = rows.SingleOrDefault();
+        if (participant is null)
+            return Results.NotFound();
+
+        // Read references after acquiring the lock, in case an assignment committed while waiting.
+        var hasMemberships = await dbContext.Participants.AnyAsync(person => person.Id == participantId
+            && (person.CategoryMemberships.Any() || person.TeamMemberships.Any()), cancellationToken);
+        if (hasMemberships
+            || await dbContext.Matches.AnyAsync(match => match.AkaParticipantId == participantId
+                || match.ShiroParticipantId == participantId || match.WinnerParticipantId == participantId, cancellationToken)
+            || await dbContext.ParticipantResults.AnyAsync(result => result.ParticipantId == participantId, cancellationToken))
+        {
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "A participant referenced by a category, team, match or result cannot be deleted.");
+        }
+
+        dbContext.Participants.Remove(participant);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.NoContent();
     }
 
     private static void ApplyProfile(Participant participant, CreateParticipantRequest request)

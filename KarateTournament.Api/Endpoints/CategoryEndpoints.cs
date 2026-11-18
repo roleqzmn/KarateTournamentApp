@@ -14,6 +14,7 @@ public static class CategoryEndpoints
         endpoints.MapGet("/api/categories", GetCategories).WithName("GetCategories");
         endpoints.MapGet("/api/categories/{categoryId:int}", GetCategory).WithName("GetCategory");
         endpoints.MapPut("/api/categories/{categoryId:int}", UpdateCategory).WithName("UpdateCategory");
+        endpoints.MapDelete("/api/categories/{categoryId:int}", DeleteCategory).WithName("DeleteCategory");
         return endpoints;
     }
 
@@ -54,6 +55,9 @@ public static class CategoryEndpoints
     {
         if (RequestValidation.GetProblem(request) is { } validationProblem)
             return validationProblem;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
         if (await ValidateParticipantIds(request.ParticipantIds!, dbContext, cancellationToken) is { } participantProblem)
             return participantProblem;
 
@@ -61,6 +65,7 @@ public static class CategoryEndpoints
         ApplySettings(category, request);
         dbContext.Categories.Add(category);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Results.CreatedAtRoute("GetCategory", new { categoryId = category.Id },
             CategoryReadModel.ToDto(category));
@@ -78,21 +83,12 @@ public static class CategoryEndpoints
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, cancellationToken);
 
-        // Lock the same row that claim and completion update. Keep it locked while replacing the roster.
-        var lockedCategories = await dbContext.Categories
-            .FromSql($"""SELECT * FROM "Categories" WHERE "Id" = {categoryId} FOR NO KEY UPDATE""")
-            .ToListAsync(cancellationToken);
-        var category = lockedCategories.SingleOrDefault();
+        var category = await LockCategory(categoryId, dbContext, cancellationToken);
         if (category is null)
             return Results.NotFound();
 
-        if (category.ClaimToken.HasValue || category.IsFinished
-            || await dbContext.Categories.AnyAsync(other => other.Id == categoryId
-                && (other.Teams.Any() || other.BracketMatches.Any() || other.FinalResults.Any()), cancellationToken))
-        {
-            return Results.Problem(statusCode: StatusCodes.Status409Conflict,
-                title: "Claimed or finished categories and categories with teams, matches or results cannot be edited.");
-        }
+        if (await HasCompetitionData(category, dbContext, cancellationToken))
+            return CategoryConflict();
 
         if (await ValidateParticipantIds(request.ParticipantIds!, dbContext, cancellationToken) is { } participantProblem)
             return participantProblem;
@@ -108,15 +104,55 @@ public static class CategoryEndpoints
         return Results.Ok(CategoryReadModel.ToDto(category));
     }
 
+    private static async Task<IResult> DeleteCategory(
+        int categoryId,
+        TournamentDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
+        var category = await LockCategory(categoryId, dbContext, cancellationToken);
+        if (category is null)
+            return Results.NotFound();
+        if (await HasCompetitionData(category, dbContext, cancellationToken))
+            return CategoryConflict();
+
+        dbContext.Categories.Remove(category);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<Category?> LockCategory(
+        int categoryId, TournamentDbContext dbContext, CancellationToken cancellationToken)
+    {
+        // Lock the row used by claim and completion before checking state or changing relationships.
+        var rows = await dbContext.Categories
+            .FromSql($"""SELECT * FROM "Categories" WHERE "Id" = {categoryId} FOR UPDATE""")
+            .ToListAsync(cancellationToken);
+        return rows.SingleOrDefault();
+    }
+
+    private static async Task<bool> HasCompetitionData(
+        Category category, TournamentDbContext dbContext, CancellationToken cancellationToken) =>
+        category.ClaimToken.HasValue || category.IsFinished
+        || await dbContext.Categories.AnyAsync(other => other.Id == category.Id
+            && (other.Teams.Any() || other.BracketMatches.Any() || other.FinalResults.Any()), cancellationToken);
+
+    private static IResult CategoryConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,
+        title: "Claimed or finished categories and categories with teams, matches or results cannot be edited or deleted.");
+
     private static async Task<IResult?> ValidateParticipantIds(
         int[] participantIds, TournamentDbContext dbContext, CancellationToken cancellationToken)
     {
         if (participantIds.Length == 0)
             return null;
 
-        var existingIds = await dbContext.Participants
-            .Where(participant => participantIds.Contains(participant.Id))
-            .Select(participant => participant.Id)
+        // Keep validated IDs alive until the category and its memberships commit.
+        var existingIds = await dbContext.Database.SqlQuery<int>($"""
+            SELECT "Id" FROM "Participants" WHERE "Id" = ANY ({participantIds})
+            ORDER BY "Id" FOR KEY SHARE
+            """)
             .ToArrayAsync(cancellationToken);
         var missingIds = participantIds.Except(existingIds).ToArray();
         if (missingIds.Length > 0)

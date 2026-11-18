@@ -99,6 +99,21 @@ matches or results. Claim and edit serialize on the same PostgreSQL row. Setting
 and lists are saved in one transaction. Two organizer edits to an eligible
 category apply in order, with the last committed edit taking effect.
 
+## Delete participants and categories
+
+`DELETE /api/participants/{id}` removes an unused participant. A reference from
+a category, team, match or result returns 409. Remove draft category assignments
+explicitly before deleting a participant.
+
+`DELETE /api/categories/{id}` removes a category and its roster and belt links.
+The participant records remain available. The same guards as for category edits
+apply: an active claim, a finished category or existing competition data returns
+409. Both endpoints return 204 after deletion and 404 if the resource is missing.
+
+Category creation and edits lock the IDs in the incoming roster until commit.
+If a concurrent deletion wins, the category write returns 400 for the missing ID.
+If assignment wins, the participant deletion returns 409.
+
 ## Read categories
 
 `GET /api/categories` returns summaries ordered by ID: name, discipline, sex,
