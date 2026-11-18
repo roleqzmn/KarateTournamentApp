@@ -70,7 +70,9 @@ namespace KarateTournamentApp.ViewModels
 
         private void ShowResults()
         {
-            var resultsViewModel = new ResultsViewModel(_competitionManager);
+            ResultsViewModel resultsViewModel;
+            try { resultsViewModel = new ResultsViewModel(_competitionManager); }
+            catch (OperationCanceledException) { return; }
             _windowService.ShowDialog(resultsViewModel, new WindowOptions
             {
                 Title = $"Wyniki - {CategoryName}",

@@ -199,7 +199,7 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        private ParticipantResult ResolveDraw(ParticipantResult participant1, ParticipantResult participant2)
+        private ParticipantResult? ResolveDraw(ParticipantResult participant1, ParticipantResult participant2)
         {
             var scoreboardViewModel = new DrawResolverScoreboardViewModel(participant1.Participant, participant2.Participant);
             var drawResolver = new DrawResolverViewModel(participant1.Participant, participant2.Participant, scoreboardViewModel);
@@ -237,6 +237,8 @@ namespace KarateTournamentApp.ViewModels
                 Topmost = true
             }, handle => judgeHandle = handle);
 
+            if (winner is null && _requireEveryParticipant)
+                return null;
             return winner == participant1.Participant ? participant1 : participant2;
         }
 
@@ -308,6 +310,8 @@ namespace KarateTournamentApp.ViewModels
             {
                 System.Diagnostics.Debug.WriteLine("Still tied - opening DrawResolver window");
                 var winner = ResolveDraw(first, second);
+                if (winner is null)
+                    throw new OperationCanceledException("Potwierdź rozstrzygnięcie remisu przed wysłaniem wyników.");
                 if (winner == second)
                 {
                     SwapResults(results, firstIndex, firstIndex + 1);

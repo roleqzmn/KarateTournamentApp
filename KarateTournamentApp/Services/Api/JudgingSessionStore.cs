@@ -87,5 +87,7 @@ internal sealed class JudgingSessionStore
     }
 
     public void Delete(int categoryId) => File.Delete(GetPath(categoryId));
+    public void Archive(int categoryId) =>
+        File.Move(GetPath(categoryId), Path.Combine(_folder, $"{categoryId}.{Guid.NewGuid():N}.archive.json.bak"));
     private string GetPath(int categoryId) => Path.Combine(_folder, $"{categoryId}.json");
 }

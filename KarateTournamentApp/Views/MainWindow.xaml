@@ -389,6 +389,12 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                     <Button Content="Zwolnij blokadę" Padding="6,4"
                                             Command="{Binding DataContext.ReleaseApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"/>
+                                    <Button Content="Wyślij wyniki" Padding="6,4" Margin="6,0,0,0"
+                                            Command="{Binding DataContext.SubmitApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                    <Button Content="Archiwizuj lokalnie" Padding="6,4" Margin="6,0,0,0"
+                                            Command="{Binding DataContext.ArchiveApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
                                 </WrapPanel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -488,6 +494,9 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                             CommandParameter="{Binding}"/>
                                                     <Button Content="Przejmij i rozpocznij" Padding="6,4" Margin="6,0,0,0"
                                                             Command="{Binding DataContext.StartApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Content="Odzyskaj" Padding="6,4" Margin="6,0,0,0"
+                                                            Command="{Binding DataContext.RecoverApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"/>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding KumiteWinnerDisplay}"

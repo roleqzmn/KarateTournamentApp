@@ -17,6 +17,9 @@ public partial class MainViewModel
     public ICommand StartApiJudgingCommand { get; }
     public ICommand ResumeApiJudgingCommand { get; }
     public ICommand ReleaseApiJudgingCommand { get; }
+    public ICommand SubmitApiJudgingCommand { get; }
+    public ICommand ArchiveApiJudgingCommand { get; }
+    public ICommand RecoverApiCategoryCommand { get; }
 
     public string? JudgingWarning
     {
@@ -70,6 +73,7 @@ public partial class MainViewModel
                     session.Category = null;
                     throw new InvalidOperationException("Ta konkurencja nie ma obsługiwanego składu. Zwolnij sesję albo popraw skład po zwolnieniu.");
                 }
+                await _api.ClaimCategoryAsync(session.CategoryId, new ClaimCategoryRequest(session.Token, session.StationName));
                 _sessions.Save(session);
                 ShowApiSnapshot(snapshot);
             }
@@ -147,5 +151,80 @@ public partial class MainViewModel
         {
             JudgingWarning = $"Nie można odczytać lokalnych sesji: {exception.Message}";
         }
+    }
+
+    private async Task SubmitApiJudgingAsync(JudgingSession selected)
+    {
+        using var heldLock = _sessions!.Lock(selected.CategoryId);
+        IsLoading = true;
+        try
+        {
+            var session = _sessions.Load(selected.CategoryId);
+            if (session?.Category is not { IsFinished: true } category)
+                throw new InvalidOperationException("Zakończ konkurencję przed wysłaniem wyników.");
+
+            if (category.CategoryType == CategoryType.Kumite)
+            {
+                var matches = category.BracketMatches.Select((item, position) =>
+                {
+                    if (item is not ShobuSanbonMatch match)
+                        throw new InvalidDataException("Lokalna drabinka zawiera nieobsługiwaną walkę.");
+                    return new KumiteMatchResultRequest(position, match.Aka, match.Shiro, match.WinnerId,
+                        match.AkaScore, match.ShiroScore, match.IsDisqualification, match.TimeRemaining,
+                        match.AtenaiAka, match.AtenaiShiro, match.ChukokuAka, match.ChukokuShiro,
+                        match.SenshuEnabled, match.HasSenshuAka, match.HasSenshuShiro, match.IsInOvertime, match.OvertimeCount);
+                }).ToArray();
+                var ranking = category.FinalResults.Select(result => result.Participant.Id).ToArray();
+                await _api!.SubmitKumiteResultsAsync(session.CategoryId, new(session.Token, matches, ranking));
+            }
+            else
+            {
+                var judge = new IndividualCompetitionManagerViewModel(category, _windowService, _uiScheduler);
+                var draft = session.Draft ?? throw new InvalidDataException("Nie ma lokalnego zapisu ocen.");
+                judge.RestoreDraft(draft);
+                if (draft.Results.Length != category.Participants.Count)
+                    throw new InvalidDataException("Lokalny wynik nie zawiera ocen wszystkich zawodników.");
+                var results = judge.GetFinalRankings().Select((result, index) =>
+                    new IndividualResultRequest(result.Participant.Id, index + 1, result.JudgeScores.ToArray())).ToArray();
+                // Persist the resolved ranking before sending so retries keep the same tie decisions.
+                _sessions.Save(session);
+                await _api!.SubmitIndividualResultsAsync(session.CategoryId, new(session.Token, results));
+            }
+            _sessions.Delete(session.CategoryId);
+            _dialogService.ShowMessage("Wyniki zapisano na serwerze.", "Wyniki");
+            ShowApiSnapshot(await _api.GetSnapshotAsync());
+        }
+        finally
+        {
+            IsLoading = false;
+            RefreshJudgingSessions();
+        }
+    }
+
+    private Task ArchiveApiJudgingAsync(JudgingSession selected)
+    {
+        if (ConfirmApiDelete($"Zarchiwizować lokalną sesję „{selected.Name}”? Operacja nie zwalnia blokady na serwerze."))
+        {
+            using var heldLock = _sessions!.Lock(selected.CategoryId);
+            _sessions.Archive(selected.CategoryId);
+            RefreshJudgingSessions();
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task RecoverApiCategoryAsync(CategoryViewModel item)
+    {
+        IsLoading = true;
+        try
+        {
+            var target = await _api!.GetRecoveryTargetAsync(item.Category.Id);
+            if (_dialogService.ShowMessage(
+                $"Odzyskać konkurencję „{item.Name}” ze stanowiska „{target.StationName}”? Stara sesja utraci prawo przesłania wyników.",
+                "Odzyskaj konkurencję", DialogButtons.YesNo, DialogIcon.Warning) != DialogResult.Yes)
+                return;
+            await _api.RecoverClaimAsync(item.Category.Id, new(target.ClaimReference));
+            ShowApiSnapshot(await _api.GetSnapshotAsync());
+        }
+        finally { IsLoading = false; }
     }
 }

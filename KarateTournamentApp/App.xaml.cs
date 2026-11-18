@@ -31,7 +31,8 @@ namespace KarateTournamentApp
 
             _tournamentHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             var api = new TournamentApiClient(_tournamentHttpClient,
-                Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_API_URL"));
+                Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_API_URL"),
+                Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_RECOVERY_KEY"));
             var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler, api);
 
             var mainWindow = new MainWindow

@@ -7,8 +7,9 @@ using KarateClassLibrary.Contracts;
 
 namespace KarateTournamentApp.Services.Api;
 
-internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAddress)
+internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAddress, string? recoveryKey = null)
 {
+    public bool HasRecoveryKey => !string.IsNullOrWhiteSpace(recoveryKey);
     public string SessionScope => (string.IsNullOrWhiteSpace(baseAddress) ? "https://localhost:7086" : baseAddress.Trim()).TrimEnd('/');
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -98,10 +99,20 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/claim", request);
     public Task ReleaseCategoryAsync(int id, ReleaseCategoryRequest request) =>
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/release", request);
+    public Task SubmitIndividualResultsAsync(int id, CompleteIndividualCategoryRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/individual-results", request);
+    public Task SubmitKumiteResultsAsync(int id, CompleteKumiteCategoryRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/kumite-results", request);
+    public Task<ClaimRecoveryDto> GetRecoveryTargetAsync(int id) =>
+        WriteAsync<ClaimRecoveryDto>(HttpMethod.Get, $"api/categories/{id}/claim-recovery", useRecoveryKey: true);
+    public Task RecoverClaimAsync(int id, RecoverCategoryClaimRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/claim-recovery", request, useRecoveryKey: true);
 
-    private async Task<T> WriteAsync<T>(HttpMethod method, string path, object? payload = null)
+    private async Task<T> WriteAsync<T>(HttpMethod method, string path, object? payload = null, bool useRecoveryKey = false)
     {
         using var request = new HttpRequestMessage(method, GetEndpoint(path));
+        if (useRecoveryKey)
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", recoveryKey);
         if (payload is not null)
             request.Content = JsonContent.Create(payload, options: JsonOptions);
         try

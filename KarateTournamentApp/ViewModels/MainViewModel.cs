@@ -189,6 +189,13 @@ namespace KarateTournamentApp.ViewModels
                 HandleAsyncCommandError, session => CanUseSessions() && session.Category?.IsFinished != true);
             ReleaseApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ReleaseApiJudgingAsync,
                 HandleAsyncCommandError, _ => CanUseSessions());
+            SubmitApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(SubmitApiJudgingAsync,
+                HandleAsyncCommandError, session => CanUseSessions() && session.Category?.IsFinished == true);
+            ArchiveApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ArchiveApiJudgingAsync,
+                HandleAsyncCommandError, _ => CanUseSessions());
+            RecoverApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(RecoverApiCategoryAsync,
+                HandleAsyncCommandError, item => CanChangeApi() && _api!.HasRecoveryKey
+                    && _apiSnapshot!.Categories.Any(category => category.Id == item.Category.Id && category.IsClaimed && !category.IsFinished));
             CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
             EditApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
             DeleteApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);

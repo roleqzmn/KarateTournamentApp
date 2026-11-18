@@ -179,6 +179,11 @@ unconfirmed claim is retried with the same token. The timer starts paused after
 reopening a checkpoint. **Zwolnij blokadę** discards the local checkpoint after
 the API confirms the release.
 
+After finishing, close the judge panel and use **Wyślij wyniki**. A failed upload
+keeps the local checkpoint. The next attempt uses the original session token
+and the same ranking. **Archiwizuj lokalnie** keeps a copy outside the active
+list and leaves any server-side claim untouched.
+
 ## Recover a claimed category
 
 Set `Organizer:RecoveryKey` in local user secrets or `Organizer__RecoveryKey` in
@@ -187,6 +192,9 @@ and send it over HTTPS as `Authorization: Bearer <key>`. Keep the key on the
 organizer's station. The key protects the recovery routes. Recovery is disabled
 with 503 until a valid configuration is present, and missing or wrong credentials
 return 401 when it is enabled.
+
+In WPF set `KARATE_TOURNAMENT_RECOVERY_KEY` before launch and use **Odzyskaj**
+on the claimed category.
 
 1. `GET /api/categories/{id}/claim-recovery` returns the current station name and
    an opaque `claimReference` for that session. Confirm it is the session to recover.
