@@ -75,7 +75,7 @@ namespace KarateTournamentApp.ViewModels
         public ICommand StartOvertimeCommand { get; }
         public ICommand SetTimeCommand { get; }
 
-        public CompetitionManagerViewModel(Category category, IDialogService dialogService)
+        public CompetitionManagerViewModel(Category category, IDialogService dialogService, bool preserveBracket = false)
         {
             _category = category;
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
@@ -100,10 +100,13 @@ namespace KarateTournamentApp.ViewModels
                     _category.InitializeBracket();
                 }
             }
-            else if (hasLegacyMatchTypes || hasNoPlayableMatches)
+            else if (hasLegacyMatchTypes || (!preserveBracket && hasNoPlayableMatches))
             {
                 InitializeKumiteBracketAsShobu();
             }
+
+            if (isKumiteCategory)
+                AdvanceKumiteByes();
 
             // Find first unfinished match
             _currentMatchIndex = FindNextUnfinishedMatch();
@@ -114,6 +117,7 @@ namespace KarateTournamentApp.ViewModels
             else
             {
                 CurrentMatch = null;
+                FinishBracketIfComplete();
             }
 
             NextMatchCommand = new RelayCommand(o => MoveToNextMatch(), o => CanMoveToNextMatch());
@@ -404,6 +408,8 @@ namespace KarateTournamentApp.ViewModels
         private void PromoteWinnerAndSelectNextMatch()
         {
             _category.PromoteWinner(_currentMatchIndex);
+            if (IsShobuSanbon)
+                AdvanceKumiteByes();
             _currentMatchIndex = FindNextUnfinishedMatch();
 
             if (_currentMatchIndex >= 0)
@@ -413,11 +419,51 @@ namespace KarateTournamentApp.ViewModels
             else
             {
                 CurrentMatch = null;
-                _category.IsFinished = true;
-                SaveKumiteFinalResults();
+                FinishBracketIfComplete();
             }
 
             CommandManager.InvalidateRequerySuggested();
+        }
+
+        private void FinishBracketIfComplete()
+        {
+            if (_category.BracketMatches.FirstOrDefault()?.WinnerId is null)
+                return;
+            _category.IsFinished = true;
+            SaveKumiteFinalResults();
+        }
+
+        private void AdvanceKumiteByes()
+        {
+            var matches = _category.BracketMatches;
+            var hasEntrants = new bool[matches.Count];
+            for (var index = matches.Count - 1; index >= 0; index--)
+            {
+                var match = matches[index];
+                var left = index * 2 + 1;
+                if (left >= matches.Count - 1)
+                {
+                    hasEntrants[index] = match.Aka.HasValue || match.Shiro.HasValue;
+                    if (!match.IsFinished && (match.Aka.HasValue ^ match.Shiro.HasValue))
+                    {
+                        match.WinnerId = match.Aka ?? match.Shiro;
+                        match.IsFinished = true;
+                    }
+                    continue;
+                }
+
+                var right = left + 1;
+                hasEntrants[index] = hasEntrants[left] || hasEntrants[right];
+                if (match.IsFinished)
+                    continue;
+                match.Aka = matches[left].WinnerId;
+                match.Shiro = matches[right].WinnerId;
+                if ((!hasEntrants[left] && match.Shiro.HasValue) || (!hasEntrants[right] && match.Aka.HasValue))
+                {
+                    match.WinnerId = match.Aka ?? match.Shiro;
+                    match.IsFinished = true;
+                }
+            }
         }
 
         private void InitializeKumiteBracketAsShobu()

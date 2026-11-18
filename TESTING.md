@@ -1,4 +1,4 @@
-# Testy jednostkowe
+# Testy turnieju
 
 Uruchamianie na Windows z SDK .NET 10:
 
@@ -6,7 +6,14 @@ Uruchamianie na Windows z SDK .NET 10:
 dotnet test .\KarateTournamentApp.sln
 ```
 
-Testy nie wymagają PostgreSQL, Dockera ani uruchamiania okien WPF.
+Pełny zestaw wymaga uruchomionego Docker Desktop w trybie kontenerów Linux.
+Testy integracyjne API używają własnych, tymczasowych kontenerów PostgreSQL.
+Nie potrzebują pliku `.env`, sekretów ani działającego serwera API.
+Bez Dockera uruchom testy jednostkowe i komponentowe:
+
+```powershell
+dotnet test .\KarateTournamentApp.sln --filter 'Category!=Integration'
+```
 
 ## Zakres
 
@@ -94,6 +101,7 @@ Test surowych ocen ujawnił pomijanie pól ValueTuple przez serializer. IncludeF
 zachowuje teraz Item1 (oceny) i Item2 (ID zawodnika). Dawnych zapisów zawierających
 już tylko puste obiekty nie da się na tej podstawie odtworzyć.
 
-Obecny zestaw nie potwierdza transakcji PostgreSQL, ograniczeń kluczy obcych,
-odpowiedzi HTTP ani działania okien. Te scenariusze wymagają osobnych testów
-integracyjnych. Przejmowanie konkurencji wymaga osobnych testów przy implementacji.
+Testy integracyjne API sprawdzają m.in. odpowiedzi HTTP, operacje organizatora,
+przejęcie konkurencji przez jedno z dwóch stanowisk, ponowienie zapisu wyników
+i cofnięcie transakcji po błędzie. Próbę okien WPF i fizycznych stanowisk
+wykonaj według [instrukcji API](KarateTournament.Api/README.md#api-access).

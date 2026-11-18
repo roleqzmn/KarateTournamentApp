@@ -1,6 +1,4 @@
-using KarateClassLibrary;
-
-namespace KarateTournament.Api.Contracts;
+namespace KarateClassLibrary.Contracts;
 
 public sealed record TournamentSnapshotDto(
     IReadOnlyList<ParticipantDto> Participants,
@@ -28,7 +26,9 @@ public sealed record CategoryDto(
     IReadOnlyList<int> ParticipantIds,
     IReadOnlyList<MatchDto> BracketMatches,
     IReadOnlyList<TeamDto> Teams,
-    IReadOnlyList<ParticipantResultDto> FinalResults);
+    IReadOnlyList<ParticipantResultDto> FinalResults,
+    bool IsClaimed,
+    string? ClaimedBy);
 
 public sealed record MatchDto(
     int Id,

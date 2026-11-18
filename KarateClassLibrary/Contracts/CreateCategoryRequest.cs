@@ -1,7 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using KarateClassLibrary;
-
-namespace KarateTournament.Api.Contracts;
+namespace KarateClassLibrary.Contracts;
 
 public sealed record CreateCategoryRequest(
     [property: Required] string? Name,

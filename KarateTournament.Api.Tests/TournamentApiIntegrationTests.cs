@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using KarateClassLibrary;
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Contracts;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -10,7 +11,7 @@ using Xunit;
 namespace KarateTournament.Api.Tests;
 
 [Trait("Category", "Integration")]
-public class TournamentApiIntegrationTests : IAsyncLifetime
+public partial class TournamentApiIntegrationTests : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine")
         .WithCreateParameterModifier(parameters =>
@@ -25,8 +26,16 @@ public class TournamentApiIntegrationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _database.StartAsync();
+        StartApi();
+    }
+
+    private void StartApi(string? organizerRecoveryKey = null, string? organizerKey = null, string? judgeKey = null)
+    {
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("ConnectionStrings:TournamentDatabase", _database.GetConnectionString()));
+            builder.UseSetting("ConnectionStrings:TournamentDatabase", _database.GetConnectionString())
+                .UseSetting("Organizer:RecoveryKey", organizerRecoveryKey ?? string.Empty)
+                .UseSetting("Access:OrganizerKey", organizerKey ?? string.Empty)
+                .UseSetting("Access:JudgeKey", judgeKey ?? string.Empty));
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false

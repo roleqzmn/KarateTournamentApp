@@ -27,7 +27,10 @@ namespace KarateTournamentApp.Services
         /// 
         /// First row should contain headers (will be skipped)
         /// </summary>
-        public async Task<List<Participant>> ImportParticipantsFromExcelAsync(string filePath)
+        public Task<List<Participant>> ImportParticipantsFromExcelAsync(string filePath) =>
+            ImportParticipantsFromExcelAsync(filePath, rejectInvalidRows: false);
+
+        public async Task<List<Participant>> ImportParticipantsFromExcelAsync(string filePath, bool rejectInvalidRows)
         {
             return await Task.Run(() =>
             {
@@ -49,6 +52,10 @@ namespace KarateTournamentApp.Services
 
                         for (int row = 2; row <= rowCount; row++)
                         {
+                            if (rejectInvalidRows && Enumerable.Range(1, 50)
+                                .All(column => string.IsNullOrWhiteSpace(worksheet.Cells[row, column].Text)))
+                                continue;
+
                             try
                             {
                                 var firstName = worksheet.Cells[row, 1].Text?.Trim();
@@ -57,6 +64,10 @@ namespace KarateTournamentApp.Services
                                 var club = worksheet.Cells[row, 4].Text?.Trim();
                                 var beltStr = worksheet.Cells[row, 5].Text?.Trim();
                                 var sexStr = worksheet.Cells[row, 6].Text?.Trim();
+                                var disciplines = ReadCategoryValues(worksheet, row, rejectInvalidRows).ToArray();
+                                if (rejectInvalidRows && disciplines.Any(value =>
+                                    !Enum.TryParse<CategoryType>(value, true, out var type) || !Enum.IsDefined(type)))
+                                    throw new InvalidDataException("Nieznana dyscyplina.");
 
                                 var participant = ParticipantImportParser.TryCreateParticipant(
                                     firstName,
@@ -64,7 +75,7 @@ namespace KarateTournamentApp.Services
                                     ageStr,
                                     beltStr,
                                     sexStr,
-                                    ReadCategoryValues(worksheet, row),
+                                    disciplines,
                                     club
                                 );
 
@@ -72,9 +83,15 @@ namespace KarateTournamentApp.Services
                                 {
                                     participants.Add(participant);
                                 }
+                                else if (rejectInvalidRows)
+                                {
+                                    throw new InvalidDataException("Sprawdź imię, nazwisko, wiek, pas, płeć i dyscypliny.");
+                                }
                             }
-                            catch (Exception)
+                            catch (Exception exception)
                             {
+                                if (rejectInvalidRows)
+                                    throw new InvalidDataException($"Wiersz {row}: {exception.Message}", exception);
                                 continue;
                             }
                         }
@@ -89,14 +106,16 @@ namespace KarateTournamentApp.Services
             });
         }
 
-        private static IEnumerable<string?> ReadCategoryValues(ExcelWorksheet worksheet, int row)
+        private static IEnumerable<string?> ReadCategoryValues(ExcelWorksheet worksheet, int row, bool scanPastEmptyCells)
         {
             for (var categoryColumn = 7; categoryColumn <= 50; categoryColumn++)
             {
                 var categoryValue = worksheet.Cells[row, categoryColumn].Text?.Trim();
                 if (string.IsNullOrWhiteSpace(categoryValue))
                 {
-                    yield break;
+                    if (!scanPastEmptyCells)
+                        yield break;
+                    continue;
                 }
 
                 yield return categoryValue;

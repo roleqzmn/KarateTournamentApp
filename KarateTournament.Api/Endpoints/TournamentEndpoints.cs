@@ -1,5 +1,5 @@
 using System.Data;
-using KarateTournament.Api.Contracts;
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Data;
 using Microsoft.EntityFrameworkCore;
 

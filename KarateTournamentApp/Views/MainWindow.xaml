@@ -34,6 +34,7 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
             <ColumnDefinition Width="191*"/>
         </Grid.ColumnDefinitions>
         <ToggleButton x:Name="MenuToggle"
+                      Visibility="{Binding ShowOrganizerTools, Converter={StaticResource BoolToVisibilityConverter}}"
                       Width="40" 
                       Height="60"
                       HorizontalAlignment="Left" 
@@ -238,7 +239,18 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
         <!-- Main part -->
         <Grid Margin="20,20,20,20" Grid.ColumnSpan="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="300"/>
+                <ColumnDefinition>
+                    <ColumnDefinition.Style>
+                        <Style TargetType="ColumnDefinition">
+                            <Setter Property="Width" Value="300"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsJudgeStation}" Value="True">
+                                    <Setter Property="Width" Value="45"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ColumnDefinition.Style>
+                </ColumnDefinition>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
 
@@ -260,12 +272,14 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                 </StackPanel>
             </Border>
 
-            <Border Grid.Column="0" Background="White" CornerRadius="10" Padding="15" BorderBrush="#DDD" BorderThickness="1" Margin="32,0,1164,0" Grid.ColumnSpan="2">
+            <Border Grid.Column="0" Background="White" CornerRadius="10" Padding="15" BorderBrush="#DDD" BorderThickness="1" Margin="32,0,1164,0" Grid.ColumnSpan="2"
+                    Visibility="{Binding ShowOrganizerTools, Converter={StaticResource BoolToVisibilityConverter}}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="-6,0,0,0">
                     <StackPanel>
                         <TextBlock Text="Rejestracja Zawodnika" FontSize="20" FontWeight="Bold" Margin="0,0,0,20" Foreground="#333"/>
 
-                        <Border Background="#FFF9E6" BorderBrush="#FFD700" BorderThickness="2" CornerRadius="5" Padding="10" Margin="0,0,0,15">
+                        <Border Background="#FFF9E6" BorderBrush="#FFD700" BorderThickness="2" CornerRadius="5" Padding="10" Margin="0,0,0,15"
+                                Visibility="{Binding IsLocalTournament, Converter={StaticResource BoolToVisibilityConverter}}">
                             <StackPanel>
                                 <TextBlock Text="Rodzaj podziału:" FontWeight="Bold" Margin="0,0,0,8" Foreground="#E67E22"/>
                                 <CheckBox Content="Podział według wieku" 
@@ -276,6 +290,9 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                       Margin="0,3" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
+                        <TextBlock Text="Zapis do rejestru na serwerze. Przypisanie do konkurencji odbywa się osobno."
+                                   TextWrapping="Wrap" Margin="0,0,0,15"
+                                   Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
                         <TextBlock Text="Imię:" FontWeight="SemiBold"/>
                         <TextBox Text="{Binding FirstName, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,15" Padding="5"/>
@@ -284,7 +301,8 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                         <TextBox Text="{Binding LastName, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,15" Padding="5"/>
 
                         <TextBlock Text="Wiek:" FontWeight="SemiBold"/>
-                        <TextBox Text="{Binding Age, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,15" Padding="5"/>
+                        <TextBox x:Name="ParticipantAgeInput" Text="{Binding Age, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,5,0,15" Padding="5"/>
 
                         <TextBlock Text="Płeć (obowiązkowa):" FontWeight="SemiBold"/>
                         <ComboBox ItemsSource="{Binding Source={StaticResource SexEnum}}" 
@@ -294,7 +312,7 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                         <ComboBox ItemsSource="{Binding Source={StaticResource BeltsEnum}}" 
                               SelectedItem="{Binding SelectedBelt}" Margin="0,5,0,15" Padding="5"/>
 
-                        <TextBlock Text="Konkurencje (min. jedna):" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <TextBlock Text="Dyscypliny (min. jedna):" FontWeight="SemiBold" Margin="0,0,0,5"/>
                         <ItemsControl ItemsSource="{Binding CategorySelections}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -308,12 +326,15 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                         <TextBlock Text="Klub (opcjonalnie):" Margin="0,15,0,5" FontWeight="SemiBold"/>
                         <TextBox Text="{Binding Club}" Margin="0,0,0,20" Padding="5"/>
 
-                        <Button Content="DODAJ ZAWODNIKA" 
+                        <Button Content="{Binding AddParticipantLabel}"
                             Command="{Binding AddParticipantCommand}" 
                             Height="40" Background="#27AE60" Foreground="White" FontWeight="Bold" Cursor="Hand">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ElementName=ParticipantAgeInput, Path=(Validation.HasError)}" Value="True">
+                                            <Setter Property="IsEnabled" Value="False"/>
+                                        </DataTrigger>
                                         <Trigger Property="IsEnabled" Value="False">
                                             <Setter Property="Opacity" Value="0.5"/>
                                         </Trigger>
@@ -321,6 +342,32 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                 </Style>
                             </Button.Style>
                         </Button>
+                        <StackPanel Margin="0,20,0,0"
+                                    Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock FontWeight="SemiBold" Margin="0,0,0,5"
+                                       Text="{Binding ApiParticipants.Count, StringFormat='Zawodnicy w rejestrze ({0})'}"/>
+                            <ListBox ItemsSource="{Binding ApiParticipants}" SelectedItem="{Binding SelectedApiParticipant}" MaxHeight="170">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock>
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="{}{0} {1} (ID {2})">
+                                                    <Binding Path="FirstName"/>
+                                                    <Binding Path="LastName"/>
+                                                    <Binding Path="Id"/>
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <WrapPanel Margin="0,6,0,0">
+                                <Button Content="Edytuj" Command="{Binding EditApiParticipantCommand}" Padding="6,4" Margin="0,0,4,0"/>
+                                <Button Content="Usuń" Command="{Binding DeleteApiParticipantCommand}" Padding="6,4" Margin="0,0,4,0"/>
+                                <Button Content="Anuluj edycję" Command="{Binding CancelApiParticipantEditCommand}" Padding="6,4"
+                                        Visibility="{Binding IsEditingApiParticipant, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </WrapPanel>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -331,7 +378,41 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="  Konkurencje" FontSize="20" FontWeight="Bold" Margin="10,0,0,10"/>
+                <StackPanel Grid.Row="0" Margin="10,0,0,10">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Konkurencje" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Content="Pobierz turniej z API" Command="{Binding LoadApiTournamentCommand}"
+                                Margin="16,0,8,0" Padding="10,5"/>
+                        <Button Content="Wróć do turnieju lokalnego" Command="{Binding ReturnToLocalTournamentCommand}"
+                                Padding="10,5" Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <Button Content="Nowa konkurencja" Command="{Binding CreateApiCategoryCommand}" Margin="8,0,0,0"
+                                Padding="10,5" Visibility="{Binding CanManageApi, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </StackPanel>
+                    <TextBlock Text="Konkurencje z API" Margin="0,6,0,0"
+                               Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <TextBlock Text="{Binding JudgingWarning}" TextWrapping="Wrap" Foreground="#A52A2A"/>
+                    <ItemsControl ItemsSource="{Binding JudgingSessions}" Margin="0,4,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <WrapPanel Margin="0,2">
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Button Content="Wznów sesję" Padding="6,4" Margin="0,0,6,0"
+                                            Command="{Binding DataContext.ResumeApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                    <Button Content="Zwolnij blokadę" Padding="6,4"
+                                            Command="{Binding DataContext.ReleaseApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                    <Button Content="Wyślij wyniki" Padding="6,4" Margin="6,0,0,0"
+                                            Command="{Binding DataContext.SubmitApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                    <Button Content="Archiwizuj lokalnie" Padding="6,4" Margin="6,0,0,0"
+                                            Command="{Binding DataContext.ArchiveApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </WrapPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Categories}" Width="1135" RenderTransformOrigin="0.5,0.5">
@@ -413,6 +494,26 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                     <Run Text="{Binding ParticipantCount, Mode=OneWay}"/>
                                                     <Run Text="zawodników"/>
                                                     </TextBlock>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding ApiStatus}" Margin="0,5,0,0" Foreground="#555"
+                                                           Visibility="{Binding HasApiStatus, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                                            Visibility="{Binding HasApiStatus, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <Button Content="Edytuj ustawienia i skład" Padding="6,4" Margin="0,0,6,0"
+                                                            Visibility="{Binding DataContext.ShowOrganizerTools, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                            Command="{Binding DataContext.EditApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Content="Usuń konkurencję" Padding="6,4"
+                                                            Visibility="{Binding DataContext.ShowOrganizerTools, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                            Command="{Binding DataContext.DeleteApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Content="Przejmij i rozpocznij" Padding="6,4" Margin="6,0,0,0"
+                                                            Command="{Binding DataContext.StartApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Content="Odzyskaj" Padding="6,4" Margin="6,0,0,0"
+                                                            Visibility="{Binding DataContext.ShowOrganizerTools, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                            Command="{Binding DataContext.RecoverApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding KumiteWinnerDisplay}"
                                                            Margin="0,5,0,0"
