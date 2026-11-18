@@ -1,5 +1,6 @@
 using System.Data;
 using KarateClassLibrary.Contracts;
+using KarateTournament.Api.Access;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -11,14 +12,15 @@ public static class ParticipantEndpoints
     public static IEndpointRouteBuilder MapParticipantEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapPost("/api/participants", CreateParticipant)
-            .WithName("CreateParticipant");
-        endpoints.MapPost("/api/participants/batch", ImportParticipants).WithName("ImportParticipants");
+            .WithName("CreateParticipant").WithMetadata(TournamentRouteAccess.Organizer);
+        endpoints.MapPost("/api/participants/batch", ImportParticipants).WithName("ImportParticipants")
+            .WithMetadata(TournamentRouteAccess.Organizer);
         endpoints.MapGet("/api/participants/{participantId:int}", GetParticipant)
             .WithName("GetParticipant");
         endpoints.MapPut("/api/participants/{participantId:int}", UpdateParticipant)
-            .WithName("UpdateParticipant");
+            .WithName("UpdateParticipant").WithMetadata(TournamentRouteAccess.Organizer);
         endpoints.MapDelete("/api/participants/{participantId:int}", DeleteParticipant)
-            .WithName("DeleteParticipant");
+            .WithName("DeleteParticipant").WithMetadata(TournamentRouteAccess.Organizer);
         return endpoints;
     }
 

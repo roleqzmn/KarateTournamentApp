@@ -14,7 +14,7 @@ public partial class MainViewModel
     private int? _editingParticipantId;
     private ParticipantDto? _selectedApiParticipant;
 
-    public bool CanManageApi => IsApiPreview && _api is not null;
+    public bool CanManageApi => ShowOrganizerTools && IsApiPreview && _api is not null;
     public bool IsEditingApiParticipant => _editingParticipantId.HasValue;
     public ICommand CreateApiCategoryCommand { get; }
     public ICommand EditApiCategoryCommand { get; }
@@ -37,7 +37,7 @@ public partial class MainViewModel
     private bool CanChangeApi() => CanManageApi && !IsLoading;
 
     private bool CanEditApiCategory(CategoryViewModel category) =>
-        CanChangeApi() && _apiSnapshot!.Categories.Any(existing =>
+        category is not null && CanChangeApi() && _apiSnapshot!.Categories.Any(existing =>
             existing.Id == category.Category.Id && !existing.IsClaimed && !existing.IsFinished
             && existing.Teams.Count == 0 && existing.BracketMatches.Count == 0 && existing.FinalResults.Count == 0);
 

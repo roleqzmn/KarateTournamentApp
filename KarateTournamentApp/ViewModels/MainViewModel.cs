@@ -105,6 +105,8 @@ namespace KarateTournamentApp.ViewModels
         }
 
         public bool IsLocalTournament => !IsApiPreview;
+        public bool IsJudgeStation { get; }
+        public bool ShowOrganizerTools => !IsJudgeStation;
         public string AddParticipantLabel => IsEditingApiParticipant ? "ZAPISZ ZMIANY"
             : IsApiPreview ? "ZAPISZ ZAWODNIKA W API" : "DODAJ ZAWODNIKA";
 
@@ -129,10 +131,11 @@ namespace KarateTournamentApp.ViewModels
         }
 
         internal MainViewModel(CategoryManager categoryManager, IDialogService dialogService, IWindowService windowService,
-            IUiScheduler uiScheduler, TournamentApiClient api)
+            IUiScheduler uiScheduler, TournamentApiClient api, bool isJudgeStation = false)
             : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync, api.CreateParticipantAsync)
         {
             _api = api;
+            IsJudgeStation = isJudgeStation;
             _sessions = new JudgingSessionStore(api.SessionScope);
             RefreshJudgingSessions();
         }
@@ -186,15 +189,15 @@ namespace KarateTournamentApp.ViewModels
             StartApiJudgingCommand = new AsyncRelayCommand<CategoryViewModel>(StartApiJudgingAsync,
                 HandleAsyncCommandError, CanStartApiJudging);
             ResumeApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ResumeApiJudgingAsync,
-                HandleAsyncCommandError, session => CanUseSessions() && session.Category?.IsFinished != true);
+                HandleAsyncCommandError, session => session is not null && CanUseSessions() && session.Category?.IsFinished != true);
             ReleaseApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ReleaseApiJudgingAsync,
-                HandleAsyncCommandError, _ => CanUseSessions());
+                HandleAsyncCommandError, session => session is not null && CanUseSessions());
             SubmitApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(SubmitApiJudgingAsync,
-                HandleAsyncCommandError, session => CanUseSessions() && session.Category?.IsFinished == true);
+                HandleAsyncCommandError, session => CanUseSessions() && session?.Category?.IsFinished == true);
             ArchiveApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ArchiveApiJudgingAsync,
-                HandleAsyncCommandError, _ => CanUseSessions());
+                HandleAsyncCommandError, session => session is not null && CanUseSessions());
             RecoverApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(RecoverApiCategoryAsync,
-                HandleAsyncCommandError, item => CanChangeApi() && _api!.HasRecoveryKey
+                HandleAsyncCommandError, item => item is not null && CanChangeApi() && _api!.HasRecoveryKey
                     && _apiSnapshot!.Categories.Any(category => category.Id == item.Category.Id && category.IsClaimed && !category.IsFinished));
             CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
             EditApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
@@ -246,7 +249,7 @@ namespace KarateTournamentApp.ViewModels
 
         private bool CanCreateParticipant()
         {
-            if (IsLoading || string.IsNullOrWhiteSpace(FirstName) || string.IsNullOrWhiteSpace(LastName)
+            if (IsJudgeStation || IsLoading || string.IsNullOrWhiteSpace(FirstName) || string.IsNullOrWhiteSpace(LastName)
                 || Age is not int age || !CategorySelections.Any(category => category.IsSelected))
                 return false;
 

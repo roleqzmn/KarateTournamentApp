@@ -30,7 +30,7 @@ public partial class MainViewModel
     private bool CanUseSessions() => _api is not null && _sessions is not null && !IsLoading && _activeJudgeLock is null;
 
     private bool CanStartApiJudging(CategoryViewModel item) =>
-        IsApiPreview && CanUseSessions() && !item.Category.IsFinished
+        item is not null && IsApiPreview && CanUseSessions() && !item.Category.IsFinished
         && CanJudge(item.Category)
         && !JudgingSessions.Any(session => session.CategoryId == item.Category.Id)
         && _apiSnapshot!.Categories.Any(category => category.Id == item.Category.Id && !category.IsClaimed);

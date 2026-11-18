@@ -34,6 +34,7 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
             <ColumnDefinition Width="191*"/>
         </Grid.ColumnDefinitions>
         <ToggleButton x:Name="MenuToggle"
+                      Visibility="{Binding ShowOrganizerTools, Converter={StaticResource BoolToVisibilityConverter}}"
                       Width="40" 
                       Height="60"
                       HorizontalAlignment="Left" 
@@ -238,7 +239,18 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
         <!-- Main part -->
         <Grid Margin="20,20,20,20" Grid.ColumnSpan="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="300"/>
+                <ColumnDefinition>
+                    <ColumnDefinition.Style>
+                        <Style TargetType="ColumnDefinition">
+                            <Setter Property="Width" Value="300"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsJudgeStation}" Value="True">
+                                    <Setter Property="Width" Value="45"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ColumnDefinition.Style>
+                </ColumnDefinition>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
 
@@ -260,7 +272,8 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                 </StackPanel>
             </Border>
 
-            <Border Grid.Column="0" Background="White" CornerRadius="10" Padding="15" BorderBrush="#DDD" BorderThickness="1" Margin="32,0,1164,0" Grid.ColumnSpan="2">
+            <Border Grid.Column="0" Background="White" CornerRadius="10" Padding="15" BorderBrush="#DDD" BorderThickness="1" Margin="32,0,1164,0" Grid.ColumnSpan="2"
+                    Visibility="{Binding ShowOrganizerTools, Converter={StaticResource BoolToVisibilityConverter}}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="-6,0,0,0">
                     <StackPanel>
                         <TextBlock Text="Rejestracja Zawodnika" FontSize="20" FontWeight="Bold" Margin="0,0,0,20" Foreground="#333"/>
@@ -487,15 +500,18 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                 <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
                                                             Visibility="{Binding HasApiStatus, Converter={StaticResource BoolToVisibilityConverter}}">
                                                     <Button Content="Edytuj ustawienia i skład" Padding="6,4" Margin="0,0,6,0"
+                                                            Visibility="{Binding DataContext.ShowOrganizerTools, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"
                                                             Command="{Binding DataContext.EditApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"/>
                                                     <Button Content="Usuń konkurencję" Padding="6,4"
+                                                            Visibility="{Binding DataContext.ShowOrganizerTools, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"
                                                             Command="{Binding DataContext.DeleteApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"/>
                                                     <Button Content="Przejmij i rozpocznij" Padding="6,4" Margin="6,0,0,0"
                                                             Command="{Binding DataContext.StartApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"/>
                                                     <Button Content="Odzyskaj" Padding="6,4" Margin="6,0,0,0"
+                                                            Visibility="{Binding DataContext.ShowOrganizerTools, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}"
                                                             Command="{Binding DataContext.RecoverApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"/>
                                                 </StackPanel>

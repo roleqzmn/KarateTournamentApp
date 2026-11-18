@@ -16,7 +16,7 @@ Store the connection string in .NET user secrets. Use the same password as in `.
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:TournamentDatabase" "Host=localhost;Port=55432;Database=karate_tournament;Username=karate_app;Password=replace-with-a-local-password" --project .\KarateTournament.Api\KarateTournament.Api.csproj
-dotnet run --project .\KarateTournament.Api\KarateTournament.Api.csproj
+dotnet run --project .\KarateTournament.Api\KarateTournament.Api.csproj --launch-profile https
 ```
 
 For deployment, provide `ConnectionStrings__TournamentDatabase` as an environment variable instead.
@@ -30,6 +30,53 @@ ordering. Each database represents one tournament.
 
 Schema setup uses `EnsureCreated`; it does not run EF Core migrations or update an
 existing schema. Future model changes will need an explicit schema-upgrade strategy.
+
+## API access
+
+With both access keys absent, tournament routes accept loopback connections for
+local development. For tournament use, configure two distinct random 32-byte
+keys encoded in hex as `Access__OrganizerKey` and `Access__JudgeKey` on the host.
+With keys configured, tournament requests require HTTPS and a bearer key.
+Either key can read the tournament and judge competitions. Only the organizer
+key can create, edit, delete and import records. Recovery uses its separate
+organizer recovery key.
+
+On each WPF station set `KARATE_TOURNAMENT_API_URL` and
+`KARATE_TOURNAMENT_ACCESS_KEY` before launch. Set `KARATE_TOURNAMENT_ROLE=judge`
+on judging stations to hide the registration and organizer controls. The API
+enforces the privileges associated with the supplied key.
+
+For a LAN host, set `ASPNETCORE_URLS=https://0.0.0.0:7086` and configure Kestrel
+with a certificate valid for the host name used by the stations. Use
+`ASPNETCORE_Kestrel__Certificates__Default__Path` and
+`ASPNETCORE_Kestrel__Certificates__Default__Password` for a PFX. Launch the API
+with `--no-launch-profile`. Install trust for the issuing certificate on the
+stations and allow inbound TCP 7086 in Windows Firewall only on the tournament
+network. The PostgreSQL port stays bound to loopback. Keep the database
+connection string and all keys in host configuration, outside the repository.
+
+A two-station check starts with the organizer creating and populating a category.
+Both stations load the tournament and attempt to claim the same category. One wins
+and the other sees it occupied on refresh or receives 409 during a simultaneous
+attempt. Disconnect the first station, finish or close and resume the local
+session, reconnect, and send the result. Refresh on the second station and
+check the ranking and completed status.
+
+## Back up or restore the database
+
+Run this from the repository root with PostgreSQL running:
+
+```powershell
+.\KarateTournament.Api\Operations\TournamentDatabase.ps1 -Action Backup -File .\tournament.dump
+.\KarateTournament.Api\Operations\TournamentDatabase.ps1 -Action Restore -File .\tournament.dump -NewDatabase karate_restore
+```
+
+The backup includes tournament data, active claims and revocations. Local judge
+checkpoints live separately in each Windows profile under
+`%LOCALAPPDATA%\KarateTournamentApp\Judging`. Keep checkpoint files private.
+Restore creates a new database and stops if that name already exists. Start a
+separate API instance with the restored database in its connection string to
+verify the restored categories and results before using that database.
 
 ## Read the tournament snapshot
 

@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using KarateClassLibrary.Contracts;
+using KarateTournament.Api.Access;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;
@@ -18,7 +19,7 @@ public static class CategoryClaimEndpoints
         endpoints.MapPost("/api/categories/{categoryId:int}/release", ReleaseCategory).WithName("ReleaseCategory");
 
         var recovery = endpoints.MapGroup("/api/categories/{categoryId:int}")
-            .AddEndpointFilter(RequireOrganizerRecoveryKey);
+            .AddEndpointFilter(RequireOrganizerRecoveryKey).WithMetadata(TournamentRouteAccess.Recovery);
         recovery.MapGet("/claim-recovery", GetRecoveryTarget).WithName("GetCategoryClaimRecovery");
         recovery.MapPost("/claim-recovery", RecoverClaim).WithName("RecoverCategoryClaim");
         return endpoints;

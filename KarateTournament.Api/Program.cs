@@ -1,8 +1,10 @@
+using KarateTournament.Api.Access;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var tournamentAccess = new TournamentAccess(builder.Configuration);
 
 builder.Services.AddOpenApi();
 
@@ -32,6 +34,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseRouting();
+app.Use(tournamentAccess.InvokeAsync);
 app.MapTournamentEndpoints();
 app.MapParticipantEndpoints();
 app.MapCategoryEndpoints();

@@ -168,6 +168,8 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         {
             throw new InvalidOperationException("Ustaw poprawny adres HTTP lub HTTPS w KARATE_TOURNAMENT_API_URL.");
         }
+        if ((HasRecoveryKey || httpClient.DefaultRequestHeaders.Authorization is not null) && baseUri.Scheme != Uri.UriSchemeHttps)
+            throw new InvalidOperationException("Ustaw adres HTTPS, aby używać kluczy dostępu do API.");
         return new Uri(baseUri, path);
     }
 

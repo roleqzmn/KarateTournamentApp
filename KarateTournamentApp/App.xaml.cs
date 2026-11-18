@@ -1,6 +1,7 @@
 ﻿using System.Configuration;
 using System.Data;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Windows;
 using KarateTournamentApp.Services;
 using KarateTournamentApp.Services.Api;
@@ -29,11 +30,19 @@ namespace KarateTournamentApp
             var uiScheduler = new WpfUiScheduler();
             RegisterViews(windowService);
 
-            _tournamentHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            _tournamentHttpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+            {
+                Timeout = TimeSpan.FromSeconds(10)
+            };
+            var accessKey = Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_ACCESS_KEY")?.Trim();
+            if (!string.IsNullOrEmpty(accessKey))
+                _tournamentHttpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessKey);
             var api = new TournamentApiClient(_tournamentHttpClient,
                 Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_API_URL"),
                 Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_RECOVERY_KEY"));
-            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler, api);
+            var judgeStation = string.Equals(Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_ROLE"),
+                "judge", StringComparison.OrdinalIgnoreCase);
+            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler, api, judgeStation);
 
             var mainWindow = new MainWindow
             {

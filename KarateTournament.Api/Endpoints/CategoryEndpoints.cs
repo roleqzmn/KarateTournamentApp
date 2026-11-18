@@ -1,5 +1,6 @@
 using System.Data;
 using KarateClassLibrary.Contracts;
+using KarateTournament.Api.Access;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;
@@ -11,11 +12,11 @@ public static class CategoryEndpoints
 {
     public static IEndpointRouteBuilder MapCategoryEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/api/categories", CreateCategory).WithName("CreateCategory");
+        endpoints.MapPost("/api/categories", CreateCategory).WithName("CreateCategory").WithMetadata(TournamentRouteAccess.Organizer);
         endpoints.MapGet("/api/categories", GetCategories).WithName("GetCategories");
         endpoints.MapGet("/api/categories/{categoryId:int}", GetCategory).WithName("GetCategory");
-        endpoints.MapPut("/api/categories/{categoryId:int}", UpdateCategory).WithName("UpdateCategory");
-        endpoints.MapDelete("/api/categories/{categoryId:int}", DeleteCategory).WithName("DeleteCategory");
+        endpoints.MapPut("/api/categories/{categoryId:int}", UpdateCategory).WithName("UpdateCategory").WithMetadata(TournamentRouteAccess.Organizer);
+        endpoints.MapDelete("/api/categories/{categoryId:int}", DeleteCategory).WithName("DeleteCategory").WithMetadata(TournamentRouteAccess.Organizer);
         return endpoints;
     }
 
