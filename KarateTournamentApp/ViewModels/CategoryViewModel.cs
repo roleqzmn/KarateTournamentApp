@@ -24,7 +24,8 @@ namespace KarateTournamentApp.ViewModels
             Action<CategoryViewModel> deleteRequestCallback,
             IDialogService dialogService,
             IWindowService windowService,
-            IUiScheduler uiScheduler)
+            IUiScheduler uiScheduler,
+            string? apiStatus = null)
         {
             _category = category;
             _mergeRequestCallback = mergeRequestCallback;
@@ -32,16 +33,20 @@ namespace KarateTournamentApp.ViewModels
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
             _uiScheduler = uiScheduler ?? throw new ArgumentNullException(nameof(uiScheduler));
-            MergeCommand = new RelayCommand(o => RequestMerge(), o => true);
-            RenameCommand = new RelayCommand(o => RenameCategory(), o => true);
-            RemoveParticipantCommand = new RelayCommand(RemoveParticipant, o => true);
-            StartCompetitionCommand = new RelayCommand(o => StartCompetition(), o => CanStartCompetition());
-            DeleteCommand = new RelayCommand(o => RequestDelete(), o => CanDelete());
-            InitializeBracketCommand = new RelayCommand(o => InitializeBracket(), o => CanInitializeBracket());
+            ApiStatus = apiStatus;
+            MergeCommand = new RelayCommand(o => RequestMerge(), o => IsEditable);
+            RenameCommand = new RelayCommand(o => RenameCategory(), o => IsEditable);
+            RemoveParticipantCommand = new RelayCommand(RemoveParticipant, o => IsEditable);
+            StartCompetitionCommand = new RelayCommand(o => StartCompetition(), o => IsEditable && CanStartCompetition());
+            DeleteCommand = new RelayCommand(o => RequestDelete(), o => IsEditable && CanDelete());
+            InitializeBracketCommand = new RelayCommand(o => InitializeBracket(), o => IsEditable && CanInitializeBracket());
             ViewResultsCommand = new RelayCommand(o => ViewResults(), o => CanViewResults());
         }
 
         public Category Category => _category;
+        public string? ApiStatus { get; }
+        public bool IsEditable => ApiStatus is null;
+        public bool HasApiStatus => !IsEditable;
 
         public string Name => _category.Name;
         public int ParticipantCount => _category.Participants.Count;

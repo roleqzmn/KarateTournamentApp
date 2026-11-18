@@ -1,4 +1,5 @@
 using System.Data;
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;

@@ -1,7 +1,9 @@
 ﻿using System.Configuration;
 using System.Data;
+using System.Net.Http;
 using System.Windows;
 using KarateTournamentApp.Services;
+using KarateTournamentApp.Services.Api;
 using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.Services.Navigation;
 using KarateTournamentApp.Services.Scheduling;
@@ -15,6 +17,8 @@ namespace KarateTournamentApp
     /// </summary>
     public partial class App : Application
     {
+        private HttpClient? _tournamentHttpClient;
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -25,7 +29,11 @@ namespace KarateTournamentApp
             var uiScheduler = new WpfUiScheduler();
             RegisterViews(windowService);
 
-            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler);
+            _tournamentHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var api = new TournamentApiClient(_tournamentHttpClient,
+                Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_API_URL"));
+            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler,
+                cancellationToken => api.GetSnapshotAsync(cancellationToken));
 
             var mainWindow = new MainWindow
             {
@@ -33,6 +41,12 @@ namespace KarateTournamentApp
             };
 
             mainWindow.Show();
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            _tournamentHttpClient?.Dispose();
+            base.OnExit(e);
         }
 
         private static void RegisterViews(IWindowService windowService)

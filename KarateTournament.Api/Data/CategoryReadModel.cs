@@ -1,4 +1,4 @@
-using KarateTournament.Api.Contracts;
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 

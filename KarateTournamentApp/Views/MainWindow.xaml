@@ -260,7 +260,8 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                 </StackPanel>
             </Border>
 
-            <Border Grid.Column="0" Background="White" CornerRadius="10" Padding="15" BorderBrush="#DDD" BorderThickness="1" Margin="32,0,1164,0" Grid.ColumnSpan="2">
+            <Border Grid.Column="0" Background="White" CornerRadius="10" Padding="15" BorderBrush="#DDD" BorderThickness="1" Margin="32,0,1164,0" Grid.ColumnSpan="2"
+                    IsEnabled="{Binding IsLocalTournament}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="-6,0,0,0">
                     <StackPanel>
                         <TextBlock Text="Rejestracja Zawodnika" FontSize="20" FontWeight="Bold" Margin="0,0,0,20" Foreground="#333"/>
@@ -331,7 +332,17 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="  Konkurencje" FontSize="20" FontWeight="Bold" Margin="10,0,0,10"/>
+                <StackPanel Grid.Row="0" Margin="10,0,0,10">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Konkurencje" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Content="Pobierz turniej z API" Command="{Binding LoadApiTournamentCommand}"
+                                Margin="16,0,8,0" Padding="10,5"/>
+                        <Button Content="Wróć do turnieju lokalnego" Command="{Binding ReturnToLocalTournamentCommand}"
+                                Padding="10,5" Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </StackPanel>
+                    <TextBlock Text="Podgląd turnieju z API · tylko do odczytu" Margin="0,6,0,0"
+                               Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                </StackPanel>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Categories}" Width="1135" RenderTransformOrigin="0.5,0.5">
@@ -414,6 +425,8 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                     <Run Text="zawodników"/>
                                                     </TextBlock>
                                                 </StackPanel>
+                                                <TextBlock Text="{Binding ApiStatus}" Margin="0,5,0,0" Foreground="#555"
+                                                           Visibility="{Binding HasApiStatus, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                                 <TextBlock Text="{Binding KumiteWinnerDisplay}"
                                                            Margin="0,5,0,0"
                                                            Foreground="#C0392B"

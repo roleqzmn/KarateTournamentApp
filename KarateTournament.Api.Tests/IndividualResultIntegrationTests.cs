@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using KarateClassLibrary;
+using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;

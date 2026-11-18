@@ -36,6 +36,12 @@ existing schema. Future model changes will need an explicit schema-upgrade strat
 `GET /api/tournament` returns all participants and categories, including ordered
 category members, belts, bracket matches, teams, final results, and judge scores.
 The endpoint reads these related records from one consistent database snapshot.
+
+To open the snapshot in WPF, start the API with its `https` launch profile and
+select **Pobierz turniej z API**. The default URL is `https://localhost:7086`.
+Set `KARATE_TOURNAMENT_API_URL` before launching WPF to use another API address.
+The preview shows category availability, rosters and saved results. Use
+**Wróć do turnieju lokalnego** to resume working with the local tournament.
 WPF integration will be added in later steps.
 
 ## Create a participant
