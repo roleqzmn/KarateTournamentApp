@@ -15,7 +15,7 @@ using KarateTournamentApp.Models.ViewItems;
 
 namespace KarateTournamentApp.ViewModels
 {
-    public class MainViewModel : ViewModelBase
+    public partial class MainViewModel : ViewModelBase
     {
         private readonly CategoryManager _categoryManager;
         private readonly Func<CreateParticipantRequest, CancellationToken, Task<ParticipantDto>>? _createApiParticipant;
@@ -99,12 +99,14 @@ namespace KarateTournamentApp.ViewModels
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsLocalTournament));
                 OnPropertyChanged(nameof(AddParticipantLabel));
+                OnPropertyChanged(nameof(CanManageApi));
                 CommandManager.InvalidateRequerySuggested();
             }
         }
 
         public bool IsLocalTournament => !IsApiPreview;
-        public string AddParticipantLabel => IsApiPreview ? "ZAPISZ ZAWODNIKA W API" : "DODAJ ZAWODNIKA";
+        public string AddParticipantLabel => IsEditingApiParticipant ? "ZAPISZ ZMIANY"
+            : IsApiPreview ? "ZAPISZ ZAWODNIKA W API" : "DODAJ ZAWODNIKA";
 
         private readonly ImportService _importService;
 
@@ -124,6 +126,13 @@ namespace KarateTournamentApp.ViewModels
                 OnPropertyChanged();
                 CommandManager.InvalidateRequerySuggested();
             }
+        }
+
+        internal MainViewModel(CategoryManager categoryManager, IDialogService dialogService, IWindowService windowService,
+            IUiScheduler uiScheduler, TournamentApiClient api)
+            : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync, api.CreateParticipantAsync)
+        {
+            _api = api;
         }
 
         public MainViewModel(
@@ -172,6 +181,13 @@ namespace KarateTournamentApp.ViewModels
                 () => loadApiSnapshot is not null && !IsLoading);
             ReturnToLocalTournamentCommand = new RelayCommand(_ => ReturnToLocalTournament(),
                 _ => IsApiPreview && !IsLoading);
+            CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
+            EditApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
+            DeleteApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
+            EditApiParticipantCommand = new RelayCommand(_ => BeginApiParticipantEdit(), _ => CanChangeApi() && SelectedApiParticipant is not null);
+            DeleteApiParticipantCommand = new AsyncRelayCommand(DeleteApiParticipantAsync, HandleAsyncCommandError,
+                () => CanChangeApi() && SelectedApiParticipant is not null && !IsEditingApiParticipant);
+            CancelApiParticipantEditCommand = new RelayCommand(_ => ResetForm(), _ => IsEditingApiParticipant && !IsLoading);
         }
 
         private async Task LoadApiTournamentAsync(Func<CancellationToken, Task<TournamentSnapshotDto>> loadSnapshot)
@@ -179,18 +195,7 @@ namespace KarateTournamentApp.ViewModels
             IsLoading = true;
             try
             {
-                var snapshot = await loadSnapshot(CancellationToken.None);
-                var categories = TournamentSnapshotMapper.MapCategories(snapshot)
-                    .Select(item => new CategoryViewModel(item.Category, OnMergeRequested, OnDeleteRequested,
-                        _dialogService, _windowService, _uiScheduler, FormatApiStatus(item))).ToArray();
-                SelectedCategoryForMerge = null;
-                Categories.Clear();
-                foreach (var category in categories)
-                    Categories.Add(category);
-                ApiParticipants.Clear();
-                foreach (var participant in snapshot.Participants.OrderByDescending(participant => participant.Id))
-                    ApiParticipants.Add(participant);
-                IsApiPreview = true;
+                ShowApiSnapshot(await loadSnapshot(CancellationToken.None));
             }
             finally
             {
@@ -200,6 +205,8 @@ namespace KarateTournamentApp.ViewModels
 
         private void ReturnToLocalTournament()
         {
+            if (IsEditingApiParticipant)
+                ResetForm();
             RefreshCategories();
             IsApiPreview = false;
         }
@@ -249,8 +256,13 @@ namespace KarateTournamentApp.ViewModels
                 IsLoading = true;
                 try
                 {
-                    var saved = await _createApiParticipant(request, CancellationToken.None);
-                    ApiParticipants.Insert(0, saved);
+                    var saved = _editingParticipantId is int id
+                        ? await _api!.UpdateParticipantAsync(id, request)
+                        : await _createApiParticipant(request, CancellationToken.None);
+                    ShowApiSnapshot(_apiSnapshot! with
+                    {
+                        Participants = _apiSnapshot.Participants.Where(person => person.Id != saved.Id).Append(saved).ToArray()
+                    });
                     ResetForm();
                 }
                 finally
@@ -362,6 +374,9 @@ namespace KarateTournamentApp.ViewModels
 
         private void ResetForm()
         {
+            _editingParticipantId = null;
+            OnPropertyChanged(nameof(IsEditingApiParticipant));
+            OnPropertyChanged(nameof(AddParticipantLabel));
             FirstName = string.Empty;
             LastName = string.Empty;
             Age = null;

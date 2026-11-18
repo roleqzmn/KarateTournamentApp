@@ -333,7 +333,7 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                     Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock FontWeight="SemiBold" Margin="0,0,0,5"
                                        Text="{Binding ApiParticipants.Count, StringFormat='Zawodnicy w rejestrze ({0})'}"/>
-                            <ListBox ItemsSource="{Binding ApiParticipants}" MaxHeight="170">
+                            <ListBox ItemsSource="{Binding ApiParticipants}" SelectedItem="{Binding SelectedApiParticipant}" MaxHeight="170">
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <TextBlock>
@@ -348,6 +348,12 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
+                            <WrapPanel Margin="0,6,0,0">
+                                <Button Content="Edytuj" Command="{Binding EditApiParticipantCommand}" Padding="6,4" Margin="0,0,4,0"/>
+                                <Button Content="Usuń" Command="{Binding DeleteApiParticipantCommand}" Padding="6,4" Margin="0,0,4,0"/>
+                                <Button Content="Anuluj edycję" Command="{Binding CancelApiParticipantEditCommand}" Padding="6,4"
+                                        Visibility="{Binding IsEditingApiParticipant, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </WrapPanel>
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
@@ -366,8 +372,10 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                 Margin="16,0,8,0" Padding="10,5"/>
                         <Button Content="Wróć do turnieju lokalnego" Command="{Binding ReturnToLocalTournamentCommand}"
                                 Padding="10,5" Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <Button Content="Nowa konkurencja" Command="{Binding CreateApiCategoryCommand}" Margin="8,0,0,0"
+                                Padding="10,5" Visibility="{Binding CanManageApi, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     </StackPanel>
-                    <TextBlock Text="Konkurencje z API · podgląd" Margin="0,6,0,0"
+                    <TextBlock Text="Konkurencje z API" Margin="0,6,0,0"
                                Visibility="{Binding IsApiPreview, Converter={StaticResource BoolToVisibilityConverter}}"/>
                 </StackPanel>
 
@@ -454,6 +462,15 @@ Title="Karate Tournament Manager" Height="917" Width="1524" Background="#F0F0F0"
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding ApiStatus}" Margin="0,5,0,0" Foreground="#555"
                                                            Visibility="{Binding HasApiStatus, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                                            Visibility="{Binding HasApiStatus, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <Button Content="Edytuj ustawienia i skład" Padding="6,4" Margin="0,0,6,0"
+                                                            Command="{Binding DataContext.EditApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Content="Usuń konkurencję" Padding="6,4"
+                                                            Command="{Binding DataContext.DeleteApiCategoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"/>
+                                                </StackPanel>
                                                 <TextBlock Text="{Binding KumiteWinnerDisplay}"
                                                            Margin="0,5,0,0"
                                                            Foreground="#C0392B"

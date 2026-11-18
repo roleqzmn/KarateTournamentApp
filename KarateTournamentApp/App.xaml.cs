@@ -32,8 +32,7 @@ namespace KarateTournamentApp
             _tournamentHttpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             var api = new TournamentApiClient(_tournamentHttpClient,
                 Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_API_URL"));
-            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler,
-                api.GetSnapshotAsync, api.CreateParticipantAsync);
+            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler, api);
 
             var mainWindow = new MainWindow
             {
@@ -58,6 +57,7 @@ namespace KarateTournamentApp
             windowService.Register<ResultsViewModel, ResultsView>();
             windowService.Register<DrawResolverViewModel, DrawResolverView>();
             windowService.Register<DrawResolverScoreboardViewModel, DrawResolverScoreboardView>();
+            windowService.Register<ApiCategoryEditorViewModel, ApiCategoryEditorView>();
         }
     }
 
