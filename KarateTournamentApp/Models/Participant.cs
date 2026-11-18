@@ -3,35 +3,21 @@
 namespace KarateTournamentApp.Models
 {
     /// <summary>
-    /// Karate belts enum
-    /// </summary>
-    public enum Belts
-    {
-        Kyu10 = 10,
-        Kyu9 = 9,
-        Kyu8 = 8,
-        Kyu7 = 7,
-        Kyu6 = 6,
-        Kyu5 = 5,
-        Kyu4 = 4,
-        Kyu3 = 3,
-        Kyu2 = 2,
-        Kyu1 = 1,
-        Dan=0
-    }
-    public enum Sex
-    {
-        Male = 1,
-        Female = 2,
-        Unisex = 3
-    }
-
-    /// <summary>
     /// Class containing all necessary participant info
     /// </summary>
     public class Participant
     {
-        public int Id { get; set; }
+        private int _id = LocalIdGenerator.Next();
+
+        public int Id
+        {
+            get => _id;
+            set
+            {
+                _id = value;
+                LocalIdGenerator.Reserve(value);
+            }
+        }
         public string FirstName { get ; set; }
         public string LastName { get; set; }
         public int Age { get; set; }

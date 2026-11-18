@@ -61,20 +61,18 @@ namespace KarateTournamentApp.ViewModels
 
         private void AddScore()
         {
-            if (!string.IsNullOrWhiteSpace(ScoreInput) && decimal.TryParse(ScoreInput, out decimal score))
+            if (_competitionManager.TryAddScore(ScoreInput))
             {
-                if (score >= 0 && score <= 10)
-                {
-                    JudgeScores.Add(score);
-                    ScoreInput = string.Empty;
-                    RefreshScores();
-                }
+                ScoreInput = string.Empty;
+                RefreshScores();
             }
         }
 
         private void ShowResults()
         {
-            var resultsViewModel = new ResultsViewModel(_competitionManager);
+            ResultsViewModel resultsViewModel;
+            try { resultsViewModel = new ResultsViewModel(_competitionManager); }
+            catch (OperationCanceledException) { return; }
             _windowService.ShowDialog(resultsViewModel, new WindowOptions
             {
                 Title = $"Wyniki - {CategoryName}",

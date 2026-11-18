@@ -8,7 +8,17 @@ namespace KarateTournamentApp.Models
 {
     public class Team
     {
-        public int Id { get; set; } 
+        private int _id = LocalIdGenerator.Next();
+
+        public int Id
+        {
+            get => _id;
+            set
+            {
+                _id = value;
+                LocalIdGenerator.Reserve(value);
+            }
+        }
         public string Name { get; set; }
         public List<Participant> Members { get; set; } = new List<Participant>();
         public Sex Sex { get; set; }

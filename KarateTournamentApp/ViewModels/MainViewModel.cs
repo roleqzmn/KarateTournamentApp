@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
+using KarateClassLibrary.Contracts;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Services;
+using KarateTournamentApp.Services.Api;
 using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.Services.Navigation;
 using KarateTournamentApp.Services.Scheduling;
@@ -13,9 +15,10 @@ using KarateTournamentApp.Models.ViewItems;
 
 namespace KarateTournamentApp.ViewModels
 {
-    public class MainViewModel : ViewModelBase
+    public partial class MainViewModel : ViewModelBase
     {
         private readonly CategoryManager _categoryManager;
+        private readonly Func<CreateParticipantRequest, CancellationToken, Task<ParticipantDto>>? _createApiParticipant;
 
         // Form data
         private string _firstName;
@@ -63,11 +66,12 @@ namespace KarateTournamentApp.ViewModels
         public ObservableCollection<CategorySelectionItem> CategorySelections { get; set; }
 
         public ObservableCollection<Participant> AllParticipants { get; set; }
+        public ObservableCollection<ParticipantDto> ApiParticipants { get; } = new();
 
         public ObservableCollection<CategoryViewModel> Categories { get; set; }
 
-        private CategoryViewModel _selectedCategoryForMerge;
-        public CategoryViewModel SelectedCategoryForMerge
+        private CategoryViewModel? _selectedCategoryForMerge;
+        public CategoryViewModel? SelectedCategoryForMerge
         {
             get => _selectedCategoryForMerge;
             set
@@ -82,6 +86,29 @@ namespace KarateTournamentApp.ViewModels
         public ICommand ExportCommand { get; }
         public ICommand ImportExcelCommand { get; }
         public ICommand CreateExcelTemplateCommand { get; }
+        public ICommand LoadApiTournamentCommand { get; }
+        public ICommand ReturnToLocalTournamentCommand { get; }
+
+        private bool _isApiPreview;
+        public bool IsApiPreview
+        {
+            get => _isApiPreview;
+            private set
+            {
+                _isApiPreview = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsLocalTournament));
+                OnPropertyChanged(nameof(AddParticipantLabel));
+                OnPropertyChanged(nameof(CanManageApi));
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+
+        public bool IsLocalTournament => !IsApiPreview;
+        public bool IsJudgeStation { get; }
+        public bool ShowOrganizerTools => !IsJudgeStation;
+        public string AddParticipantLabel => IsEditingApiParticipant ? "ZAPISZ ZMIANY"
+            : IsApiPreview ? "ZAPISZ ZAWODNIKA W API" : "DODAJ ZAWODNIKA";
 
         private readonly ImportService _importService;
 
@@ -99,16 +126,30 @@ namespace KarateTournamentApp.ViewModels
             {
                 _isLoading = value;
                 OnPropertyChanged();
+                CommandManager.InvalidateRequerySuggested();
             }
+        }
+
+        internal MainViewModel(CategoryManager categoryManager, IDialogService dialogService, IWindowService windowService,
+            IUiScheduler uiScheduler, TournamentApiClient api, bool isJudgeStation = false)
+            : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync, api.CreateParticipantAsync)
+        {
+            _api = api;
+            IsJudgeStation = isJudgeStation;
+            _sessions = new JudgingSessionStore(api.SessionScope);
+            RefreshJudgingSessions();
         }
 
         public MainViewModel(
             CategoryManager categoryManager,
             IDialogService dialogService,
             IWindowService windowService,
-            IUiScheduler uiScheduler)
+            IUiScheduler uiScheduler,
+            Func<CancellationToken, Task<TournamentSnapshotDto>>? loadApiSnapshot = null,
+            Func<CreateParticipantRequest, CancellationToken, Task<ParticipantDto>>? createApiParticipant = null)
         {
             _categoryManager = categoryManager;
+            _createApiParticipant = createApiParticipant;
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
             _uiScheduler = uiScheduler ?? throw new ArgumentNullException(nameof(uiScheduler));
@@ -128,17 +169,73 @@ namespace KarateTournamentApp.ViewModels
             AllParticipants = new ObservableCollection<Participant>();
             Categories = new ObservableCollection<CategoryViewModel>();
 
-            AddParticipantCommand = new RelayCommand(o => CreateParticipant(), o => CanCreateParticipant());
-            ImportCommand = new AsyncRelayCommand(ImportDataAsync, HandleAsyncCommandError);
+            AddParticipantCommand = new AsyncRelayCommand(CreateParticipantAsync, HandleAsyncCommandError, CanCreateParticipant);
+            ImportCommand = new AsyncRelayCommand(ImportDataAsync, HandleAsyncCommandError,
+                () => IsLocalTournament && !IsLoading);
             ExportCommand = new AsyncRelayCommand(
                 ExportDataAsync,
                 HandleAsyncCommandError,
-                () => _categoryManager.DefinedCategories.Any());
+                () => IsLocalTournament && !IsLoading && _categoryManager.DefinedCategories.Any());
             ImportExcelCommand = new AsyncRelayCommand(
                 ImportExcelDataAsync,
                 HandleAsyncCommandError,
-                () => DivideByAge || DivideByBelt);
+                () => !IsLoading && (CanManageApi || (IsLocalTournament && (DivideByAge || DivideByBelt))));
             CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync, HandleAsyncCommandError);
+            LoadApiTournamentCommand = new AsyncRelayCommand(
+                () => LoadApiTournamentAsync(loadApiSnapshot!), HandleAsyncCommandError,
+                () => loadApiSnapshot is not null && !IsLoading);
+            ReturnToLocalTournamentCommand = new RelayCommand(_ => ReturnToLocalTournament(),
+                _ => IsApiPreview && !IsLoading && _activeJudgeLock is null);
+            StartApiJudgingCommand = new AsyncRelayCommand<CategoryViewModel>(StartApiJudgingAsync,
+                HandleAsyncCommandError, CanStartApiJudging);
+            ResumeApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ResumeApiJudgingAsync,
+                HandleAsyncCommandError, session => session is not null && CanUseSessions() && session.Category?.IsFinished != true);
+            ReleaseApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ReleaseApiJudgingAsync,
+                HandleAsyncCommandError, session => session is not null && CanUseSessions());
+            SubmitApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(SubmitApiJudgingAsync,
+                HandleAsyncCommandError, session => CanUseSessions() && session?.Category?.IsFinished == true);
+            ArchiveApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ArchiveApiJudgingAsync,
+                HandleAsyncCommandError, session => session is not null && CanUseSessions());
+            RecoverApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(RecoverApiCategoryAsync,
+                HandleAsyncCommandError, item => item is not null && CanChangeApi() && _api!.HasRecoveryKey
+                    && _apiSnapshot!.Categories.Any(category => category.Id == item.Category.Id && category.IsClaimed && !category.IsFinished));
+            CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
+            EditApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
+            DeleteApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
+            EditApiParticipantCommand = new RelayCommand(_ => BeginApiParticipantEdit(), _ => CanChangeApi() && SelectedApiParticipant is not null);
+            DeleteApiParticipantCommand = new AsyncRelayCommand(DeleteApiParticipantAsync, HandleAsyncCommandError,
+                () => CanChangeApi() && SelectedApiParticipant is not null && !IsEditingApiParticipant);
+            CancelApiParticipantEditCommand = new RelayCommand(_ => ResetForm(), _ => IsEditingApiParticipant && !IsLoading);
+        }
+
+        private async Task LoadApiTournamentAsync(Func<CancellationToken, Task<TournamentSnapshotDto>> loadSnapshot)
+        {
+            IsLoading = true;
+            try
+            {
+                ShowApiSnapshot(await loadSnapshot(CancellationToken.None));
+            }
+            finally
+            {
+                IsLoading = false;
+            }
+        }
+
+        private void ReturnToLocalTournament()
+        {
+            if (IsEditingApiParticipant)
+                ResetForm();
+            RefreshCategories();
+            IsApiPreview = false;
+        }
+
+        private static string FormatApiStatus(ApiCategorySnapshot item)
+        {
+            if (item.Category.IsFinished)
+                return "Zakończona";
+            if (!item.IsClaimed)
+                return "Dostępna";
+            return string.IsNullOrWhiteSpace(item.ClaimedBy) ? "Zajęta" : $"Zajęta · {item.ClaimedBy}";
         }
 
         private void HandleAsyncCommandError(Exception exception)
@@ -152,27 +249,54 @@ namespace KarateTournamentApp.ViewModels
 
         private bool CanCreateParticipant()
         {
-            return !string.IsNullOrWhiteSpace(FirstName) &&
-                   !string.IsNullOrWhiteSpace(LastName) &&
-                   Age.HasValue && Age > 0 &&
-                   CategorySelections.Any(c => c.IsSelected) &&
-                   (DivideByAge || DivideByBelt);
+            if (IsJudgeStation || IsLoading || string.IsNullOrWhiteSpace(FirstName) || string.IsNullOrWhiteSpace(LastName)
+                || Age is not int age || !CategorySelections.Any(category => category.IsSelected))
+                return false;
+
+            return IsApiPreview
+                ? _createApiParticipant is not null && age >= 0 && Enum.IsDefined(SelectedSex) && Enum.IsDefined(SelectedBelt)
+                : age > 0 && (DivideByAge || DivideByBelt);
         }
 
-        private void CreateParticipant()
+        private async Task CreateParticipantAsync()
         {
+            if (Age is not int age)
+                return;
             var selectedCategories = CategorySelections
                 .Where(c => c.IsSelected)
                 .Select(c => c.CategoryType)
-                .ToList();
+                .ToArray();
+
+            if (IsApiPreview && _createApiParticipant is not null)
+            {
+                var request = new CreateParticipantRequest(FirstName, LastName, age, Club,
+                    SelectedBelt, SelectedSex, selectedCategories);
+                IsLoading = true;
+                try
+                {
+                    var saved = _editingParticipantId is int id
+                        ? await _api!.UpdateParticipantAsync(id, request)
+                        : await _createApiParticipant(request, CancellationToken.None);
+                    ShowApiSnapshot(_apiSnapshot! with
+                    {
+                        Participants = _apiSnapshot.Participants.Where(person => person.Id != saved.Id).Append(saved).ToArray()
+                    });
+                    ResetForm();
+                }
+                finally
+                {
+                    IsLoading = false;
+                }
+                return;
+            }
 
             var newParticipant = new Participant(
                 FirstName,
                 LastName,
-                Age.Value,
+                age,
                 SelectedBelt,
                 SelectedSex,
-                selectedCategories,
+                selectedCategories.ToList(),
                 Club
             );
 
@@ -268,6 +392,9 @@ namespace KarateTournamentApp.ViewModels
 
         private void ResetForm()
         {
+            _editingParticipantId = null;
+            OnPropertyChanged(nameof(IsEditingApiParticipant));
+            OnPropertyChanged(nameof(AddParticipantLabel));
             FirstName = string.Empty;
             LastName = string.Empty;
             Age = null;
@@ -314,6 +441,11 @@ namespace KarateTournamentApp.ViewModels
             IsLoading = true;
             try
             {
+                if (IsApiPreview)
+                {
+                    await ImportApiParticipantsAsync(filePath);
+                    return;
+                }
                 await _importService.ImportParticipantsFromExcelAsync(
                     filePath,
                     _categoryManager,

@@ -7,23 +7,22 @@ using System.Text.Json.Serialization;
 
 namespace KarateTournamentApp.Models
 {
-    public enum CategoryType
-    {
-        Kata,
-        Kumite,
-        Kihon,
-        KobudoShort,
-        KobudoLong,
-        Grappling,
-        Team
-    }
-
     [JsonDerivedType(typeof(Category), typeDiscriminator: "base")]
     [JsonDerivedType(typeof(ShobuSanbonCategory), typeDiscriminator: "shobu")]
     [JsonDerivedType(typeof(TeamCategory), typeDiscriminator: "team")]
     public class Category
     {
-        public int Id { get; set; }
+        private int _id = LocalIdGenerator.Next();
+
+        public int Id
+        {
+            get => _id;
+            set
+            {
+                _id = value;
+                LocalIdGenerator.Reserve(value);
+            }
+        }
         public string Name { get; set; } = "";
         public ObservableCollection<Participant> Participants { get; set; } = new ObservableCollection<Participant>();
         public List<Belts> AllowedBelts { get; set; } = new List<Belts> { };
@@ -140,21 +139,24 @@ namespace KarateTournamentApp.Models
                 return;
             }
 
-            int leafs = 1;
-            while (leafs < size) leafs = 2 * leafs;
+            int participantSlots = 1;
+            while (participantSlots < size) participantSlots *= 2;
 
-            int totalMatches = 2 * leafs - 1;
+            int totalMatches = participantSlots - 1;
+            int firstRoundStart = participantSlots / 2 - 1;
             for (int j = 0; j < totalMatches; j++)
             {
                 BracketMatches.Add(new Match());
             }
 
-            var shuffledParticipants = Participants.OrderBy(a => Guid.NewGuid()).ToList(); //pseudo shuffling by guid
+            var shuffledParticipants = GetShuffledParticipants();
 
             for (int i = 0; i < size; i++)
             {
-                int bracketIndex = (leafs - 1) + (i / 2);
-                if (i % 2 == 0)
+                // Fill every first-round match before adding opponents to avoid empty branches.
+                int firstRoundMatchCount = participantSlots / 2;
+                int bracketIndex = firstRoundStart + (i % firstRoundMatchCount);
+                if (i < firstRoundMatchCount)
                 {
                     BracketMatches[bracketIndex].Aka = shuffledParticipants[i].Id;
                 }
@@ -164,7 +166,7 @@ namespace KarateTournamentApp.Models
                 }
             }
 
-            for (int i = leafs - 1; i < totalMatches; i++)
+            for (int i = firstRoundStart; i < totalMatches; i++)
             {
                 var match = BracketMatches[i];
                 bool hasBye = match.Aka.HasValue ^ match.Shiro.HasValue;
@@ -175,6 +177,13 @@ namespace KarateTournamentApp.Models
                     PromoteWinner(i);
                 }
             }
+        }
+
+        protected Participant[] GetShuffledParticipants()
+        {
+            var shuffledParticipants = Participants.ToArray();
+            Random.Shared.Shuffle(shuffledParticipants.AsSpan());
+            return shuffledParticipants;
         }
     }
 
@@ -216,21 +225,24 @@ namespace KarateTournamentApp.Models
                 return;
             }
 
-            int leafs = 1;
-            while (leafs < size) leafs = 2 * leafs;
+            int participantSlots = 1;
+            while (participantSlots < size) participantSlots *= 2;
 
-            int totalMatches = 2 * leafs - 1;
+            int totalMatches = participantSlots - 1;
+            int firstRoundStart = participantSlots / 2 - 1;
             for (int j = 0; j < totalMatches; j++)
             {
                 BracketMatches.Add(new ShobuSanbonMatch());
             }
 
-            var shuffledParticipants = Participants.OrderBy(a => Guid.NewGuid()).ToList(); //pseudo shuffling by guid
+            var shuffledParticipants = GetShuffledParticipants();
 
             for (int i = 0; i < size; i++)
             {
-                int bracketIndex = (leafs - 1) + (i / 2);
-                if (i % 2 == 0)
+                // Fill every first-round match before adding opponents to avoid empty branches.
+                int firstRoundMatchCount = participantSlots / 2;
+                int bracketIndex = firstRoundStart + (i % firstRoundMatchCount);
+                if (i < firstRoundMatchCount)
                 {
                     BracketMatches[bracketIndex].Aka = shuffledParticipants[i].Id;
                 }
@@ -240,7 +252,7 @@ namespace KarateTournamentApp.Models
                 }
             }
 
-            for (int i = leafs - 1; i < totalMatches; i++)
+            for (int i = firstRoundStart; i < totalMatches; i++)
             {
                 var match = BracketMatches[i];
                 bool hasBye = match.Aka.HasValue ^ match.Shiro.HasValue;
