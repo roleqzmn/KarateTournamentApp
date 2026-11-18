@@ -82,6 +82,23 @@ For a PostgreSQL smoke test, create a participant and then a category using its 
 Verify the snapshot contains the category with the requested member/belt order.
 An unknown participant ID must return 400 and leave no partially created category.
 
+## Edit participants and categories
+
+`PUT /api/participants/{id}` and `PUT /api/categories/{id}` use the same body
+and validation rules as their corresponding POST endpoints. A successful edit
+returns 200 with the updated object. A missing resource returns 404 and invalid
+input returns 400.
+
+A participant edit replaces profile fields and the declared disciplines. The
+participant's ID and existing category and team memberships are preserved.
+
+A category edit replaces its settings and its full ordered lists of belts and
+participant IDs. Send an empty participantIds list to clear the roster. The API
+rejects an edit with 409 if the category is claimed, finished, or has teams,
+matches or results. Claim and edit serialize on the same PostgreSQL row. Settings
+and lists are saved in one transaction. Two organizer edits to an eligible
+category apply in order, with the last committed edit taking effect.
+
 ## Read categories
 
 `GET /api/categories` returns summaries ordered by ID: name, discipline, sex,

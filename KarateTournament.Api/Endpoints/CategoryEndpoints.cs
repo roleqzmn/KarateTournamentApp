@@ -1,5 +1,4 @@
 using System.Data;
-using System.ComponentModel.DataAnnotations;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;
@@ -14,6 +13,7 @@ public static class CategoryEndpoints
         endpoints.MapPost("/api/categories", CreateCategory).WithName("CreateCategory");
         endpoints.MapGet("/api/categories", GetCategories).WithName("GetCategories");
         endpoints.MapGet("/api/categories/{categoryId:int}", GetCategory).WithName("GetCategory");
+        endpoints.MapPut("/api/categories/{categoryId:int}", UpdateCategory).WithName("UpdateCategory");
         return endpoints;
     }
 
@@ -52,21 +52,68 @@ public static class CategoryEndpoints
         TournamentDbContext dbContext,
         CancellationToken cancellationToken)
     {
-        var validationResults = new List<ValidationResult>();
-        if (!Validator.TryValidateObject(request, new ValidationContext(request), validationResults, true))
+        if (RequestValidation.GetProblem(request) is { } validationProblem)
+            return validationProblem;
+        if (await ValidateParticipantIds(request.ParticipantIds!, dbContext, cancellationToken) is { } participantProblem)
+            return participantProblem;
+
+        var category = new Category();
+        ApplySettings(category, request);
+        dbContext.Categories.Add(category);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Results.CreatedAtRoute("GetCategory", new { categoryId = category.Id },
+            CategoryReadModel.ToDto(category));
+    }
+
+    private static async Task<IResult> UpdateCategory(
+        int categoryId,
+        CreateCategoryRequest request,
+        TournamentDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        if (RequestValidation.GetProblem(request) is { } validationProblem)
+            return validationProblem;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
+
+        // Lock the same row that claim and completion update. Keep it locked while replacing the roster.
+        var lockedCategories = await dbContext.Categories
+            .FromSql($"""SELECT * FROM "Categories" WHERE "Id" = {categoryId} FOR NO KEY UPDATE""")
+            .ToListAsync(cancellationToken);
+        var category = lockedCategories.SingleOrDefault();
+        if (category is null)
+            return Results.NotFound();
+
+        if (category.ClaimToken.HasValue || category.IsFinished
+            || await dbContext.Categories.AnyAsync(other => other.Id == categoryId
+                && (other.Teams.Any() || other.BracketMatches.Any() || other.FinalResults.Any()), cancellationToken))
         {
-            var errors = validationResults
-                .SelectMany(result => result.MemberNames.Select(member => new
-                {
-                    Member = member,
-                    Message = result.ErrorMessage ?? "Invalid value."
-                }))
-                .GroupBy(error => error.Member)
-                .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray());
-            return Results.ValidationProblem(errors);
+            return Results.Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "Claimed or finished categories and categories with teams, matches or results cannot be edited.");
         }
 
-        var participantIds = request.ParticipantIds!;
+        if (await ValidateParticipantIds(request.ParticipantIds!, dbContext, cancellationToken) is { } participantProblem)
+            return participantProblem;
+
+        // Delete first so a swap of two positions cannot violate the unique SortOrder index mid-update.
+        await dbContext.Set<CategoryAllowedBelt>().Where(link => link.CategoryId == categoryId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await dbContext.Set<CategoryParticipant>().Where(link => link.CategoryId == categoryId)
+            .ExecuteDeleteAsync(cancellationToken);
+        ApplySettings(category, request);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.Ok(CategoryReadModel.ToDto(category));
+    }
+
+    private static async Task<IResult?> ValidateParticipantIds(
+        int[] participantIds, TournamentDbContext dbContext, CancellationToken cancellationToken)
+    {
+        if (participantIds.Length == 0)
+            return null;
+
         var existingIds = await dbContext.Participants
             .Where(participant => participantIds.Contains(participant.Id))
             .Select(participant => participant.Id)
@@ -75,28 +122,24 @@ public static class CategoryEndpoints
         if (missingIds.Length > 0)
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
-                [nameof(request.ParticipantIds)] = [$"Unknown participant IDs: {string.Join(", ", missingIds)}."]
+                [nameof(CreateCategoryRequest.ParticipantIds)] = [$"Unknown participant IDs: {string.Join(", ", missingIds)}."]
             });
 
-        var category = new Category
-        {
-            Name = request.Name!.Trim(),
-            MinAge = request.MinAge,
-            MaxAge = request.MaxAge,
-            Sex = request.Sex!.Value,
-            CategoryType = request.CategoryType!.Value,
-            AllowedBeltLinks = request.AllowedBelts!
-                .Select((belt, index) => new CategoryAllowedBelt { Belt = belt, SortOrder = index })
-                .ToList(),
-            ParticipantLinks = participantIds
-                .Select((id, index) => new CategoryParticipant { ParticipantId = id, SortOrder = index })
-                .ToList()
-        };
+        return null;
+    }
 
-        dbContext.Categories.Add(category);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return Results.CreatedAtRoute("GetCategory", new { categoryId = category.Id },
-            CategoryReadModel.ToDto(category));
+    private static void ApplySettings(Category category, CreateCategoryRequest request)
+    {
+        category.Name = request.Name!.Trim();
+        category.MinAge = request.MinAge;
+        category.MaxAge = request.MaxAge;
+        category.Sex = request.Sex!.Value;
+        category.CategoryType = request.CategoryType!.Value;
+        category.AllowedBeltLinks = request.AllowedBelts!
+            .Select((belt, index) => new CategoryAllowedBelt { Belt = belt, SortOrder = index })
+            .ToList();
+        category.ParticipantLinks = request.ParticipantIds!
+            .Select((id, index) => new CategoryParticipant { ParticipantId = id, SortOrder = index })
+            .ToList();
     }
 }

@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using KarateTournament.Api.Contracts;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;
@@ -14,6 +13,8 @@ public static class ParticipantEndpoints
             .WithName("CreateParticipant");
         endpoints.MapGet("/api/participants/{participantId:int}", GetParticipant)
             .WithName("GetParticipant");
+        endpoints.MapPut("/api/participants/{participantId:int}", UpdateParticipant)
+            .WithName("UpdateParticipant");
         return endpoints;
     }
 
@@ -22,37 +23,53 @@ public static class ParticipantEndpoints
         TournamentDbContext dbContext,
         CancellationToken cancellationToken)
     {
-        var validationResults = new List<ValidationResult>();
-        if (!Validator.TryValidateObject(request, new ValidationContext(request), validationResults, true))
-        {
-            var errors = validationResults
-                .SelectMany(result => result.MemberNames.Select(member => new
-                {
-                    Member = member,
-                    Message = result.ErrorMessage ?? "Invalid value."
-                }))
-                .GroupBy(error => error.Member)
-                .ToDictionary(group => group.Key, group => group.Select(error => error.Message).ToArray());
-            return Results.ValidationProblem(errors);
-        }
+        if (RequestValidation.GetProblem(request) is { } validationProblem)
+            return validationProblem;
 
-        var participant = new Participant
-        {
-            FirstName = request.FirstName!.Trim(),
-            LastName = request.LastName!.Trim(),
-            Age = request.Age!.Value,
-            Club = string.IsNullOrWhiteSpace(request.Club) ? null : request.Club.Trim(),
-            Belt = request.Belt!.Value,
-            Sex = request.Sex!.Value,
-            CategoryTypes = request.CategoryTypes!
-                .Select(type => new ParticipantCategoryType { CategoryType = type })
-                .ToList()
-        };
-
+        var participant = new Participant();
+        ApplyProfile(participant, request);
         dbContext.Participants.Add(participant);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Results.Created($"/api/participants/{participant.Id}", ToDto(participant));
+    }
+
+    private static async Task<IResult> UpdateParticipant(
+        int participantId,
+        CreateParticipantRequest request,
+        TournamentDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        if (RequestValidation.GetProblem(request) is { } validationProblem)
+            return validationProblem;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        var lockedParticipants = await dbContext.Participants
+            .FromSql($"""SELECT * FROM "Participants" WHERE "Id" = {participantId} FOR NO KEY UPDATE""")
+            .ToListAsync(cancellationToken);
+        var participant = lockedParticipants.SingleOrDefault();
+        if (participant is null)
+            return Results.NotFound();
+
+        await dbContext.Set<ParticipantCategoryType>().Where(link => link.ParticipantId == participantId)
+            .ExecuteDeleteAsync(cancellationToken);
+        ApplyProfile(participant, request);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Results.Ok(ToDto(participant));
+    }
+
+    private static void ApplyProfile(Participant participant, CreateParticipantRequest request)
+    {
+        participant.FirstName = request.FirstName!.Trim();
+        participant.LastName = request.LastName!.Trim();
+        participant.Age = request.Age!.Value;
+        participant.Club = string.IsNullOrWhiteSpace(request.Club) ? null : request.Club.Trim();
+        participant.Belt = request.Belt!.Value;
+        participant.Sex = request.Sex!.Value;
+        participant.CategoryTypes = request.CategoryTypes!
+            .Select(type => new ParticipantCategoryType { CategoryType = type })
+            .ToList();
     }
 
     private static async Task<IResult> GetParticipant(
