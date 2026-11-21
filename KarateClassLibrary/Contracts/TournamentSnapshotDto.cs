@@ -30,7 +30,8 @@ public sealed record CategoryDto(
     bool IsClaimed,
     string? ClaimedBy,
     bool HasJudgingCheckpoint = false,
-    bool HandoffRequested = false);
+    bool HandoffRequested = false,
+    IReadOnlyList<TeamResultDto>? TeamResults = null);
 
 public sealed record MatchDto(
     int Id,
@@ -66,6 +67,8 @@ public sealed record ParticipantResultDto(
     int? Rank,
     decimal Score,
     IReadOnlyList<JudgeScoreDto> JudgeScores);
+
+public sealed record TeamResultDto(int TeamId, int Rank, decimal Score, IReadOnlyList<JudgeScoreDto> JudgeScores);
 
 public sealed record JudgeScoreDto(
     int Ordinal,

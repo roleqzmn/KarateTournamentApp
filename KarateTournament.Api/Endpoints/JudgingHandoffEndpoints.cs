@@ -1,6 +1,7 @@
 using System.Text.Json;
 using KarateClassLibrary;
 using KarateClassLibrary.Contracts;
+using KarateClassLibrary.Scoring;
 using KarateTournament.Api.Access;
 using KarateTournament.Api.Data;
 using KarateTournament.Api.Entities;
@@ -93,8 +94,11 @@ internal static class JudgingHandoffEndpoints
         if (category.IsFinished || category.ClaimToken != request.SessionToken)
             return Conflict();
 
-        var roster = await db.Set<CategoryParticipant>().Where(link => link.CategoryId == categoryId)
-            .OrderBy(link => link.SortOrder).Select(link => link.ParticipantId).ToArrayAsync(cancellationToken);
+        var entries = category.CategoryType == CategoryType.Team
+            ? db.Teams.Where(team => team.CategoryId == categoryId).OrderBy(team => team.SortOrder).Select(team => team.Id)
+            : db.Set<CategoryParticipant>().Where(link => link.CategoryId == categoryId)
+                .OrderBy(link => link.SortOrder).Select(link => link.ParticipantId);
+        var roster = await entries.ToArrayAsync(cancellationToken);
         if (!ValidCheckpoint(category.CategoryType, roster, checkpoint))
             return Invalid("The checkpoint must describe the category roster, valid notes or a valid bracket.");
 
@@ -125,25 +129,39 @@ internal static class JudgingHandoffEndpoints
 
     private static bool ValidCheckpoint(CategoryType discipline, int[] roster, JudgingCheckpoint checkpoint)
     {
-        if (roster.Length == 0 || (checkpoint.RankedParticipantIds is { } ranking
+        var rankingIds = discipline == CategoryType.Team ? checkpoint.RankedTeamIds : checkpoint.RankedParticipantIds;
+        if (roster.Length == 0 || (rankingIds is { } ranking
             && (!checkpoint.IsCompleteLocally || !ranking.Order().SequenceEqual(roster.Order()))))
+            return false;
+
+        if (discipline == CategoryType.Team)
+            return checkpoint.Bracket is null && checkpoint.Individual is null && checkpoint.RankedParticipantIds is null
+                && checkpoint.Team is { } team && ValidNotesDraft(roster, checkpoint.IsCompleteLocally,
+                    team.TeamIndex, team.CurrentScores, team.Results?.Select(result => (result?.TeamId ?? 0, result?.Notes)).ToArray());
+
+        if (checkpoint.Team is not null || checkpoint.RankedTeamIds is not null)
             return false;
         if (discipline == CategoryType.Kumite)
             return checkpoint.Individual is null && ValidBracket(roster, checkpoint);
-        if (discipline is not (CategoryType.Kata or CategoryType.Kihon or CategoryType.KobudoShort or CategoryType.KobudoLong)
-            || checkpoint.Bracket is not null || checkpoint.Individual is not { } draft
-            || draft.Results is null || draft.CurrentScores is null
-            || draft.ParticipantIndex < 0 || draft.ParticipantIndex >= roster.Length)
-            return false;
 
-        var expectedResults = checkpoint.IsCompleteLocally ? roster.Length : draft.ParticipantIndex;
-        return (!checkpoint.IsCompleteLocally || (draft.ParticipantIndex == roster.Length - 1 && draft.CurrentScores.Length == 0))
-            && draft.Results.Length == expectedResults && draft.CurrentScores.All(ValidNote)
-            && draft.Results.Select((result, index) => result is not null && result.ParticipantId == roster[index]
-                && result.Notes is { Length: >= 3 } && result.Notes.All(ValidNote)).All(valid => valid);
+        return discipline is CategoryType.Kata or CategoryType.Kihon or CategoryType.KobudoShort or CategoryType.KobudoLong
+            && checkpoint.Bracket is null && checkpoint.Individual is { } draft && ValidNotesDraft(
+                roster, checkpoint.IsCompleteLocally, draft.ParticipantIndex, draft.CurrentScores,
+                draft.Results?.Select(result => (result?.ParticipantId ?? 0, result?.Notes)).ToArray());
     }
 
-    private static bool ValidNote(decimal score) => score is >= 0 and <= 10 && decimal.Round(score, 2) == score;
+    private static bool ValidNotesDraft(int[] roster, bool finished, int index, decimal[]? currentNotes,
+        (int Id, decimal[]? Notes)[]? results)
+    {
+        if (results is null || currentNotes is null || index < 0 || index >= roster.Length)
+            return false;
+
+        var expectedResults = finished ? roster.Length : index;
+        return (!finished || (index == roster.Length - 1 && currentNotes.Length == 0))
+            && results.Length == expectedResults && currentNotes.All(JudgingScoreCalculator.IsValidJudgeNote)
+            && results.Select((result, ordinal) => result.Id == roster[ordinal] && result.Notes is { Length: >= 3 }
+                && result.Notes.All(JudgingScoreCalculator.IsValidJudgeNote)).All(valid => valid);
+    }
 
     private static bool ValidBracket(int[] roster, JudgingCheckpoint checkpoint)
     {

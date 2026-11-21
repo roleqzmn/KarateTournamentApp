@@ -28,6 +28,7 @@ await using (var scope = app.Services.CreateAsyncScope())
         app.Logger.LogInformation("Created the tournament database schema.");
     }
     await dbContext.EnsureJudgingProgressSchemaAsync();
+    await dbContext.EnsureTeamResultSchemaAsync();
 }
 
 if (app.Environment.IsDevelopment())
@@ -43,7 +44,7 @@ app.MapCategoryEndpoints();
 app.MapTeamEndpoints();
 app.MapCategoryClaimEndpoints();
 app.MapJudgingHandoffEndpoints();
-app.MapIndividualResultEndpoints();
+app.MapKataResultEndpoints();
 app.MapKumiteResultEndpoints();
 
 app.UseHttpsRedirection();

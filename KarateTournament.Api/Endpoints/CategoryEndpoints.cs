@@ -131,7 +131,7 @@ public static class CategoryEndpoints
         Category category, TournamentDbContext dbContext, CancellationToken cancellationToken, bool includeTeams = true) =>
         category.ClaimToken.HasValue || category.IsFinished
         || await dbContext.Categories.AnyAsync(other => other.Id == category.Id
-            && ((includeTeams && other.Teams.Any()) || other.BracketMatches.Any() || other.FinalResults.Any()
+            && ((includeTeams && other.Teams.Any()) || other.BracketMatches.Any() || other.FinalResults.Any() || other.TeamResults.Any()
                 || (other.JudgingProgress != null && other.JudgingProgress.CheckpointJson != null)), cancellationToken);
 
     private static IResult CategoryConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,

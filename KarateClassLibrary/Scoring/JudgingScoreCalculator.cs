@@ -2,6 +2,8 @@ namespace KarateClassLibrary.Scoring;
 
 public static class JudgingScoreCalculator
 {
+    public static bool IsValidJudgeNote(decimal score) => score is >= 0 and <= 10 && decimal.Round(score, 2) == score;
+
     public static (decimal FinalScore, List<int> DiscardedScoreIndexes) CalculateFinalScore(
         IReadOnlyList<decimal> scores)
     {

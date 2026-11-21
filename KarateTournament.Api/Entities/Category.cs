@@ -22,4 +22,5 @@ public class Category
     public ICollection<Match> BracketMatches { get; set; } = [];
     public ICollection<Team> Teams { get; set; } = [];
     public ICollection<ParticipantResult> FinalResults { get; set; } = [];
+    public ICollection<TeamResult> TeamResults { get; set; } = [];
 }

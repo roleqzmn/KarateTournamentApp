@@ -17,6 +17,24 @@ public sealed class TournamentDbContext : DbContext
     public DbSet<ParticipantResult> ParticipantResults => Set<ParticipantResult>();
     public DbSet<RevokedCategoryClaim> RevokedCategoryClaims => Set<RevokedCategoryClaim>();
     public DbSet<CategoryJudgingProgress> JudgingProgress => Set<CategoryJudgingProgress>();
+    public DbSet<TeamResult> TeamResults => Set<TeamResult>();
+
+    internal Task EnsureTeamResultSchemaAsync() => Database.ExecuteSqlRawAsync("""
+        CREATE TABLE IF NOT EXISTS "TeamResults" (
+            "TeamId" integer PRIMARY KEY REFERENCES "Teams" ("Id"),
+            "CategoryId" integer NOT NULL REFERENCES "Categories" ("Id") ON DELETE CASCADE,
+            "Rank" integer NOT NULL,
+            "Score" numeric(7,2) NOT NULL,
+            UNIQUE ("CategoryId", "Rank")
+        );
+        CREATE TABLE IF NOT EXISTS "TeamJudgeScores" (
+            "TeamId" integer NOT NULL REFERENCES "TeamResults" ("TeamId") ON DELETE CASCADE,
+            "Ordinal" integer NOT NULL,
+            "Score" numeric(7,2) NOT NULL,
+            "IsDiscarded" boolean NOT NULL,
+            PRIMARY KEY ("TeamId", "Ordinal")
+        );
+        """);
 
     internal Task EnsureJudgingProgressSchemaAsync() => Database.ExecuteSqlRawAsync("""
         CREATE TABLE IF NOT EXISTS "JudgingProgress" (
@@ -151,6 +169,26 @@ public sealed class TournamentDbContext : DbContext
                 .WithMany(participant => participant.TeamMemberships)
                 .HasForeignKey(link => link.ParticipantId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TeamResult>(entity =>
+        {
+            entity.HasKey(result => result.TeamId);
+            entity.HasIndex(result => new { result.CategoryId, result.Rank }).IsUnique();
+            entity.Property(result => result.Score).HasPrecision(7, 2);
+            entity.HasOne<Team>().WithOne().HasForeignKey<TeamResult>(result => result.TeamId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<Category>().WithMany(category => category.TeamResults)
+                .HasForeignKey(result => result.CategoryId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(result => result.JudgeScores).WithOne().HasForeignKey(note => note.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TeamJudgeScore>(entity =>
+        {
+            entity.ToTable("TeamJudgeScores");
+            entity.HasKey(note => new { note.TeamId, note.Ordinal });
+            entity.Property(note => note.Score).HasPrecision(7, 2);
         });
 
         modelBuilder.Entity<ParticipantResult>(entity =>
