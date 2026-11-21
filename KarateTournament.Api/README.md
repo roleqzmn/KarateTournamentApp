@@ -42,9 +42,10 @@ key can create, edit, delete and import records. Recovery uses its separate
 organizer recovery key.
 
 On each WPF station set `KARATE_TOURNAMENT_API_URL` and
-`KARATE_TOURNAMENT_ACCESS_KEY` before launch. Set `KARATE_TOURNAMENT_ROLE=judge`
-on judging stations to hide the registration and organizer controls. The API
-enforces the privileges associated with the supplied key.
+`KARATE_TOURNAMENT_ACCESS_KEY` before launch. Set `KARATE_TOURNAMENT_ROLE=organizer`
+on the organizer's station or `judge` to open the judging window. The app opens
+the judging window by default. Set the role to `local` for the file-based
+tournament. The API enforces the privileges associated with the supplied key.
 
 For a LAN host, set `ASPNETCORE_URLS=https://0.0.0.0:7086` and configure Kestrel
 with a certificate valid for the host name used by the stations. Use

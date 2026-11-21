@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
@@ -171,21 +171,22 @@ namespace KarateTournamentApp.ViewModels
 
             AddParticipantCommand = new AsyncRelayCommand(CreateParticipantAsync, HandleAsyncCommandError, CanCreateParticipant);
             ImportCommand = new AsyncRelayCommand(ImportDataAsync, HandleAsyncCommandError,
-                () => IsLocalTournament && !IsLoading);
+                () => ShowOrganizerTools && IsLocalTournament && !IsLoading);
             ExportCommand = new AsyncRelayCommand(
                 ExportDataAsync,
                 HandleAsyncCommandError,
-                () => IsLocalTournament && !IsLoading && _categoryManager.DefinedCategories.Any());
+                () => ShowOrganizerTools && IsLocalTournament && !IsLoading && _categoryManager.DefinedCategories.Any());
             ImportExcelCommand = new AsyncRelayCommand(
                 ImportExcelDataAsync,
                 HandleAsyncCommandError,
-                () => !IsLoading && (CanManageApi || (IsLocalTournament && (DivideByAge || DivideByBelt))));
-            CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync, HandleAsyncCommandError);
+                () => ShowOrganizerTools && !IsLoading && (CanManageApi || (IsLocalTournament && (DivideByAge || DivideByBelt))));
+            CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync, HandleAsyncCommandError,
+                () => ShowOrganizerTools);
             LoadApiTournamentCommand = new AsyncRelayCommand(
                 () => LoadApiTournamentAsync(loadApiSnapshot!), HandleAsyncCommandError,
                 () => loadApiSnapshot is not null && !IsLoading);
             ReturnToLocalTournamentCommand = new RelayCommand(_ => ReturnToLocalTournament(),
-                _ => IsApiPreview && !IsLoading && _activeJudgeLock is null);
+                _ => ShowOrganizerTools && IsApiPreview && !IsLoading && _activeJudgeLock is null);
             StartApiJudgingCommand = new AsyncRelayCommand<CategoryViewModel>(StartApiJudgingAsync,
                 HandleAsyncCommandError, CanStartApiJudging);
             ResumeApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ResumeApiJudgingAsync,

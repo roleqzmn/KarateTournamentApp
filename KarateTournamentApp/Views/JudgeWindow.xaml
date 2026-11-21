@@ -1,0 +1,80 @@
+<Window x:Class="KarateTournamentApp.Views.JudgeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Turniej karate — stanowisko sędziowskie"
+        Width="1000" Height="700" MinWidth="680" MinHeight="460"
+        WindowStartupLocation="CenterScreen" Background="#F5F7FA">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,16">
+            <Button DockPanel.Dock="Right" Margin="0" Content="Pobierz turniej z API"
+                    Command="{Binding LoadApiTournamentCommand}"/>
+            <TextBlock Text="Stanowisko sędziowskie" FontSize="24" FontWeight="SemiBold"
+                       VerticalAlignment="Center"/>
+        </DockPanel>
+        <TabControl Grid.Row="1">
+            <TabItem Header="Konkurencje">
+                <DataGrid ItemsSource="{Binding Categories}" AutoGenerateColumns="False"
+                          IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
+                          CanUserAddRows="False" CanUserDeleteRows="False" Margin="12">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Konkurencja" Binding="{Binding Name}" Width="*"/>
+                        <DataGridTextColumn Header="Dyscyplina" Binding="{Binding CategoryTypeDisplay}" Width="Auto"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding ApiStatus}" Width="*"/>
+                        <DataGridTemplateColumn Header="Sędziowanie" Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Przejmij i rozpocznij" Margin="4"
+                                            Command="{Binding DataContext.StartApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+            <TabItem Header="Sesje lokalne">
+                <DockPanel Margin="12">
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding JudgingWarning}"
+                               TextWrapping="Wrap" Foreground="#A52A2A"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding JudgingSessions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#DEE4EB" BorderThickness="1" Padding="12" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Label}" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                            <WrapPanel>
+                                                <Button Content="Wznów sesję"
+                                                        Command="{Binding DataContext.ResumeApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="Wyślij wyniki"
+                                                        Command="{Binding DataContext.SubmitApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="Zwolnij blokadę"
+                                                        Command="{Binding DataContext.ReleaseApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="Archiwizuj lokalnie"
+                                                        Command="{Binding DataContext.ArchiveApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </WrapPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>
