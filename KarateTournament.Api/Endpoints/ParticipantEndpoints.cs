@@ -1,4 +1,5 @@
 using System.Data;
+using KarateClassLibrary;
 using KarateClassLibrary.Contracts;
 using KarateTournament.Api.Access;
 using KarateTournament.Api.Data;
@@ -26,16 +27,18 @@ public static class ParticipantEndpoints
 
     private static async Task<IResult> CreateParticipant(
         CreateParticipantRequest request,
+        CategoryGrouping? groupBy,
         TournamentDbContext dbContext,
         CancellationToken cancellationToken)
     {
         if (RequestValidation.GetProblem(request) is { } validationProblem)
             return validationProblem;
+        if (ValidateGrouping(groupBy) is { } groupingProblem)
+            return groupingProblem;
 
         var participant = new Participant();
         ApplyProfile(participant, request);
-        dbContext.Participants.Add(participant);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await SaveParticipantsAsync([participant], groupBy, dbContext, cancellationToken);
 
         return Results.Created($"/api/participants/{participant.Id}", ToDto(participant));
     }
@@ -66,8 +69,12 @@ public static class ParticipantEndpoints
     }
 
     private static async Task<IResult> ImportParticipants(
-        CreateParticipantRequest?[] requests, TournamentDbContext dbContext, CancellationToken cancellationToken)
+        CreateParticipantRequest?[] requests, CategoryGrouping? groupBy, TournamentDbContext dbContext,
+        CancellationToken cancellationToken)
     {
+        if (ValidateGrouping(groupBy) is { } groupingProblem)
+            return groupingProblem;
+
         var errors = new Dictionary<string, string[]>();
         if (requests.Length == 0)
             errors["rows"] = ["At least one participant is required."];
@@ -88,9 +95,31 @@ public static class ParticipantEndpoints
             ApplyProfile(participant, request!);
             return participant;
         }).ToArray();
-        dbContext.Participants.AddRange(participants);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await SaveParticipantsAsync(participants, groupBy, dbContext, cancellationToken);
         return Results.Json(participants.Select(ToDto).ToArray(), statusCode: StatusCodes.Status201Created);
+    }
+
+    private static IResult? ValidateGrouping(CategoryGrouping? groupBy) =>
+        groupBy is { } grouping && !Enum.IsDefined(grouping)
+            ? Results.ValidationProblem(new Dictionary<string, string[]>
+                { ["groupBy"] = ["Use Age, Belt or AgeAndBelt."] })
+            : null;
+
+    private static async Task SaveParticipantsAsync(Participant[] participants, CategoryGrouping? groupBy,
+        TournamentDbContext dbContext, CancellationToken cancellationToken)
+    {
+        dbContext.Participants.AddRange(participants);
+        if (groupBy is null)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            IsolationLevel.ReadCommitted, cancellationToken);
+        await ParticipantCategoryAssignment.AssignAsync(dbContext, participants, groupBy.Value, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static async Task<IResult> DeleteParticipant(
