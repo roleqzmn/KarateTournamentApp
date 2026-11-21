@@ -36,7 +36,7 @@
                 <!-- Current Participant Info -->
                 <Border Background="White" CornerRadius="5" Padding="20" Margin="0,0,0,15">
                     <StackPanel>
-                        <TextBlock Text="Aktualny zawodnik" 
+                        <TextBlock Text="{Binding CurrentEntrantLabel}"
                                    FontSize="16" 
                                    Foreground="#7f8c8d"
                                    Margin="0,0,0,10"/>
@@ -152,7 +152,7 @@
         <!-- Control Buttons -->
         <Border Grid.Row="2" Background="White" CornerRadius="5" Padding="15" Margin="0,15,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="Nastepny zawodnik" 
+                <Button Content="{Binding FinishEntrantLabel}"
                         Command="{Binding FinishParticipantCommand}"
                         Background="#27AE60" 
                         Foreground="White"

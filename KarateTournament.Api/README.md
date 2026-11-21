@@ -191,6 +191,14 @@ snapshot includes these teams and their ordered members. Roster writes require
 the organizer key when access keys are configured. The API protects rosters
 once the competition is claimed or has judging data.
 
+The judge claims and runs Team Kata in the Kata scoring panel. The final
+submission uses `POST /api/categories/{id}/team-results` with a session token
+and a complete list of `teamId`, `rank` and `judgeScores`. The API calculates
+scores with the same rules as individual Kata and publishes the ranking as
+`teamResults` in the category snapshot. Each result links to a team and its
+ordered member IDs. Handoff transfers completed and current notes by team ID.
+The API creates the team result tables at startup if they are missing.
+
 ## Edit participants and categories
 
 `PUT /api/participants/{id}` and `PUT /api/categories/{id}` use the same body

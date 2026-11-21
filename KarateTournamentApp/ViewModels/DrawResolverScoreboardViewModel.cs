@@ -8,14 +8,14 @@ namespace KarateTournamentApp.ViewModels
     /// </summary>
     public class DrawResolverScoreboardViewModel : ViewModelBase
     {
-        private readonly Participant _akaParticipant;
-        private readonly Participant _shiroParticipant;
+        private readonly IKataEntrant _akaParticipant;
+        private readonly IKataEntrant _shiroParticipant;
 
-        public string AkaName => _akaParticipant.FullName;
-        public string ShiroName => _shiroParticipant.FullName;
+        public string AkaName => _akaParticipant.JudgingName;
+        public string ShiroName => _shiroParticipant.JudgingName;
 
-        private Participant _winner;
-        public Participant Winner
+        private IKataEntrant? _winner;
+        public IKataEntrant? Winner
         {
             get => _winner;
             set
@@ -41,13 +41,13 @@ namespace KarateTournamentApp.ViewModels
 
         public string WinnerColor => Winner == _akaParticipant ? "#E74C3C" : Winner == _shiroParticipant ? "White" : "Transparent";
 
-        public DrawResolverScoreboardViewModel(Participant akaParticipant, Participant shiroParticipant)
+        public DrawResolverScoreboardViewModel(IKataEntrant akaParticipant, IKataEntrant shiroParticipant)
         {
             _akaParticipant = akaParticipant ?? throw new ArgumentNullException(nameof(akaParticipant));
             _shiroParticipant = shiroParticipant ?? throw new ArgumentNullException(nameof(shiroParticipant));
         }
 
-        public void AnnounceWinner(Participant winner)
+        public void AnnounceWinner(IKataEntrant winner)
         {
             Winner = winner;
         }

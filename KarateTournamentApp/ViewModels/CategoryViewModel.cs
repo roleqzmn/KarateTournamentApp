@@ -52,7 +52,7 @@ namespace KarateTournamentApp.ViewModels
 
         public string Name => _category.Name;
         public int ParticipantCount => _category.Participants.Count;
-        public string CategoryTypeDisplay => _category.CategoryType.ToString();
+        public string CategoryTypeDisplay => _category is TeamCategory ? "Team Kata" : _category.CategoryType.ToString();
         public string SexDisplay => _category.Sex.ToString();
         public bool HasKumiteWinner =>
             _category.CategoryType == CategoryType.Kumite
@@ -214,9 +214,9 @@ namespace KarateTournamentApp.ViewModels
         private bool CanViewResults()
         {
             // Can view results if category is finished and has saved results
-            return _category.IsFinished
-                   && ((_category.FinalResults != null && _category.FinalResults.Any())
-                       || _category.JudgingScores.Any());
+            return _category.IsFinished && (_category is TeamCategory teamCategory
+                ? teamCategory.TeamResults.Count > 0
+                : _category.FinalResults?.Count > 0 || _category.JudgingScores.Any());
         }
 
         private void ViewResults()
@@ -224,14 +224,12 @@ namespace KarateTournamentApp.ViewModels
             // Create a competition manager with saved results
             var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService, _uiScheduler);
             
-            // Load saved rankings if available, otherwise source from raw judging scores.
-            var sourceResults = _category.FinalResults.Any()
-                ? _category.FinalResults
-                : BuildResultsFromJudgingScores();
-
-            foreach (var result in sourceResults)
+            if (_category is not TeamCategory)
             {
-                competitionManager.Results.Add(result);
+                // Load saved rankings if available, otherwise source from raw judging scores.
+                var sourceResults = _category.FinalResults.Any() ? _category.FinalResults : BuildResultsFromJudgingScores();
+                foreach (var result in sourceResults)
+                    competitionManager.Results.Add(result);
             }
 
             var resultsViewModel = new ResultsViewModel(competitionManager);
@@ -283,10 +281,13 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        internal IWindowHandle OpenApiJudge(IndividualJudgeDraft? draft, Action<IndividualJudgeDraft?> checkpoint) =>
+        internal IWindowHandle OpenApiJudge(IndividualJudgeDraft? draft, TeamJudgeDraft? teamDraft,
+            Action<IndividualJudgeDraft?, TeamJudgeDraft?> checkpoint) =>
             _category.CategoryType == CategoryType.Kumite
-                ? StartBracketCompetition(() => checkpoint(null))
-                : StartIndividualCompetition(draft ?? IndividualJudgeDraft.Empty, checkpoint);
+                ? StartBracketCompetition(() => checkpoint(null, null))
+                : _category is TeamCategory
+                    ? StartIndividualCompetition(teamDraft: teamDraft ?? TeamJudgeDraft.Empty, checkpoint: checkpoint)
+                    : StartIndividualCompetition(draft ?? IndividualJudgeDraft.Empty, checkpoint: checkpoint);
 
         private IWindowHandle StartBracketCompetition(Action? onClosed = null)
         {
@@ -322,11 +323,14 @@ namespace KarateTournamentApp.ViewModels
         }
 
         private IWindowHandle StartIndividualCompetition(
-            IndividualJudgeDraft? draft = null, Action<IndividualJudgeDraft?>? onClosed = null)
+            IndividualJudgeDraft? draft = null, TeamJudgeDraft? teamDraft = null,
+            Action<IndividualJudgeDraft?, TeamJudgeDraft?>? checkpoint = null)
         {
             var competitionManager = new IndividualCompetitionManagerViewModel(_category, _windowService, _uiScheduler);
             if (draft is not null)
                 competitionManager.RestoreDraft(draft);
+            if (teamDraft is not null)
+                competitionManager.RestoreTeamDraft(teamDraft);
             var scoreboardViewModel = new IndividualScoreboardViewModel(competitionManager);
             var judgeViewModel = new IndividualJudgeViewModel(competitionManager, _windowService);
 
@@ -346,8 +350,14 @@ namespace KarateTournamentApp.ViewModels
                 Height = 700,
                 FullScreenMonitor = WindowMonitor.Primary
             });
-            if (onClosed is not null)
-                AttachCheckpoint(judgeHandle, () => onClosed(competitionManager.CaptureDraft()));
+            if (checkpoint is not null)
+                AttachCheckpoint(judgeHandle, () =>
+                {
+                    if (competitionManager.IsTeamKata)
+                        checkpoint(null, competitionManager.CaptureTeamDraft());
+                    else
+                        checkpoint(competitionManager.CaptureDraft(), null);
+                });
             return judgeHandle;
         }
 

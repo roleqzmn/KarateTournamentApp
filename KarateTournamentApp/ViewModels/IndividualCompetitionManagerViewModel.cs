@@ -14,6 +14,7 @@ namespace KarateTournamentApp.ViewModels
     public class IndividualCompetitionManagerViewModel : ViewModelBase
     {
         private readonly Category _category;
+        private readonly TeamCategory? _teamCategory;
         private readonly IWindowService _windowService;
         private readonly IUiScheduler _uiScheduler;
         private int _currentParticipantIndex;
@@ -21,14 +22,24 @@ namespace KarateTournamentApp.ViewModels
         
         public Category Category => _category;
         
-        private Participant _currentParticipant;
-        public Participant CurrentParticipant
+        public bool IsTeamKata => _teamCategory is not null;
+        private IReadOnlyList<IKataEntrant> Entrants => _teamCategory is null ? _category.Participants : _teamCategory.Teams;
+
+        private IKataEntrant? _currentEntrant;
+        public Participant? CurrentParticipant
         {
-            get => _currentParticipant;
-            set
+            get => CurrentEntrant as Participant;
+            set => CurrentEntrant = value;
+        }
+
+        public IKataEntrant? CurrentEntrant
+        {
+            get => _currentEntrant;
+            private set
             {
-                _currentParticipant = value;
+                _currentEntrant = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentParticipant));
                 OnPropertyChanged(nameof(CurrentParticipantNumber));
                 OnPropertyChanged(nameof(TotalParticipants));
                 
@@ -40,7 +51,7 @@ namespace KarateTournamentApp.ViewModels
         }
 
         public int CurrentParticipantNumber => _currentParticipantIndex + 1;
-        public int TotalParticipants => _category.Participants.Count;
+        public int TotalParticipants => Entrants.Count;
 
         // Collection to store scores from multiple judges
         public ObservableCollection<decimal> JudgeScores { get; set; }
@@ -70,6 +81,7 @@ namespace KarateTournamentApp.ViewModels
 
         // Store all participant results
         public ObservableCollection<ParticipantResult> Results { get; set; }
+        public ObservableCollection<TeamKataResult> TeamResults { get; } = [];
 
         public ICommand NextParticipantCommand { get; }
         public ICommand FinishParticipantCommand { get; }
@@ -82,6 +94,7 @@ namespace KarateTournamentApp.ViewModels
             IUiScheduler uiScheduler)
         {
             _category = category;
+            _teamCategory = category as TeamCategory;
             _windowService = windowService ?? throw new ArgumentNullException(nameof(windowService));
             _uiScheduler = uiScheduler ?? throw new ArgumentNullException(nameof(uiScheduler));
             _currentParticipantIndex = 0;
@@ -89,10 +102,8 @@ namespace KarateTournamentApp.ViewModels
             JudgeScores = new ObservableCollection<decimal>();
             Results = new ObservableCollection<ParticipantResult>();
             
-            if (_category.Participants.Any())
-            {
-                CurrentParticipant = _category.Participants[_currentParticipantIndex];
-            }
+            if (Entrants.Count > 0)
+                CurrentEntrant = Entrants[_currentParticipantIndex];
 
             NextParticipantCommand = new RelayCommand(o => MoveToNextParticipant(), o => CanMoveToNext());
             FinishParticipantCommand = new RelayCommand(o => FinishCurrentParticipant(), o => CanFinishParticipant());
@@ -102,20 +113,20 @@ namespace KarateTournamentApp.ViewModels
 
         private bool CanMoveToNext()
         {
-            return !_requireEveryParticipant && _currentParticipantIndex < _category.Participants.Count - 1;
+            return !_requireEveryParticipant && _currentParticipantIndex < Entrants.Count - 1;
         }
 
         private bool CanFinishParticipant()
         {
-            return CurrentParticipant != null && JudgeScores.Count >= 3;
+            return CurrentEntrant != null && JudgeScores.Count >= 3;
         }
 
         private void MoveToNextParticipant()
         {
-            if (_currentParticipantIndex < _category.Participants.Count - 1)
+            if (_currentParticipantIndex < Entrants.Count - 1)
             {
                 _currentParticipantIndex++;
-                CurrentParticipant = _category.Participants[_currentParticipantIndex];
+                CurrentEntrant = Entrants[_currentParticipantIndex];
             }
             else
             {
@@ -126,28 +137,17 @@ namespace KarateTournamentApp.ViewModels
                 }
                 
                 _category.IsFinished = true;
-                CurrentParticipant = null;
+                CurrentEntrant = null;
             }
         }
 
         private void FinishCurrentParticipant()
         {
-            if (CurrentParticipant != null && JudgeScores.Count >= 3)
+            if (CurrentEntrant is { } entrant && JudgeScores.Count >= 3)
             {
                 IsParticipantFinished = true;
 
-                var scoreCalculation = JudgingScoreCalculator.CalculateFinalScore(JudgeScores);
-                var result = new ParticipantResult
-                {
-                    Participant = CurrentParticipant,
-                    Score = scoreCalculation.FinalScore,
-                    JudgeScores = new List<decimal>(JudgeScores),
-                    DiscardedJudgeScoreIndexes = scoreCalculation.DiscardedScoreIndexes
-                };
-                
-                Results.Add(result);
-                
-
+                AddResult(entrant, JudgeScores);
                 MoveToNextParticipant();
             }
         }
@@ -159,37 +159,49 @@ namespace KarateTournamentApp.ViewModels
 
         internal bool TryAddScore(string? input)
         {
-            if (CurrentParticipant is null || !decimal.TryParse(input, out var score) || score is < 0 or > 10
-                || (_requireEveryParticipant && decimal.Round(score, 2) != score))
+            if (CurrentEntrant is null || !decimal.TryParse(input, out var score) || score is < 0 or > 10
+                || (_requireEveryParticipant && !KarateClassLibrary.Scoring.JudgingScoreCalculator.IsValidJudgeNote(score)))
                 return false;
             JudgeScores.Add(score);
             OnPropertyChanged(nameof(FinalScore));
             return true;
         }
 
-        internal void RestoreDraft(IndividualJudgeDraft draft)
+        internal void RestoreDraft(IndividualJudgeDraft draft) => RestoreProgress(
+            draft.ParticipantIndex, draft.CurrentScores, draft.Results.Select(result => (result.ParticipantId, result.Notes)));
+
+        internal void RestoreTeamDraft(TeamJudgeDraft draft) => RestoreProgress(
+            draft.TeamIndex, draft.CurrentScores, draft.Results.Select(result => (result.TeamId, result.Notes)));
+
+        private void RestoreProgress(int index, decimal[] currentScores, IEnumerable<(int Id, decimal[] Notes)> results)
         {
             _requireEveryParticipant = true;
-            _currentParticipantIndex = draft.ParticipantIndex;
-            CurrentParticipant = _category.IsFinished ? null : _category.Participants[draft.ParticipantIndex];
+            _currentParticipantIndex = index;
+            CurrentEntrant = _category.IsFinished ? null : Entrants[index];
             Results.Clear();
-            foreach (var result in draft.Results)
-            {
-                var (score, discarded) = JudgingScoreCalculator.CalculateFinalScore(result.Notes);
-                Results.Add(new ParticipantResult
-                {
-                    Participant = _category.Participants.Single(person => person.Id == result.ParticipantId),
-                    Score = score,
-                    JudgeScores = result.Notes.ToList(),
-                    DiscardedJudgeScoreIndexes = discarded
-                });
-            }
-            foreach (var note in draft.CurrentScores)
+            TeamResults.Clear();
+            foreach (var (id, notes) in results)
+                AddResult(Entrants.Single(entrant => entrant.Id == id), notes);
+            foreach (var note in currentScores)
                 JudgeScores.Add(note);
         }
 
         internal IndividualJudgeDraft CaptureDraft() => new(_currentParticipantIndex, JudgeScores.ToArray(),
             Results.Select(result => new IndividualDraftScore(result.Participant.Id, result.JudgeScores.ToArray())).ToArray());
+
+        internal TeamJudgeDraft CaptureTeamDraft() => new(_currentParticipantIndex, JudgeScores.ToArray(),
+            TeamResults.Select(result => new TeamDraftScore(result.Team.Id, result.JudgeScores.ToArray())).ToArray());
+
+        private void AddResult(IKataEntrant entrant, IList<decimal> notes)
+        {
+            var scoreNotes = notes.ToList();
+            var (score, discarded) = JudgingScoreCalculator.CalculateFinalScore(scoreNotes);
+            if (entrant is Team team)
+                TeamResults.Add(new TeamKataResult { Team = team, Score = score, JudgeScores = scoreNotes, DiscardedJudgeScoreIndexes = discarded });
+            else
+                Results.Add(new ParticipantResult { Participant = (Participant)entrant, Score = score,
+                    JudgeScores = scoreNotes, DiscardedJudgeScoreIndexes = discarded });
+        }
 
         private void RemoveLastScore()
         {
@@ -200,10 +212,10 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        private ParticipantResult? ResolveDraw(ParticipantResult participant1, ParticipantResult participant2)
+        private TResult? ResolveDraw<TResult>(TResult first, TResult second) where TResult : KataPerformanceResult
         {
-            var scoreboardViewModel = new DrawResolverScoreboardViewModel(participant1.Participant, participant2.Participant);
-            var drawResolver = new DrawResolverViewModel(participant1.Participant, participant2.Participant, scoreboardViewModel);
+            var scoreboardViewModel = new DrawResolverScoreboardViewModel(first.Entrant, second.Entrant);
+            var drawResolver = new DrawResolverViewModel(first.Entrant, second.Entrant, scoreboardViewModel);
 
             var scoreboardHandle = _windowService.Show(scoreboardViewModel, new WindowOptions
             {
@@ -214,8 +226,8 @@ namespace KarateTournamentApp.ViewModels
                 Borderless = true
             });
 
-            Participant winner = null;
-            IWindowHandle judgeHandle = null;
+            IKataEntrant? winner = null;
+            IWindowHandle? judgeHandle = null;
 
             drawResolver.WinnerConfirmed += (sender, selectedWinner) =>
             {
@@ -240,18 +252,20 @@ namespace KarateTournamentApp.ViewModels
 
             if (winner is null && _requireEveryParticipant)
                 return null;
-            return winner == participant1.Participant ? participant1 : participant2;
+            return winner == first.Entrant ? first : second;
         }
 
-        public ObservableCollection<ParticipantResult> GetFinalRankings()
-        {
-            // If final rankings are already resolved and saved, use them directly.
-            if (_category.FinalResults.Any())
-            {
-                return new ObservableCollection<ParticipantResult>(_category.FinalResults);
-            }
+        public ObservableCollection<ParticipantResult> GetFinalRankings() => Rank(Results, _category.FinalResults);
 
-            var results = new ObservableCollection<ParticipantResult>(Results.OrderByDescending(r => r.Score));
+        public ObservableCollection<TeamKataResult> GetTeamRankings() => Rank(TeamResults, _teamCategory!.TeamResults);
+
+        private ObservableCollection<TResult> Rank<TResult>(IEnumerable<TResult> recent, List<TResult> saved)
+            where TResult : KataPerformanceResult
+        {
+            if (saved.Count > 0)
+                return new ObservableCollection<TResult>(saved);
+
+            var results = new ObservableCollection<TResult>(recent.OrderByDescending(r => r.Score));
             
             System.Diagnostics.Debug.WriteLine($"GetFinalRankings called. Total results: {results.Count}");
             
@@ -267,13 +281,13 @@ namespace KarateTournamentApp.ViewModels
 
             if (_category.IsFinished)
             {
-                _category.FinalResults = results.ToList();
+                saved.AddRange(results);
             }
             
             return results;
         }
 
-        private void ResolveRankingTie(ObservableCollection<ParticipantResult> results, int firstIndex)
+        private void ResolveRankingTie<TResult>(ObservableCollection<TResult> results, int firstIndex) where TResult : KataPerformanceResult
         {
             var first = results[firstIndex];
             var second = results[firstIndex + 1];
@@ -283,7 +297,7 @@ namespace KarateTournamentApp.ViewModels
             }
 
             System.Diagnostics.Debug.WriteLine(
-                $"Draw detected between {first.Participant.FullName} and {second.Participant.FullName}");
+                $"Draw detected between {first.Name} and {second.Name}");
 
             var firstScores = first.JudgeScores.OrderBy(score => score).ToList();
             var secondScores = second.JudgeScores.OrderBy(score => score).ToList();
@@ -296,7 +310,7 @@ namespace KarateTournamentApp.ViewModels
                 .CompareTo(secondScores[secondScores.Count - 1]);
             if (highestScoreComparison < 0)
             {
-                SwapResults(results, firstIndex, firstIndex + 1);
+                results.Move(firstIndex + 1, firstIndex);
                 return;
             }
 
@@ -308,7 +322,7 @@ namespace KarateTournamentApp.ViewModels
             var lowestScoreComparison = firstScores[0].CompareTo(secondScores[0]);
             if (lowestScoreComparison < 0)
             {
-                SwapResults(results, firstIndex, firstIndex + 1);
+                results.Move(firstIndex + 1, firstIndex);
                 return;
             }
 
@@ -320,17 +334,11 @@ namespace KarateTournamentApp.ViewModels
                     throw new OperationCanceledException("Potwierdź rozstrzygnięcie remisu przed wysłaniem wyników.");
                 if (winner == second)
                 {
-                    SwapResults(results, firstIndex, firstIndex + 1);
+                    results.Move(firstIndex + 1, firstIndex);
                 }
             }
         }
 
-        private void SwapResults(ObservableCollection<ParticipantResult> results, int index1, int index2)
-        {
-            var temp = results[index1];
-            results[index1] = results[index2];
-            results[index2] = temp;
-        }
     }
 
 }

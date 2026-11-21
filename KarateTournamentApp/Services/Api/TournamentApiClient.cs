@@ -115,6 +115,8 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/release", request);
     public Task SubmitIndividualResultsAsync(int id, CompleteIndividualCategoryRequest request) =>
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/individual-results", request);
+    public Task SubmitTeamResultsAsync(int id, CompleteTeamCategoryRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/team-results", request);
     public Task SubmitKumiteResultsAsync(int id, CompleteKumiteCategoryRequest request) =>
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/kumite-results", request);
     public Task<ClaimRecoveryDto> GetRecoveryTargetAsync(int id) =>

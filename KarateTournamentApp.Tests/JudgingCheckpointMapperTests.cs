@@ -1,4 +1,5 @@
 using KarateClassLibrary;
+using KarateClassLibrary.Contracts;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Services.Api;
 using Xunit;
@@ -7,6 +8,42 @@ namespace KarateTournamentApp.Tests;
 
 public sealed class JudgingCheckpointMapperTests
 {
+    [Fact]
+    public void TeamCheckpointKeepsThePerformingTeamAndResolvedRanking()
+    {
+        var first = new Team("Pierwsza", Sex.Unisex) { Id = 41 };
+        var second = new Team("Druga", Sex.Unisex) { Id = 42 };
+        var original = new JudgingSession(1, "Team Kata", Guid.NewGuid(), "Tatami 1")
+        {
+            Category = new TeamCategory { CategoryType = CategoryType.Team, Teams = [first, second] },
+            TeamDraft = new TeamJudgeDraft(1, [8.5m], [new(first.Id, [6m, 8m, 9m, 10m])])
+        };
+        var next = new JudgingSession(1, "Team Kata", Guid.NewGuid(), "Tatami 2")
+        {
+            Category = new TeamCategory { CategoryType = CategoryType.Team, Teams = [first, second] }
+        };
+
+        var checkpoint = JudgingCheckpointMapper.Capture(original);
+        JudgingCheckpointMapper.Restore(next, checkpoint);
+        Assert.Null(checkpoint.Individual);
+        Assert.Equal(1, next.TeamDraft!.TeamIndex);
+        Assert.Equal(new[] { 8.5m }, next.TeamDraft.CurrentScores);
+        Assert.Equal(first.Id, Assert.Single(next.TeamDraft.Results).TeamId);
+
+        var completed = checkpoint with
+        {
+            IsCompleteLocally = true,
+            Team = new TeamJudgeDraft(1, [], [checkpoint.Team!.Results[0], new(second.Id, [9m, 9m, 9m])]),
+            RankedTeamIds = [second.Id, first.Id]
+        };
+        JudgingCheckpointMapper.Restore(next, completed);
+        var resumed = Assert.IsType<TeamCategory>(next.Category);
+        Assert.True(resumed.IsFinished);
+        Assert.Equal(new[] { second.Id, first.Id }, resumed.TeamResults.Select(result => result.Team.Id));
+        Assert.Equal(new[] { 27m, 17m }, resumed.TeamResults.Select(result => result.Score));
+        Assert.Empty(resumed.FinalResults);
+    }
+
     [Fact]
     public void RestoresKumitePointsPenaltiesAndClockWithoutStartingTheTimer()
     {

@@ -5,7 +5,7 @@ namespace KarateTournamentApp.Models
     /// <summary>
     /// Class containing all necessary participant info
     /// </summary>
-    public class Participant
+    public class Participant : IKataEntrant
     {
         private int _id = LocalIdGenerator.Next();
 
@@ -25,6 +25,8 @@ namespace KarateTournamentApp.Models
         public Belts Belt { get; set; }
         public List<int> MatchHistory { get; set; } = new List<int>();
         public string FullName => $"{FirstName} {LastName}";
+        string IKataEntrant.JudgingName => FullName;
+        string? IKataEntrant.JudgingDetails => Club;
         public Sex Sex { get ; set; }
         public List<CategoryType> Categories { get; set; }
 

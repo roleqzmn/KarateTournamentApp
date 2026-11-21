@@ -10,15 +10,15 @@ namespace KarateTournamentApp.ViewModels
     /// </summary>
     public class DrawResolverViewModel : ViewModelBase
     {
-        private readonly Participant _akaParticipant;
-        private readonly Participant _shiroParticipant;
-        private readonly DrawResolverScoreboardViewModel _scoreboardViewModel;
+        private readonly IKataEntrant _akaParticipant;
+        private readonly IKataEntrant _shiroParticipant;
+        private readonly DrawResolverScoreboardViewModel? _scoreboardViewModel;
         
-        public string AkaName => _akaParticipant.FullName;
-        public string ShiroName => _shiroParticipant.FullName;
+        public string AkaName => _akaParticipant.JudgingName;
+        public string ShiroName => _shiroParticipant.JudgingName;
 
-        private Participant _winner;
-        public Participant Winner
+        private IKataEntrant? _winner;
+        public IKataEntrant? Winner
         {
             get => _winner;
             private set
@@ -41,9 +41,10 @@ namespace KarateTournamentApp.ViewModels
         public ICommand SelectShiroCommand { get; }
         public ICommand ConfirmCommand { get; }
 
-        public event EventHandler<Participant> WinnerConfirmed;
+        public event EventHandler<IKataEntrant>? WinnerConfirmed;
 
-        public DrawResolverViewModel(Participant akaParticipant, Participant shiroParticipant, DrawResolverScoreboardViewModel scoreboardViewModel = null)
+        public DrawResolverViewModel(IKataEntrant akaParticipant, IKataEntrant shiroParticipant,
+            DrawResolverScoreboardViewModel? scoreboardViewModel = null)
         {
             _akaParticipant = akaParticipant ?? throw new ArgumentNullException(nameof(akaParticipant));
             _shiroParticipant = shiroParticipant ?? throw new ArgumentNullException(nameof(shiroParticipant));
@@ -54,7 +55,7 @@ namespace KarateTournamentApp.ViewModels
             ConfirmCommand = new RelayCommand(o => ConfirmWinner(), o => IsWinnerSelected);
         }
 
-        private void SelectWinner(Participant participant)
+        private void SelectWinner(IKataEntrant participant)
         {
             Winner = participant;
             

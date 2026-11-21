@@ -92,10 +92,10 @@
 
                                     <!-- Participant Info -->
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Participant.FullName}" 
+                                        <TextBlock Text="{Binding Name}"
                                                    FontSize="20" 
                                                    FontWeight="Bold"/>
-                                        <TextBlock Text="{Binding Participant.Club}" 
+                                        <TextBlock Text="{Binding Details}"
                                                    FontSize="14" 
                                                    Foreground="#7f8c8d"
                                                    Margin="0,5,0,0"/>

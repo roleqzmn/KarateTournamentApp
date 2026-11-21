@@ -18,6 +18,7 @@ public sealed class JudgingSession(int categoryId, string name, Guid token, stri
     public bool AwaitingHandoff { get; set; }
     // JsonInclude serializes this internal checkpoint without exposing it to the view.
     [JsonInclude] internal IndividualJudgeDraft? Draft { get; set; }
+    [JsonInclude] internal TeamJudgeDraft? TeamDraft { get; set; }
     [JsonIgnore] public string Label => $"{Name} · {StationName}";
 }
 

@@ -18,7 +18,9 @@ namespace KarateTournamentApp.ViewModels
         public IndividualCompetitionManagerViewModel CompetitionManager => _competitionManager;
 
         public string CategoryName => _competitionManager.Category.Name;
-        public string CurrentParticipantName => _competitionManager.CurrentParticipant?.FullName ?? "---";
+        public string CurrentParticipantName => _competitionManager.CurrentEntrant?.JudgingName ?? "---";
+        public string CurrentEntrantLabel => _competitionManager.IsTeamKata ? "Aktualna drużyna" : "Aktualny zawodnik";
+        public string FinishEntrantLabel => _competitionManager.IsTeamKata ? "Następna drużyna" : "Następny zawodnik";
         
         public ObservableCollection<decimal> JudgeScores => _competitionManager.JudgeScores;
         public decimal FinalScore => _competitionManager.FinalScore;

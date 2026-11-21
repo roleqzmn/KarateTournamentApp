@@ -2,6 +2,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using KarateClassLibrary;
 using KarateClassLibrary.Contracts;
 using KarateTournamentApp.Commands;
@@ -237,11 +238,65 @@ public sealed class OrganizerDashboardTests
         }
     }
 
+    [Fact]
+    public async Task JudgePublishesTeamIdsAndReloadsTheTeamRanking()
+    {
+        const int teamId = 73;
+        var dto = Category with
+        {
+            CategoryType = CategoryType.Team,
+            ParticipantIds = [],
+            Teams = [new TeamDto(teamId, "Team Kata A", Sex.Unisex, [Participant.Id])]
+        };
+        var snapshot = new TournamentSnapshotDto([Participant], [dto]);
+        var category = TournamentSnapshotMapper.MapCategories(snapshot).Single().Category;
+        category.IsFinished = true;
+        var session = new JudgingSession(category.Id, category.Name, Guid.NewGuid(), "Tatami 1")
+        {
+            Category = category,
+            TeamDraft = new TeamJudgeDraft(0, [], [new(teamId, [8m, 8m, 9m])])
+        };
+        var folder = Path.Combine(Path.GetTempPath(), $"karate-team-result-{Guid.NewGuid():N}");
+        var store = new JudgingSessionStore("test", folder);
+        try
+        {
+            using (store.Lock(session.CategoryId))
+                store.Save(session);
+            var responses = new TestApi();
+            using var http = new HttpClient(responses);
+            var judge = await LoadAsync(http, responses, judge: true, dialogs: new ImportDialogs(string.Empty),
+                sessionStore: store, snapshot: snapshot);
+            responses.Enqueue(HttpStatusCode.NoContent);
+            responses.EnqueueJson(snapshot with
+            {
+                Categories = [dto with { IsFinished = true, TeamResults = [new(teamId, 1, 25m, [])] }]
+            });
+
+            await Assert.IsType<AsyncRelayCommand<JudgingSession>>(judge.SubmitApiJudgingCommand)
+                .ExecuteAsync(Assert.Single(judge.JudgingSessions));
+
+            Assert.Equal((HttpMethod.Post, "/api/categories/1/team-results"), responses.Operations[1]);
+            var request = JsonSerializer.Deserialize<CompleteTeamCategoryRequest>(responses.Bodies[1]!, JsonSerializerOptions.Web)!;
+            Assert.Equal(session.Token, request.SessionToken);
+            Assert.Equal(teamId, Assert.Single(request.Results!).TeamId);
+            Assert.Empty(judge.JudgingSessions);
+            var published = Assert.IsType<KarateTournamentApp.Models.TeamCategory>(Assert.Single(judge.Categories).Category);
+            var ranking = Assert.Single(published.TeamResults);
+            Assert.Equal(25m, ranking.Score);
+            Assert.Equal(Participant.Id, Assert.Single(ranking.Team.Members).Id);
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+    }
+
     private static async Task<MainViewModel> LoadAsync(
         HttpClient http, TestApi responses, bool judge = false, IDialogService? dialogs = null,
-        JudgingSessionStore? sessionStore = null)
+        JudgingSessionStore? sessionStore = null, TournamentSnapshotDto? snapshot = null)
     {
-        responses.EnqueueJson(new TournamentSnapshotDto([Participant], [Category]));
+        responses.EnqueueJson(snapshot ?? new TournamentSnapshotDto([Participant], [Category]));
         var api = new TournamentApiClient(http, $"https://{Guid.NewGuid():N}.test");
         var viewModel = new MainViewModel(new CategoryManager(), dialogs ?? new WpfDialogService(),
             new WpfWindowService(), new WpfUiScheduler(), api, isJudgeStation: judge, sessionStore: sessionStore);
@@ -265,6 +320,7 @@ public sealed class OrganizerDashboardTests
 
         public List<string> Requests { get; } = [];
         public List<(HttpMethod Method, string Path)> Operations { get; } = [];
+        public List<string?> Bodies { get; } = [];
 
         public void EnqueueJson<T>(T value, HttpStatusCode status = HttpStatusCode.OK) => _responses.Enqueue(Task.FromResult(
             new HttpResponseMessage(status) { Content = JsonContent.Create(value) }));
@@ -278,11 +334,13 @@ public sealed class OrganizerDashboardTests
             return response;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests.Add(request.RequestUri!.AbsolutePath);
             Operations.Add((request.Method, request.RequestUri.PathAndQuery));
-            return _responses.Dequeue().WaitAsync(cancellationToken);
+            var response = _responses.Dequeue();
+            Bodies.Add(request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken));
+            return await response.WaitAsync(cancellationToken);
         }
     }
 }

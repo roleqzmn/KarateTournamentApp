@@ -6,7 +6,7 @@ Aplikacja Windows do zarządzania turniejami karate, zbudowana w WPF i .NET 10.
 
 ## Przegląd
 
-Jedna aplikacja WPF otwiera osobne okno organizatora lub sędziego. We wspólnym turnieju organizator prowadzi rejestr i zarządza składami przez API z bazą PostgreSQL. Sędziowie przejmują konkurencje i oceniają lokalnie. Tryb sieciowy obsługuje sędziowanie Kumite (Shobu Sanbon), Kata, Kihon i indywidualnego Kobudo.
+Jedna aplikacja WPF otwiera osobne okno organizatora lub sędziego. We wspólnym turnieju organizator prowadzi rejestr i zarządza składami przez API z bazą PostgreSQL. Sędziowie przejmują konkurencje i oceniają lokalnie. Tryb sieciowy obsługuje sędziowanie Kumite (Shobu Sanbon), Kata, Team Kata, Kihon i indywidualnego Kobudo.
 
 Tryb plikowy jest dostępny po ustawieniu roli `local`.
 

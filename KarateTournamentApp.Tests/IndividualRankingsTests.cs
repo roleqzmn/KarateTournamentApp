@@ -1,5 +1,6 @@
 using System.Windows;
 using KarateClassLibrary;
+using KarateClassLibrary.Contracts;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Services.Navigation;
 using KarateTournamentApp.Services.Scheduling;
@@ -129,6 +130,40 @@ public class IndividualRankingsTests
         Assert.Equal(new[] { 1, 2 }, category.JudgingScores.Select(result => result.ParticipantId));
         Assert.Equal(new[] { 2, 1 }, manager.GetFinalRankings().Select(result => result.Participant.Id));
         Assert.Equal(2, category.FinalResults.Count);
+    }
+
+    [Fact]
+    public void TeamKataReusesTheSameScoringAndJudgeTieDecisionWithRealTeams()
+    {
+        var windows = new TestWindows { SelectShiro = true };
+        var first = new Team("Drużyna pierwsza", Sex.Unisex) { Id = 100 };
+        var second = new Team("Drużyna druga", Sex.Unisex) { Id = 200 };
+        first.Members.Add(Result(10, 0).Participant);
+        second.Members.Add(Result(20, 0).Participant);
+        var category = new TeamCategory { CategoryType = CategoryType.Team, Teams = [first, second] };
+        var manager = Manager(category, windows);
+        manager.RestoreTeamDraft(TeamJudgeDraft.Empty);
+
+        foreach (var team in category.Teams)
+        {
+            Assert.Same(team, manager.CurrentEntrant);
+            Assert.Null(manager.CurrentParticipant);
+            foreach (var note in new[] { 6m, 8m, 9m, 10m })
+                manager.JudgeScores.Add(note);
+            manager.FinishParticipantCommand.Execute(null);
+        }
+
+        Assert.True(category.IsFinished);
+        Assert.Empty(manager.Results);
+        Assert.Empty(category.JudgingScores);
+        Assert.All(manager.TeamResults, result =>
+        {
+            Assert.Equal(17m, result.Score);
+            Assert.Equal(new[] { 0, 3 }, result.DiscardedJudgeScoreIndexes);
+        });
+        Assert.Equal(new[] { second.Id, first.Id }, manager.GetTeamRankings().Select(result => result.Team.Id));
+        Assert.Equal(1, windows.DialogCount);
+        Assert.Equal(second.Name, new ResultsViewModel(manager).Rankings[0].Name);
     }
 
     private sealed class TestScheduler : IUiScheduler

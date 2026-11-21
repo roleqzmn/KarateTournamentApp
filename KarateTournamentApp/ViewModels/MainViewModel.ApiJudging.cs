@@ -38,9 +38,11 @@ public partial class MainViewModel
         && !JudgingSessions.Any(session => session.CategoryId == item.Category.Id)
         && _apiSnapshot!.Categories.Any(category => category.Id == item.Category.Id && !category.IsClaimed);
 
-    private static bool CanJudge(Category category) => category.Participants.Count > 0
-        && category.CategoryType is CategoryType.Kumite or CategoryType.Kata or CategoryType.Kihon
-            or CategoryType.KobudoShort or CategoryType.KobudoLong;
+    private static bool CanJudge(Category category) => category is TeamCategory teamCategory
+        ? teamCategory.Teams.Count > 0 && teamCategory.Teams.All(team => team.Members.Count > 0)
+        : category.Participants.Count > 0
+            && category.CategoryType is CategoryType.Kumite or CategoryType.Kata or CategoryType.Kihon
+                or CategoryType.KobudoShort or CategoryType.KobudoLong;
 
     private async Task StartApiJudgingAsync(CategoryViewModel item)
     {
@@ -87,7 +89,8 @@ public partial class MainViewModel
 
             var view = new CategoryViewModel(session.Category, _ => { }, _ => { }, _dialogService,
                 _windowService, _uiScheduler, "Sesja lokalna");
-            var judge = view.OpenApiJudge(session.Draft, draft => SaveJudgingCheckpoint(session, draft));
+            var judge = view.OpenApiJudge(session.Draft, session.TeamDraft,
+                (draft, teamDraft) => SaveJudgingCheckpoint(session, draft, teamDraft));
             _activeJudgeLock = heldLock;
             _activeJudgeWindow = judge;
             _activeJudgeSession = session;
@@ -110,9 +113,10 @@ public partial class MainViewModel
         }
     }
 
-    private void SaveJudgingCheckpoint(JudgingSession session, IndividualJudgeDraft? draft)
+    private void SaveJudgingCheckpoint(JudgingSession session, IndividualJudgeDraft? draft, TeamJudgeDraft? teamDraft)
     {
         session.Draft = draft;
+        session.TeamDraft = teamDraft;
         try
         {
             _sessions!.Save(session);
@@ -172,6 +176,19 @@ public partial class MainViewModel
                 }).ToArray();
                 var ranking = category.FinalResults.Select(result => result.Participant.Id).ToArray();
                 await _api!.SubmitKumiteResultsAsync(session.CategoryId, new(session.Token, matches, ranking));
+            }
+            else if (category is TeamCategory teamCategory)
+            {
+                var draft = session.TeamDraft ?? throw new InvalidDataException("Nie ma lokalnego zapisu ocen drużyn.");
+                if (draft.Results.Length != teamCategory.Teams.Count)
+                    throw new InvalidDataException("Lokalny wynik nie zawiera ocen wszystkich drużyn.");
+                var judge = new IndividualCompetitionManagerViewModel(category, _windowService, _uiScheduler);
+                judge.RestoreTeamDraft(draft);
+                var results = judge.GetTeamRankings().Select((result, index) =>
+                    new TeamResultRequest(result.Team.Id, index + 1, result.JudgeScores.ToArray())).ToArray();
+                // Retries must keep the ranking if a tie has already been resolved.
+                _sessions.Save(session);
+                await _api!.SubmitTeamResultsAsync(session.CategoryId, new(session.Token, results));
             }
             else
             {

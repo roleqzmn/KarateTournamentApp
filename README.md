@@ -6,7 +6,7 @@ A Windows desktop application for managing karate tournaments, built with WPF an
 
 ## Overview
 
-The same WPF application opens a separate window for the organizer or the judge. In a shared tournament, the organizer manages registration and competition rosters through an ASP.NET Core API backed by PostgreSQL. Judges claim competitions and score locally. The shared judging workflow supports Kumite (Shobu Sanbon), Kata, Kihon and individual Kobudo.
+The same WPF application opens a separate window for the organizer or the judge. In a shared tournament, the organizer manages registration and competition rosters through an ASP.NET Core API backed by PostgreSQL. Judges claim competitions and score locally. The shared judging workflow supports Kumite (Shobu Sanbon), Kata, Team Kata, Kihon and individual Kobudo.
 
 The file-based tournament is also available through the `local` role.
 

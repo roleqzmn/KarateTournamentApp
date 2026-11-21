@@ -1,5 +1,4 @@
 using KarateTournamentApp.Models;
-using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace KarateTournamentApp.ViewModels
@@ -9,7 +8,7 @@ namespace KarateTournamentApp.ViewModels
         private readonly IndividualCompetitionManagerViewModel _competitionManager;
 
         public string CategoryName => _competitionManager.Category.Name;
-        public ObservableCollection<ParticipantResult> Rankings { get; set; }
+        public IReadOnlyList<KataPerformanceResult> Rankings { get; }
         public bool HasKumiteWinner =>
             _competitionManager.Category.CategoryType == CategoryType.Kumite
             && _competitionManager.Category.BracketMatches.Any()
@@ -57,7 +56,7 @@ namespace KarateTournamentApp.ViewModels
         {
             _competitionManager = competitionManager;
             
-            Rankings = _competitionManager.GetFinalRankings();
+            Rankings = _competitionManager.IsTeamKata ? _competitionManager.GetTeamRankings() : _competitionManager.GetFinalRankings();
         }
 
         private static string BuildResolutionSuffix(Match finalMatch)

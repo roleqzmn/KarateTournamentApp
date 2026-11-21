@@ -13,10 +13,10 @@ namespace KarateTournamentApp.ViewModels
         public IndividualCompetitionManagerViewModel CompetitionManager => _competitionManager;
 
         public string CategoryName => _competitionManager.Category.Name;
-        public string CategoryType => _competitionManager.Category.CategoryType.ToString();
+        public string CategoryType => _competitionManager.IsTeamKata ? "Team Kata" : _competitionManager.Category.CategoryType.ToString();
 
-        public string CurrentParticipantName => _competitionManager.CurrentParticipant?.FullName ?? "---";
-        public string CurrentParticipantClub => _competitionManager.CurrentParticipant?.Club ?? "";
+        public string CurrentParticipantName => _competitionManager.CurrentEntrant?.JudgingName ?? "---";
+        public string CurrentParticipantClub => _competitionManager.CurrentEntrant?.JudgingDetails ?? "";
         
         public int CurrentNumber => _competitionManager.CurrentParticipantNumber;
         public int TotalParticipants => _competitionManager.TotalParticipants;

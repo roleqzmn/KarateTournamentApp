@@ -9,6 +9,12 @@ internal static class JudgingCheckpointMapper
     public static JudgingCheckpoint Capture(JudgingSession session)
     {
         var category = session.Category ?? throw new InvalidDataException("Brak lokalnego stanu konkurencji.");
+        if (category is TeamCategory teamCategory)
+        {
+            var teamRanking = teamCategory.TeamResults.Count == 0 ? null
+                : teamCategory.TeamResults.Select(result => result.Team.Id).ToArray();
+            return new(category.IsFinished, null, null, null, session.TeamDraft ?? TeamJudgeDraft.Empty, teamRanking);
+        }
         var ranking = category.FinalResults.Count == 0 ? null
             : category.FinalResults.Select(result => result.Participant.Id).ToArray();
         if (category.CategoryType != CategoryType.Kumite)
@@ -31,20 +37,30 @@ internal static class JudgingCheckpointMapper
         var category = session.Category ?? throw new InvalidDataException("Brak składu konkurencji.");
         category.IsFinished = checkpoint.IsCompleteLocally;
         session.Draft = checkpoint.Individual;
+        session.TeamDraft = checkpoint.Team;
+        if (category is TeamCategory teamCategory)
+        {
+            var teams = teamCategory.Teams.ToDictionary(team => team.Id);
+            var notesByTeam = checkpoint.Team?.Results.ToDictionary(result => result.TeamId, result => result.Notes);
+            teamCategory.TeamResults = (checkpoint.RankedTeamIds ?? []).Select(id =>
+                RestoreScore(new TeamKataResult { Team = teams[id] }, notesByTeam?.GetValueOrDefault(id) ?? [])).ToList();
+            return;
+        }
         if (checkpoint.Bracket is { } matches)
             category.BracketMatches = matches.Select(match => TournamentSnapshotMapper.MapMatch(match, category.CategoryType)).ToList();
 
         var notesByPerson = checkpoint.Individual?.Results.ToDictionary(result => result.ParticipantId, result => result.Notes);
         var people = category.Participants.ToDictionary(person => person.Id);
         category.FinalResults = (checkpoint.RankedParticipantIds ?? []).Select(id =>
-        {
-            var notes = notesByPerson?.GetValueOrDefault(id) ?? [];
-            var (score, discarded) = notes.Length == 0
-                ? (0m, new List<int>()) : JudgingScoreCalculator.CalculateFinalScore(notes);
-            return new ParticipantResult
-            {
-                Participant = people[id], Score = score, JudgeScores = notes.ToList(), DiscardedJudgeScoreIndexes = discarded
-            };
-        }).ToList();
+            RestoreScore(new ParticipantResult { Participant = people[id] }, notesByPerson?.GetValueOrDefault(id) ?? [])).ToList();
+    }
+
+    private static TResult RestoreScore<TResult>(TResult result, decimal[] notes) where TResult : KataPerformanceResult
+    {
+        var (score, discarded) = JudgingScoreCalculator.CalculateFinalScore(notes);
+        result.Score = score;
+        result.JudgeScores = notes.ToList();
+        result.DiscardedJudgeScoreIndexes = discarded;
+        return result;
     }
 }

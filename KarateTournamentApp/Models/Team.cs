@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace KarateTournamentApp.Models
 {
-    public class Team
+    public class Team : IKataEntrant
     {
         private int _id = LocalIdGenerator.Next();
 
@@ -20,6 +20,8 @@ namespace KarateTournamentApp.Models
             }
         }
         public string Name { get; set; }
+        string IKataEntrant.JudgingName => Name;
+        string IKataEntrant.JudgingDetails => string.Join(", ", Members.Select(member => member.FullName));
         public List<Participant> Members { get; set; } = new List<Participant>();
         public Sex Sex { get; set; }
         public int Age

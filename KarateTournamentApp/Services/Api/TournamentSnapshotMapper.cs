@@ -52,6 +52,10 @@ internal static class TournamentSnapshotMapper
                         Id = team.Id,
                         Members = team.MemberParticipantIds.Select(FindParticipant).ToList()
                     }));
+                var teamsById = teamCategory.Teams.ToDictionary(team => team.Id);
+                teamCategory.TeamResults = (dto.TeamResults ?? []).OrderBy(result => result.Rank)
+                    .Select(result => MapScore(new TeamKataResult { Team = teamsById[result.TeamId] },
+                        result.Score, result.JudgeScores)).ToList();
             }
 
             return new ApiCategorySnapshot(category, dto.IsClaimed, dto.ClaimedBy, dto.HasJudgingCheckpoint);
@@ -86,16 +90,17 @@ internal static class TournamentSnapshotMapper
         return match;
     }
 
-    private static ParticipantResult MapResult(ParticipantResultDto dto, Participant participant)
+    private static ParticipantResult MapResult(ParticipantResultDto dto, Participant participant) =>
+        MapScore(new ParticipantResult { Participant = participant }, dto.Score, dto.JudgeScores);
+
+    private static TResult MapScore<TResult>(TResult result, decimal score, IReadOnlyList<JudgeScoreDto> judgeScores)
+        where TResult : KataPerformanceResult
     {
-        var notes = dto.JudgeScores.OrderBy(note => note.Ordinal).ToArray();
-        return new ParticipantResult
-        {
-            Participant = participant,
-            Score = dto.Score,
-            JudgeScores = notes.Select(note => note.Score).ToList(),
-            DiscardedJudgeScoreIndexes = notes.Select((note, index) => (Note: note, Index: index))
-                .Where(item => item.Note.IsDiscarded).Select(item => item.Index).ToList()
-        };
+        var notes = judgeScores.OrderBy(note => note.Ordinal).ToArray();
+        result.Score = score;
+        result.JudgeScores = notes.Select(note => note.Score).ToList();
+        result.DiscardedJudgeScoreIndexes = notes.Select((note, index) => (Note: note, Index: index))
+            .Where(item => item.Note.IsDiscarded).Select(item => item.Index).ToList();
+        return result;
     }
 }

@@ -269,6 +269,7 @@ namespace KarateTournamentApp.Models
     public class TeamCategory : Category
     {
         public ObservableCollection<Team> Teams { get; set; } = new ObservableCollection<Team>();
+        public List<TeamKataResult> TeamResults { get; set; } = [];
         public TeamCategory(List<Belts> belts, CategoryType type, Sex sex = Sex.Unisex, int? minAge = null, int? maxAge = null) : base(belts, type, sex, minAge, maxAge)
         {
             GenerateName();
