@@ -5,7 +5,7 @@ using KarateTournamentApp.Models;
 
 namespace KarateTournamentApp.Services.Api;
 
-internal sealed record ApiCategorySnapshot(Category Category, bool IsClaimed, string? ClaimedBy);
+internal sealed record ApiCategorySnapshot(Category Category, bool IsClaimed, string? ClaimedBy, bool HasJudgingCheckpoint);
 
 internal static class TournamentSnapshotMapper
 {
@@ -54,11 +54,11 @@ internal static class TournamentSnapshotMapper
                     }));
             }
 
-            return new ApiCategorySnapshot(category, dto.IsClaimed, dto.ClaimedBy);
+            return new ApiCategorySnapshot(category, dto.IsClaimed, dto.ClaimedBy, dto.HasJudgingCheckpoint);
         }).ToArray();
     }
 
-    private static Match MapMatch(MatchDto dto, CategoryType categoryType)
+    internal static Match MapMatch(MatchDto dto, CategoryType categoryType)
     {
         Match match = categoryType == CategoryType.Kumite
             ? new ShobuSanbonMatch

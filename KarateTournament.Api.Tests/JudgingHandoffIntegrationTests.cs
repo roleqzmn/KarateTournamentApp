@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using KarateClassLibrary;
 using KarateClassLibrary.Contracts;
+using Npgsql;
 using Xunit;
 
 namespace KarateTournament.Api.Tests;
@@ -110,6 +111,28 @@ public partial class TournamentApiIntegrationTests
         Assert.Equal(HttpStatusCode.NoContent, reclaimed.StatusCode);
         var checkpoint = await ReadCheckpointAsync(path, current);
         Assert.Equal(fight, Assert.Single(checkpoint.Bracket!));
+    }
+
+    [Fact]
+    public async Task StartupAddsHandoffTableWithoutChangingExistingCategories()
+    {
+        var participant = await CreateOrganizerParticipant("Jan");
+        var category = await CreateOrganizerCategory([participant.Id]);
+        _client.Dispose();
+        await _factory.DisposeAsync();
+        await using (var connection = new NpgsqlConnection(_database.GetConnectionString()))
+        {
+            await connection.OpenAsync();
+            await using var previousSchema = new NpgsqlCommand("""DROP TABLE "JudgingProgress" """, connection);
+            await previousSchema.ExecuteNonQueryAsync();
+        }
+
+        StartApi();
+
+        var restored = (await _client.GetFromJsonAsync<CategoryDto>($"/api/categories/{category.Id}"))!;
+        Assert.Equal(category.Name, restored.Name);
+        Assert.Equal(participant.Id, Assert.Single(restored.ParticipantIds));
+        Assert.False(restored.HasJudgingCheckpoint);
     }
 
     private async Task<JudgingHandoffState> ReadHandoffAsync(string path, Guid token)

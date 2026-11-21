@@ -15,6 +15,7 @@ public sealed class JudgingSession(int categoryId, string name, Guid token, stri
     public Guid Token { get; } = token;
     public string StationName { get; } = stationName;
     public Category? Category { get; set; }
+    public bool AwaitingHandoff { get; set; }
     // JsonInclude serializes this internal checkpoint without exposing it to the view.
     [JsonInclude] internal IndividualJudgeDraft? Draft { get; set; }
     [JsonIgnore] public string Label => $"{Name} · {StationName}";
@@ -25,10 +26,10 @@ internal sealed class JudgingSessionStore
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { IncludeFields = true };
     private readonly string _folder;
 
-    public JudgingSessionStore(string serverScope)
+    public JudgingSessionStore(string serverScope, string? baseFolder = null)
     {
         var folderName = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(serverScope)));
-        _folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        _folder = Path.Combine(baseFolder ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "KarateTournamentApp", "Judging", folderName);
     }
 

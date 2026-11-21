@@ -28,6 +28,7 @@ public partial class MainViewModel
     public ICommand CreateApiCategoryCommand { get; }
     public ICommand EditApiCategoryCommand { get; }
     public ICommand DeleteApiCategoryCommand { get; }
+    public ICommand RequestJudgingHandoffCommand { get; }
     public ICommand EditApiParticipantCommand { get; }
     public ICommand DeleteApiParticipantCommand { get; }
     public ICommand CancelApiParticipantEditCommand { get; }
@@ -46,10 +47,12 @@ public partial class MainViewModel
     private bool CanChangeApi() => CanManageApi && !IsLoading;
 
     private bool CanEditApiCategory(OrganizerCompetitionRow? row) =>
-        CanChangeApi() && row is { Status: OrganizerCompetitionStatus.Available, Summary.TeamCount: 0 };
+        CanChangeApi() && row is
+            { Status: OrganizerCompetitionStatus.Available, Summary.TeamCount: 0, Summary.HasJudgingCheckpoint: false };
 
     private static bool CanEditApiCategoryDetails(CategoryDto? category) =>
-        category is { IsClaimed: false, IsFinished: false, Teams.Count: 0, BracketMatches.Count: 0, FinalResults.Count: 0 };
+        category is { IsClaimed: false, IsFinished: false, HasJudgingCheckpoint: false,
+            Teams.Count: 0, BracketMatches.Count: 0, FinalResults.Count: 0 };
 
     private CategoryViewModel CreateCategoryViewModel(ApiCategorySnapshot item) =>
         new(item.Category, OnMergeRequested, OnDeleteRequested,
@@ -162,6 +165,30 @@ public partial class MainViewModel
         finally { IsLoading = false; }
     }
 
+    private async Task RequestJudgingHandoffAsync(OrganizerCompetitionRow row)
+    {
+        IsLoading = true;
+        try
+        {
+            var target = await _api!.GetHandoffTargetAsync(row.Summary.Id);
+            if (_dialogService.ShowMessage(
+                $"Zgłosić zwolnienie konkurencji „{row.Summary.Name}” ze stanowiska „{target.StationName}”? "
+                + "Blokada zniknie po zapisaniu postępu przez stanowisko sędziego.",
+                "Zwolnij do kontynuacji", DialogButtons.YesNo, DialogIcon.Question) != DialogResult.Yes)
+                return;
+            await _api.RequestHandoffAsync(row.Summary.Id, new(target.ClaimReference));
+            ReplaceOrganizerCategories(_organizerCategories.Select(item => item.Summary.Id != row.Summary.Id ? item
+                : new OrganizerCompetitionRow(item.Summary with { HandoffRequested = true })));
+            await RefreshOrganizerCategoriesAsync(force: true);
+        }
+        catch (ApiConflictException)
+        {
+            await RefreshOrganizerCategoriesAsync(force: true);
+            throw;
+        }
+        finally { IsLoading = false; }
+    }
+
     private async Task RecoverApiCategoryAsync(OrganizerCompetitionRow row)
     {
         IsLoading = true;
@@ -169,12 +196,13 @@ public partial class MainViewModel
         {
             var target = await _api!.GetRecoveryTargetAsync(row.Summary.Id);
             if (_dialogService.ShowMessage(
-                $"Odzyskać konkurencję „{row.Summary.Name}” ze stanowiska „{target.StationName}”? Stara sesja utraci prawo przesłania wyników.",
+                $"Odzyskać awaryjnie konkurencję „{row.Summary.Name}” ze stanowiska „{target.StationName}”? "
+                + "Postęp zapisany wyłącznie na tym stanowisku nie trafi na serwer.",
                 "Odzyskaj konkurencję", DialogButtons.YesNo, DialogIcon.Warning) != DialogResult.Yes)
                 return;
             await _api.RecoverClaimAsync(row.Summary.Id, new(target.ClaimReference));
             ReplaceOrganizerCategories(_organizerCategories.Select(item => item.Summary.Id != row.Summary.Id ? item
-                : new OrganizerCompetitionRow(item.Summary with { IsClaimed = false, ClaimedBy = null })));
+                : new OrganizerCompetitionRow(item.Summary with { IsClaimed = false, ClaimedBy = null, HandoffRequested = false })));
         }
         catch (ApiConflictException)
         {

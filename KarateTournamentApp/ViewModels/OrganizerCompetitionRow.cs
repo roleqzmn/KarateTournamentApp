@@ -13,7 +13,12 @@ public sealed record OrganizerCompetitionRow(CategorySummaryDto Summary)
         _ => OrganizerCompetitionStatus.Available
     };
 
-    public string StatusText => GetStatusText(Status);
+    public string StatusText => Status switch
+    {
+        OrganizerCompetitionStatus.InProgress when Summary.HandoffRequested => "Oczekuje na zwolnienie",
+        OrganizerCompetitionStatus.Available when Summary.HasJudgingCheckpoint => "Do wznowienia",
+        _ => GetStatusText(Status)
+    };
     public string? StationName => Status == OrganizerCompetitionStatus.InProgress ? Summary.ClaimedBy : null;
 
     internal static string GetStatusText(OrganizerCompetitionStatus status) => status switch

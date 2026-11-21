@@ -243,8 +243,8 @@ for Kumite and individually scored categories. WPF saves the session token
 before claiming and checkpoints progress every two seconds and on close.
 Use **Wznów sesję** to reopen local progress during a network outage. An
 unconfirmed claim is retried with the same token. The timer starts paused after
-reopening a checkpoint. **Zwolnij blokadę** discards the local checkpoint after
-the API confirms the release.
+reopening a checkpoint. Use **Zapisz i zwolnij** on a local session to upload a
+resumable checkpoint and release the claim without publishing final results.
 
 After finishing, close the judge panel and use **Wyślij wyniki**. A failed upload
 keeps the local checkpoint. The next attempt uses the original session token
@@ -252,6 +252,25 @@ and the same ranking. **Archiwizuj lokalnie** keeps a copy outside the active
 list and leaves any server-side claim untouched.
 
 ## Recover a claimed category
+
+For a normal handoff, the organizer selects **Zwolnij do kontynuacji** on an
+active competition. The judge app closes the scoring panel, saves its latest
+local state and uploads it. The API stores that checkpoint and releases the
+claim in one transaction. While the judging station is offline or closed, the
+organizer sees **Oczekuje na zwolnienie**. When the judging app reconnects or
+reopens with its local session, it completes the handoff.
+
+After the organizer sees **Do wznowienia**, the same or a different judge can
+refresh the competition list and claim it with a new session token. Individual
+notes and the current participant are restored. Kumite restores the bracket,
+points, penalties and remaining time with the timer paused. A transferred
+checkpoint is separate from final results, and its roster stays locked against
+edits until the competition is completed. On startup the API adds the
+`JudgingProgress` table to existing databases if needed.
+
+Emergency recovery can release a station that will not reconnect. The latest
+checkpoint already on the server is preserved. Newer work held only on the
+old station remains on that station.
 
 Set `Organizer:RecoveryKey` in local user secrets or `Organizer__RecoveryKey` in
 the API host environment. Use a random 32-byte key encoded as 64 hex characters
@@ -261,7 +280,7 @@ with 503 until a valid configuration is present, and missing or wrong credential
 return 401 when it is enabled.
 
 In WPF set `KARATE_TOURNAMENT_RECOVERY_KEY` before launch and use **Odzyskaj**
-on the claimed category.
+on the claimed category using **Odzyskaj awaryjnie**.
 
 1. `GET /api/categories/{id}/claim-recovery` returns the current station name and
    an opaque `claimReference` for that session. Confirm it is the session to recover.

@@ -122,5 +122,6 @@ public partial class MainViewModel
 
     private static CategorySummaryDto SummarizeCategory(CategoryDto category) => new(
         category.Id, category.Name, category.CategoryType, category.Sex, category.MinAge, category.MaxAge,
-        category.IsFinished, category.ParticipantIds.Count, category.Teams.Count, category.IsClaimed, category.ClaimedBy);
+        category.IsFinished, category.ParticipantIds.Count, category.Teams.Count, category.IsClaimed, category.ClaimedBy,
+        category.HasJudgingCheckpoint, category.HandoffRequested);
 }

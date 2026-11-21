@@ -140,7 +140,9 @@
                                 CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
                         <Button Content="Usuń konkurencję" Command="{Binding DeleteApiCategoryCommand}"
                                 CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
-                        <Button Content="Odzyskaj" Command="{Binding RecoverApiCategoryCommand}"
+                        <Button Content="Zwolnij do kontynuacji" Command="{Binding RequestJudgingHandoffCommand}"
+                                CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
+                        <Button Content="Odzyskaj awaryjnie" Command="{Binding RecoverApiCategoryCommand}"
                                 CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
                         <Button Content="Wyniki" Command="{Binding ViewApiCategoryResultsCommand}"
                                 CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>

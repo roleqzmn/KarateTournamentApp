@@ -130,7 +130,7 @@ namespace KarateTournamentApp.ViewModels
         }
 
         internal MainViewModel(CategoryManager categoryManager, IDialogService dialogService, IWindowService windowService,
-            IUiScheduler uiScheduler, TournamentApiClient api, bool isJudgeStation = false)
+            IUiScheduler uiScheduler, TournamentApiClient api, bool isJudgeStation = false, JudgingSessionStore? sessionStore = null)
             : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync)
         {
             _api = api;
@@ -139,7 +139,7 @@ namespace KarateTournamentApp.ViewModels
             IsJudgeStation = isJudgeStation;
             if (isJudgeStation)
             {
-                _sessions = new JudgingSessionStore(api.SessionScope);
+                _sessions = sessionStore ?? new JudgingSessionStore(api.SessionScope);
                 RefreshJudgingSessions();
             }
         }
@@ -192,16 +192,21 @@ namespace KarateTournamentApp.ViewModels
             StartApiJudgingCommand = new AsyncRelayCommand<CategoryViewModel>(StartApiJudgingAsync,
                 HandleAsyncCommandError, CanStartApiJudging);
             ResumeApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ResumeApiJudgingAsync,
-                HandleAsyncCommandError, session => session is not null && CanUseSessions() && session.Category?.IsFinished != true);
+                HandleAsyncCommandError, session => session is not null && CanUseSessions()
+                    && !session.AwaitingHandoff && session.Token != _pendingHandoff?.Token && session.Category?.IsFinished != true);
             ReleaseApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ReleaseApiJudgingAsync,
                 HandleAsyncCommandError, session => session is not null && CanUseSessions());
             SubmitApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(SubmitApiJudgingAsync,
-                HandleAsyncCommandError, session => CanUseSessions() && session?.Category?.IsFinished == true);
+                HandleAsyncCommandError, session => CanUseSessions() && session?.Category?.IsFinished == true
+                    && !session.AwaitingHandoff && session.Token != _pendingHandoff?.Token);
             ArchiveApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ArchiveApiJudgingAsync,
                 HandleAsyncCommandError, session => session is not null && CanUseSessions());
             RecoverApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(RecoverApiCategoryAsync,
                 HandleAsyncCommandError, item => CanChangeApi() && _api!.HasRecoveryKey
                     && item?.Status == OrganizerCompetitionStatus.InProgress);
+            RequestJudgingHandoffCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(RequestJudgingHandoffAsync,
+                HandleAsyncCommandError, item => CanChangeApi() && item is
+                    { Status: OrganizerCompetitionStatus.InProgress, Summary.HandoffRequested: false });
             CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
             EditApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
             DeleteApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
@@ -236,7 +241,7 @@ namespace KarateTournamentApp.ViewModels
             if (item.Category.IsFinished)
                 return "Zakończona";
             if (!item.IsClaimed)
-                return "Dostępna";
+                return item.HasJudgingCheckpoint ? "Do wznowienia" : "Dostępna";
             return string.IsNullOrWhiteSpace(item.ClaimedBy) ? "Zajęta" : $"Zajęta · {item.ClaimedBy}";
         }
 

@@ -13,6 +13,7 @@
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <DockPanel Margin="0,0,0,16">
@@ -21,7 +22,8 @@
             <TextBlock Text="Stanowisko sędziowskie" FontSize="24" FontWeight="SemiBold"
                        VerticalAlignment="Center"/>
         </DockPanel>
-        <TabControl Grid.Row="1">
+        <TextBlock Grid.Row="1" Text="{Binding JudgingWarning}" TextWrapping="Wrap" Foreground="#754600"/>
+        <TabControl Grid.Row="2">
             <TabItem Header="Konkurencje">
                 <DataGrid ItemsSource="{Binding Categories}" AutoGenerateColumns="False"
                           IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
@@ -44,8 +46,6 @@
             </TabItem>
             <TabItem Header="Sesje lokalne">
                 <DockPanel Margin="12">
-                    <TextBlock DockPanel.Dock="Top" Text="{Binding JudgingWarning}"
-                               TextWrapping="Wrap" Foreground="#A52A2A"/>
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding JudgingSessions}">
                             <ItemsControl.ItemTemplate>
@@ -60,7 +60,7 @@
                                                 <Button Content="Wyślij wyniki"
                                                         Command="{Binding DataContext.SubmitApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
-                                                <Button Content="Zwolnij blokadę"
+                                                <Button Content="Zapisz i zwolnij"
                                                         Command="{Binding DataContext.ReleaseApiJudgingCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                         CommandParameter="{Binding}"/>
                                                 <Button Content="Archiwizuj lokalnie"

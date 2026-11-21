@@ -166,13 +166,85 @@ public sealed class OrganizerDashboardTests
         finally { File.Delete(path); }
     }
 
+    [Fact]
+    public async Task OrganizerRequestsHandoffAndShowsPendingStatusUntilJudgeSaves()
+    {
+        var responses = new TestApi();
+        using var http = new HttpClient(responses);
+        var organizer = await LoadAsync(http, responses, dialogs: new ImportDialogs(string.Empty));
+        var claimed = Summary with { IsClaimed = true, ClaimedBy = "Tatami 1" };
+        responses.EnqueueJson(new[] { claimed });
+        await organizer.RefreshOrganizerCategoriesAsync();
+        var row = Assert.Single(organizer.OrganizerCategories);
+        Assert.True(organizer.RequestJudgingHandoffCommand.CanExecute(row));
+        responses.EnqueueJson(new ClaimRecoveryDto(new string('A', 64), "Tatami 1"));
+        responses.Enqueue(HttpStatusCode.NoContent);
+        responses.EnqueueJson(new[] { claimed with { HandoffRequested = true } });
+
+        await Assert.IsType<AsyncRelayCommand<OrganizerCompetitionRow>>(organizer.RequestJudgingHandoffCommand).ExecuteAsync(row);
+
+        Assert.Equal((HttpMethod.Get, "/api/categories/1/handoff"), responses.Operations[2]);
+        Assert.Equal((HttpMethod.Post, "/api/categories/1/handoff"), responses.Operations[3]);
+        var pending = Assert.Single(organizer.OrganizerCategories);
+        Assert.Equal("Oczekuje na zwolnienie", pending.StatusText);
+        Assert.False(organizer.RequestJudgingHandoffCommand.CanExecute(pending));
+        Assert.False(organizer.CanManageApi && organizer.RecoverApiCategoryCommand.CanExecute(pending));
+    }
+
+    [Fact]
+    public async Task JudgeKeepsCheckpointUntilHandoffIsConfirmedAndCanThenReclaimIt()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"karate-handoff-{Guid.NewGuid():N}");
+        var snapshot = new TournamentSnapshotDto([Participant], [Category]);
+        var draft = new IndividualJudgeDraft(0, [8.5m], []);
+        var session = new JudgingSession(Category.Id, Category.Name, Guid.NewGuid(), "Tatami 1")
+        {
+            Category = TournamentSnapshotMapper.MapCategories(snapshot).Single().Category,
+            Draft = draft
+        };
+        var store = new JudgingSessionStore("test", folder);
+        try
+        {
+            using (store.Lock(session.CategoryId))
+                store.Save(session);
+            var responses = new TestApi();
+            using var http = new HttpClient(responses);
+            var judge = await LoadAsync(http, responses, judge: true, sessionStore: store);
+            responses.EnqueueJson(new JudgingHandoffState(true, false));
+            responses.Enqueue(HttpStatusCode.ServiceUnavailable);
+            await judge.CheckJudgingHandoffsAsync(CancellationToken.None);
+
+            var pending = Assert.Single(judge.JudgingSessions);
+            Assert.True(pending.AwaitingHandoff);
+            Assert.Equal(draft.CurrentScores, pending.Draft!.CurrentScores);
+            Assert.False(judge.ResumeApiJudgingCommand.CanExecute(pending));
+            Assert.Equal((HttpMethod.Post, "/api/categories/1/handoff/save"), responses.Operations[2]);
+
+            responses.EnqueueJson(new JudgingHandoffState(false, true));
+            responses.EnqueueJson(new TournamentSnapshotDto([Participant], [Category with { HasJudgingCheckpoint = true }]));
+            await judge.CheckJudgingHandoffsAsync(CancellationToken.None);
+
+            Assert.Empty(judge.JudgingSessions);
+            Assert.Null(store.Load(session.CategoryId));
+            var category = Assert.Single(judge.Categories);
+            Assert.Equal("Do wznowienia", category.ApiStatus);
+            Assert.True(judge.StartApiJudgingCommand.CanExecute(category));
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+    }
+
     private static async Task<MainViewModel> LoadAsync(
-        HttpClient http, TestApi responses, bool judge = false, IDialogService? dialogs = null)
+        HttpClient http, TestApi responses, bool judge = false, IDialogService? dialogs = null,
+        JudgingSessionStore? sessionStore = null)
     {
         responses.EnqueueJson(new TournamentSnapshotDto([Participant], [Category]));
         var api = new TournamentApiClient(http, $"https://{Guid.NewGuid():N}.test");
         var viewModel = new MainViewModel(new CategoryManager(), dialogs ?? new WpfDialogService(),
-            new WpfWindowService(), new WpfUiScheduler(), api, isJudgeStation: judge);
+            new WpfWindowService(), new WpfUiScheduler(), api, isJudgeStation: judge, sessionStore: sessionStore);
         await Assert.IsType<AsyncRelayCommand>(viewModel.LoadApiTournamentCommand).ExecuteAsync();
         return viewModel;
     }
