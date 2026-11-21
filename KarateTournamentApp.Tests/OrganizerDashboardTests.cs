@@ -1,0 +1,146 @@
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Json;
+using KarateClassLibrary;
+using KarateClassLibrary.Contracts;
+using KarateTournamentApp.Commands;
+using KarateTournamentApp.Services;
+using KarateTournamentApp.Services.Api;
+using KarateTournamentApp.Services.Dialogs;
+using KarateTournamentApp.Services.Navigation;
+using KarateTournamentApp.Services.Scheduling;
+using KarateTournamentApp.ViewModels;
+using Xunit;
+
+namespace KarateTournamentApp.Tests;
+
+public sealed class OrganizerDashboardTests
+{
+    private static readonly ParticipantDto Participant = new(
+        1, "Testowy", "Zawodnik", 12, null, Belts.Kyu8, Sex.Male, [CategoryType.Kata]);
+
+    private static readonly CategoryDto Category = new(
+        1, "Kata", null, null, false, Sex.Unisex, CategoryType.Kata, [Belts.Kyu8],
+        [Participant.Id], [], [], [], false, null);
+
+    private static readonly CategorySummaryDto Summary = new(
+        Category.Id, Category.Name, CategoryType.Kata, Sex.Unisex, null, null, false, 1, 0, false, null);
+
+    [Fact]
+    public async Task RefreshesStatusesWithoutTouchingRegistrationAndRetainsLastListOnError()
+    {
+        var responses = new TestApi();
+        using var http = new HttpClient(responses);
+        var dashboard = await LoadAsync(http, responses);
+        dashboard.SelectedOrganizerCategory = Assert.Single(dashboard.OrganizerCategories);
+        dashboard.SelectedApiParticipant = Assert.Single(dashboard.ApiParticipants);
+        dashboard.FirstName = "Niezapisany wpis";
+        var available = Assert.IsType<OrganizerCompetitionRow>(dashboard.SelectedOrganizerCategory);
+        Assert.Equal(OrganizerCompetitionStatus.Available, available.Status);
+        Assert.True(dashboard.EditApiCategoryCommand.CanExecute(available));
+
+        responses.EnqueueJson(new[] { Summary with { IsClaimed = true, ClaimedBy = "Tatami 1" } });
+        await dashboard.RefreshOrganizerCategoriesAsync();
+        var claimed = Assert.IsType<OrganizerCompetitionRow>(dashboard.SelectedOrganizerCategory);
+        Assert.Equal(OrganizerCompetitionStatus.InProgress, claimed.Status);
+        Assert.Equal("Tatami 1", claimed.StationName);
+        Assert.False(dashboard.EditApiCategoryCommand.CanExecute(claimed));
+        Assert.Same(dashboard.ApiParticipants[0], dashboard.SelectedApiParticipant);
+        Assert.Equal("Niezapisany wpis", dashboard.FirstName);
+        dashboard.OrganizerStatusFilter = OrganizerCompetitionStatus.InProgress;
+        Assert.Same(claimed, Assert.Single(dashboard.OrganizerCategories));
+
+        var lastRefresh = dashboard.OrganizerCategoryRefreshStatus;
+        responses.Enqueue(HttpStatusCode.ServiceUnavailable);
+        await dashboard.RefreshOrganizerCategoriesAsync();
+        Assert.Same(claimed, Assert.Single(dashboard.OrganizerCategories));
+        Assert.Equal($"Odświeżenie nie powiodło się · {lastRefresh}", dashboard.OrganizerCategoryRefreshStatus);
+
+        responses.EnqueueJson(new[] { Summary with { IsFinished = true } });
+        await dashboard.RefreshOrganizerCategoriesAsync();
+        Assert.Empty(dashboard.OrganizerCategories);
+        Assert.Null(dashboard.SelectedOrganizerCategory);
+        dashboard.OrganizerStatusFilter = OrganizerCompetitionStatus.Finished;
+        var finished = Assert.Single(dashboard.OrganizerCategories);
+        Assert.Equal(OrganizerCompetitionStatus.Finished, finished.Status);
+        Assert.True(dashboard.ViewApiCategoryResultsCommand.CanExecute(finished));
+        Assert.StartsWith("Ostatnia aktualizacja", dashboard.OrganizerCategoryRefreshStatus);
+        Assert.Equal(new[] { "/api/tournament", "/api/categories", "/api/categories", "/api/categories" },
+            responses.Requests);
+    }
+
+    [Fact]
+    public async Task OlderPollCannotOverwriteRefreshAfterConflict()
+    {
+        var responses = new TestApi();
+        using var http = new HttpClient(responses);
+        var dashboard = await LoadAsync(http, responses);
+        var olderResponse = responses.EnqueuePending();
+        var olderPoll = dashboard.RefreshOrganizerCategoriesAsync();
+        responses.EnqueueJson(new[] { Summary with { IsClaimed = true, ClaimedBy = "Tatami 1" } });
+        await dashboard.RefreshOrganizerCategoriesAsync(force: true);
+
+        olderResponse.SetResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new[] { Summary }) });
+        await olderPoll;
+
+        Assert.Equal(OrganizerCompetitionStatus.InProgress, Assert.Single(dashboard.OrganizerCategories).Status);
+    }
+
+    [Fact]
+    public async Task JudgeCanOpenCompetitionButCannotUseOrganizerCommands()
+    {
+        var responses = new TestApi();
+        using var http = new HttpClient(responses);
+        var judge = await LoadAsync(http, responses, judge: true);
+        var competition = Assert.Single(judge.Categories);
+        judge.FirstName = Participant.FirstName;
+        judge.LastName = Participant.LastName;
+        judge.Age = Participant.Age;
+        judge.SelectedSex = Participant.Sex;
+        judge.SelectedBelt = Participant.Belt;
+        judge.CategorySelections.Single(item => item.CategoryType == CategoryType.Kata).IsSelected = true;
+
+        Assert.True(judge.StartApiJudgingCommand.CanExecute(competition));
+        Assert.False(judge.AddParticipantCommand.CanExecute(null));
+        Assert.False(judge.ImportExcelCommand.CanExecute(null));
+        Assert.False(judge.CreateExcelTemplateCommand.CanExecute(null));
+        Assert.False(judge.CreateApiCategoryCommand.CanExecute(null));
+        Assert.Empty(judge.ApiParticipants);
+    }
+
+    private static async Task<MainViewModel> LoadAsync(HttpClient http, TestApi responses, bool judge = false)
+    {
+        responses.EnqueueJson(new TournamentSnapshotDto([Participant], [Category]));
+        var api = new TournamentApiClient(http, $"https://{Guid.NewGuid():N}.test");
+        var viewModel = new MainViewModel(new CategoryManager(), new WpfDialogService(),
+            new WpfWindowService(), new WpfUiScheduler(), api, isJudgeStation: judge);
+        await Assert.IsType<AsyncRelayCommand>(viewModel.LoadApiTournamentCommand).ExecuteAsync();
+        return viewModel;
+    }
+
+    private sealed class TestApi : HttpMessageHandler
+    {
+        private readonly Queue<Task<HttpResponseMessage>> _responses = new();
+
+        public List<string> Requests { get; } = [];
+
+        public void EnqueueJson<T>(T value) => _responses.Enqueue(Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(value) }));
+
+        public void Enqueue(HttpStatusCode status) => _responses.Enqueue(Task.FromResult(new HttpResponseMessage(status)));
+
+        public TaskCompletionSource<HttpResponseMessage> EnqueuePending()
+        {
+            var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _responses.Enqueue(response.Task);
+            return response;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Assert.Equal(HttpMethod.Get, request.Method);
+            Requests.Add(request.RequestUri!.AbsolutePath);
+            return _responses.Dequeue().WaitAsync(cancellationToken);
+        }
+    }
+}
