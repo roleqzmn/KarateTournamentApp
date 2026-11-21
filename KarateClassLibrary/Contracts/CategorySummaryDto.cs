@@ -11,4 +11,6 @@ public sealed record CategorySummaryDto(
     int ParticipantCount,
     int TeamCount,
     bool IsClaimed,
-    string? ClaimedBy);
+    string? ClaimedBy,
+    bool HasJudgingCheckpoint = false,
+    bool HandoffRequested = false);

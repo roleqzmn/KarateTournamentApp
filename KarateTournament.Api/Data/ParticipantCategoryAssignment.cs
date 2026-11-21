@@ -25,7 +25,8 @@ internal static class ParticipantCategoryAssignment
             """).ToArrayAsync(cancellationToken);
         var available = await db.Categories
             .Where(category => lockedIds.Contains(category.Id)
-                && !category.Teams.Any() && !category.BracketMatches.Any() && !category.FinalResults.Any())
+                && !category.Teams.Any() && !category.BracketMatches.Any() && !category.FinalResults.Any()
+                && (category.JudgingProgress == null || category.JudgingProgress.CheckpointJson == null))
             .Include(category => category.AllowedBeltLinks).Include(category => category.ParticipantLinks)
             .AsSplitQuery().OrderBy(category => category.Id).ToListAsync(cancellationToken);
 

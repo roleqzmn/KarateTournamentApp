@@ -29,7 +29,10 @@ public static class CategoryEndpoints
                 category.Id, category.Name, category.CategoryType, category.Sex,
                 category.MinAge, category.MaxAge, category.IsFinished,
                 category.ParticipantLinks.Count, category.Teams.Count,
-                category.ClaimToken.HasValue, category.ClaimedBy))
+                category.ClaimToken.HasValue, category.ClaimedBy,
+                !category.IsFinished && category.JudgingProgress != null && category.JudgingProgress.CheckpointJson != null,
+                category.ClaimToken.HasValue && category.JudgingProgress != null
+                    && category.JudgingProgress.RequestedFor == category.ClaimToken))
             .ToArrayAsync(cancellationToken);
         return Results.Ok(categories);
     }
@@ -128,10 +131,11 @@ public static class CategoryEndpoints
         Category category, TournamentDbContext dbContext, CancellationToken cancellationToken) =>
         category.ClaimToken.HasValue || category.IsFinished
         || await dbContext.Categories.AnyAsync(other => other.Id == category.Id
-            && (other.Teams.Any() || other.BracketMatches.Any() || other.FinalResults.Any()), cancellationToken);
+            && (other.Teams.Any() || other.BracketMatches.Any() || other.FinalResults.Any()
+                || (other.JudgingProgress != null && other.JudgingProgress.CheckpointJson != null)), cancellationToken);
 
     private static IResult CategoryConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,
-        title: "Claimed or finished categories and categories with teams, matches or results cannot be edited or deleted.");
+        title: "Claimed or finished categories and categories with judging progress, teams, matches or results cannot be edited or deleted.");
 
     private static async Task<IResult?> ValidateParticipantIds(
         int[] participantIds, TournamentDbContext dbContext, CancellationToken cancellationToken)
