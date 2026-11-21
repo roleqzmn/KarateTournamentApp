@@ -1,10 +1,14 @@
 ﻿# Karate Tournament Manager
 
-Kompleksowa aplikacja desktopowa do zarządzania turniejami karate, zbudowana w WPF i .NET 10.
+Aplikacja Windows do zarządzania turniejami karate, zbudowana w WPF i .NET 10.
+
+[English](README.md) · [Konfiguracja API i PostgreSQL](KarateTournament.Api/README.md) · [Testy](TESTING.md)
 
 ## Przegląd
 
-Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojektowana w celu usprawnienia organizacji i zarządzania zawodami karate. Obsługuje wiele formatów konkurencji, w tym Kata (formy), Kumite (walki), Kihon (podstawy), Kobudo (broń) i Grappling, ze specjalnymi funkcjami dla walk Shobu Sanbon (walki punktowe).
+Jedna aplikacja WPF otwiera osobne okno organizatora lub sędziego. We wspólnym turnieju organizator prowadzi rejestr i zarządza składami przez API z bazą PostgreSQL. Sędziowie przejmują konkurencje i oceniają lokalnie. Tryb sieciowy obsługuje sędziowanie Kumite (Shobu Sanbon), Kata, Kihon i indywidualnego Kobudo.
+
+Tryb plikowy jest dostępny po ustawieniu roli `local`.
 
 ## Funkcje
 
@@ -18,8 +22,8 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 ### Zarządzanie Zawodnikami
 - **System Rejestracji**: Łatwa rejestracja zawodników ze szczegółowymi informacjami
 - **Przypisywanie Kategorii**: Automatyczna kategoryzacja według wieku, pasa lub obu
-- **Import/Export**: Obsługa formatów Excel i JSON
-- **Wykrywanie Duplikatów**: Automatyczne sprawdzanie duplikatów zawodników
+- **Excel** — generowanie szablonu i import zawodników z automatycznym przydziałem do konkurencji
+- **JSON** — import i eksport w trybie plikowym
 
 ### Funkcje Shobu Sanbon
 - **System Senshu**: Automatyczne śledzenie przewagi pierwszego punktu
@@ -40,7 +44,8 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 - **Uwzględnienie Senshu**: Automatyczne określanie zwycięzcy na podstawie przewagi pierwszego punktu
 
 ### Zarządzanie Danymi
-- **Przechowywanie JSON**: Trwałość danych turnieju w formacie JSON
+- **PostgreSQL** — wspólny rejestr turnieju, blokady konkurencji, zapis przy przekazaniu i wyniki końcowe
+- **JSON** — zapis turnieju plikowego i roboczego postępu na stanowisku sędziego
 - **Import Excel**: Bezpośredni import z arkuszy Excel
 - **Szablony**: Automatyczne generowanie szablonów importu
 - **Operacje Asynchroniczne**: Nieblokujące operacje I/O z wskaźnikami ładowania
@@ -51,6 +56,7 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 - **UI**: Windows Presentation Foundation (WPF)
 - **Architektura**: MVVM (Model-View-ViewModel)
 - **Async/Await**: Pełne asynchroniczne operacje I/O
+- **API i baza** — ASP.NET Core, EF Core i PostgreSQL
 - **JSON**: System.Text.Json do serializacji
 - **Excel**: EPPlus do obsługi plików Excel
 
@@ -71,51 +77,50 @@ Karate Tournament Manager to aplikacja desktopowa dla systemu Windows, zaprojekt
 ## Budowanie ze Źródeł
 
 ### Wymagania
-- Visual Studio 2022 lub nowszy
 - .NET 10 SDK
 - Git
+- Docker Desktop w trybie kontenerów Linux do lokalnego PostgreSQL i testów integracyjnych API
 
 ### Kroki
-```bash
-git clone https://github.com/roleqzmn/KarateTournametApp.git
+```powershell
+git clone https://github.com/roleqzmn/KarateTournamentApp.git
 cd KarateTournamentApp
-dotnet restore
-dotnet build
+dotnet build .\KarateTournamentApp.sln
 ```
 
-### Uruchamianie
-```bash
-dotnet run --project KarateTournamentApp/KarateTournamentApp.csproj
+### Uruchomienie wspólnego turnieju
+
+Uruchom PostgreSQL i API zgodnie z [instrukcją konfiguracji](KarateTournament.Api/README.md#start-postgresql). Domyślny adres używany przez WPF to `https://localhost:7086`. Zbuduj API i WPF z tej samej wersji repozytorium.
+
+Po zbudowaniu rozwiązania użyj dwóch osobnych okien PowerShella w katalogu repozytorium. Pierwszy blok uruchamia organizatora.
+
+```powershell
+$env:KARATE_TOURNAMENT_ROLE = 'organizer'
+dotnet run --project .\KarateTournamentApp --no-build
 ```
+
+```powershell
+$env:KARATE_TOURNAMENT_ROLE = 'judge'
+dotnet run --project .\KarateTournamentApp --no-build
+```
+
+Domyślna rola to `judge`. Ustaw `local`, żeby pracować z turniejem w plikach JSON. Na osobnych komputerach skonfiguruj adres API i osobne klucze dla organizatora i sędziów. [Konfiguracja sieciowa](KarateTournament.Api/README.md#api-access)
 
 ## Użytkowanie
 
-### Szybki Start
+### Organizator i sędzia
 
-1. **Dodawanie Zawodników**
-   - Wybierz kryteria podziału (według wieku, pasa lub obu)
-   - Wprowadź dane zawodnika
-   - Wybierz kategorie konkurencji
-   - Kliknij "Dodaj Zawodnika"
+1. W zakładce **Zawodnicy** ustaw **Podział po dodaniu lub imporcie**. Domyślnie jest **Wiek i pas**. Dodaj jedną osobę przez **Zapisz zawodnika w API** lub użyj **Wygeneruj szablon Excel** i **Importuj Excel**. API dopisuje nowych zawodników do pasujących konkurencji albo tworzy je w razie potrzeby. [Format Excela](KarateTournamentApp/EXCEL_IMPORT_README.md)
+2. W zakładce **Konkurencje** sprawdź składy i statusy. Kliknij **Odśwież**, aby od razu pobrać aktualny stan. Po wysłaniu wyniku przez sędziego ranking otworzysz przyciskiem **Wyniki**.
+3. W oknie sędziego kliknij **Pobierz turniej z API**, a potem **Przejmij i rozpocznij**. Konkurencję może przejąć jedno stanowisko naraz. Po zakończeniu zamknij panel oceniania i kliknij **Wyślij wyniki** w zakładce **Sesje lokalne**.
 
-2. **Import Zawodników**
-   - Użyj "Import Excel" z menu bocznego
-   - Wygeneruj szablon używając "Szablon Excel"
-   - Wypełnij dane zawodników
-   - Importuj wypełniony plik
+### Przekazanie konkurencji
 
-3. **Inicjalizacja Konkurencji**
-   - Przejrzyj zawodników w każdej kategorii
-   - Kliknij "Losuj" aby wygenerować drabinki
-   - Kliknij "Start" aby rozpocząć konkurencję
+1. Organizator wybiera trwającą konkurencję i klika **Zwolnij do kontynuacji**. Stanowisko sędziego zamyka panel oceniania, a API zapisuje bieżący stan w PostgreSQL i zwalnia blokadę.
+2. Poczekaj na status **Do wznowienia**. Jeśli stanowisko sędziego jest offline lub aplikacja jest zamknięta, status **Oczekuje na zwolnienie** pozostaje do ponownego połączenia i wysłania zapisu.
+3. Ten sam lub inny sędzia klika **Pobierz turniej z API**, a następnie przejmuje konkurencję. W konkurencjach indywidualnych wracają noty i aktualny zawodnik. W Kumite wracają drabinka, punkty, kary i pozostały czas. Zegar startuje w pauzie. [Przekazanie i odzyskiwanie awaryjne](KarateTournament.Api/README.md#hand-off-a-competition)
 
-4. **Prowadzenie Konkurencji**
-   - Panel sędziowski otwiera się do wprowadzania wyników
-   - Publiczna tablica wyników wyświetla się automatycznie
-   - Śledź wyniki, czas i kary w czasie rzeczywistym
-   - System automatycznie obsługuje przechodzenie między walkami
-
-### Zarządzanie Kategoriami
+### Zarządzanie kategoriami w trybie plikowym
 
 - **Łączenie Kategorii**: Łączenie niedostatecznie zapełnionych kategorii
 - **Usuwanie Zawodników**: Usuwanie osób z konkretnych kategorii
@@ -157,9 +162,13 @@ dotnet run --project KarateTournamentApp/KarateTournamentApp.csproj
 
 3. **Wyświetlanie Wyników**
    - Zobacz końcowe rankingi
-   - Eksportuj wyniki do JSON
+   - Wyślij ranking do API we wspólnym turnieju lub wyeksportuj do JSON w trybie plikowym
 
 ## Struktura Projektu
+
+- [`KarateTournamentApp`](KarateTournamentApp/KarateTournamentApp.csproj) zawiera [okno organizatora](KarateTournamentApp/Views/OrganizerWindow.xaml) i [okno sędziego](KarateTournamentApp/Views/JudgeWindow.xaml).
+- [`KarateTournament.Api`](KarateTournament.Api/README.md) obsługuje wspólny turniej i zapis w PostgreSQL.
+- [`KarateClassLibrary`](KarateClassLibrary/KarateClassLibrary.csproj) zawiera współdzielone enumy, kontrakty API i reguły przydziału do konkurencji.
 
 ```
 KarateTournamentApp/
@@ -175,7 +184,9 @@ KarateTournamentApp/
 │   ├── ScoreboardViewModel.cs
 │   └── AsyncRelayCommand.cs
 ├── Views/               # Widoki WPF
-│   ├── MainWindow.xaml
+│   ├── MainWindow.xaml   # Tryb plikowy
+│   ├── OrganizerWindow.xaml
+│   ├── JudgeWindow.xaml
 │   ├── ScoreboardView.xaml
 │   ├── ScoreboardJudge.xaml
 │   └── DrawResolverView.xaml
@@ -209,10 +220,9 @@ Inteligentne generowanie drabinek turniejowych:
 - Promocja zwycięzcy przez poziomy drabinki
 
 ### Trwałość Danych
-Kompleksowa funkcjonalność zapisu/wczytywania:
-- Pełny stan turnieju w JSON
-- Zachowanie hierarchii kategorii
-- Śledzenie historii walk
+- Wspólny turniej zapisuje zawodników, konkurencje, stan przekazania i wyniki w PostgreSQL.
+- Stanowisko sędziego zapisuje postęp lokalnie i wysyła go przy przekazaniu albo publikacji wyniku końcowego.
+- Tryb plikowy zapisuje i odczytuje turniej w formacie JSON.
 
 ## Konfiguracja
 
@@ -254,6 +264,10 @@ Wkład jest mile widziany! Proszę przestrzegać tych wytycznych:
 **Problem**: Import nie działa
 - Rozwiązanie: Sprawdź czy format pliku pasuje do struktury szablonu
 
+**Nowo dodany zawodnik nie ma konkurencji**
+
+Sprawdź, czy WPF łączy się z API uruchomionym z tej samej wersji repozytorium. W zakładce **Konkurencje** wybierz **Wszystkie** i kliknij **Odśwież**. Automatyczny przydział działa podczas rejestracji lub importu.
+
 **Problem**: Tablica wyników nie wyświetla się
 - Rozwiązanie: Zweryfikuj czy typ walki to Shobu Sanbon
 
@@ -277,6 +291,9 @@ Ten projekt jest licencjonowany na licencji MIT - zobacz plik LICENSE dla szczeg
 ## Historia Wersji
 
 ### Aktualna Wersja
+- Osobne okna organizatora i sędziego ze wspólną bazą PostgreSQL
+- Automatyczny przydział do konkurencji po rejestracji lub imporcie Excela
+- Przekazanie i wznowienie przejętej konkurencji
 - Asynchroniczne operacje I/O
 - Obsługa Senshu i dogrywek
 - System rozstrzygania remisów
@@ -293,7 +310,6 @@ Planowane przyszłe ulepszenia:
 - Drabinki podwójnej eliminacji
 - Format turnieju każdy z każdym
 - Funkcjonalność drukowania dla drabinek i wyników
-- Opcja backendu bazodanowego
 - Sieciowe wyświetlanie tablicy wyników
 - Aplikacja towarzysząca na telefon
 - Integracja nagrywania wideo
@@ -301,4 +317,4 @@ Planowane przyszłe ulepszenia:
 
 ## Kontakt
 
-Link do Projektu: [https://github.com/roleqzmn/KarateTournametApp](https://github.com/roleqzmn/KarateTournametApp)
+Link do projektu — [KarateTournamentApp na GitHubie](https://github.com/roleqzmn/KarateTournamentApp).
