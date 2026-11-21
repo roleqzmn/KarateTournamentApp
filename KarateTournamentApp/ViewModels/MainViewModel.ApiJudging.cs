@@ -211,20 +211,4 @@ public partial class MainViewModel
         }
         return Task.CompletedTask;
     }
-
-    private async Task RecoverApiCategoryAsync(CategoryViewModel item)
-    {
-        IsLoading = true;
-        try
-        {
-            var target = await _api!.GetRecoveryTargetAsync(item.Category.Id);
-            if (_dialogService.ShowMessage(
-                $"Odzyskać konkurencję „{item.Name}” ze stanowiska „{target.StationName}”? Stara sesja utraci prawo przesłania wyników.",
-                "Odzyskaj konkurencję", DialogButtons.YesNo, DialogIcon.Warning) != DialogResult.Yes)
-                return;
-            await _api.RecoverClaimAsync(item.Category.Id, new(target.ClaimReference));
-            ShowApiSnapshot(await _api.GetSnapshotAsync());
-        }
-        finally { IsLoading = false; }
-    }
 }

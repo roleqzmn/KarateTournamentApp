@@ -91,6 +91,12 @@ The default URL is `https://localhost:7086`. Set `KARATE_TOURNAMENT_API_URL`
 before launching WPF to use another API address. To work with a file-based
 tournament, start a separate instance with `KARATE_TOURNAMENT_ROLE=local`.
 
+On the organizer's **Konkurencje** tab, the list shows **Dostępna**, **W trakcie**
+(with the claiming station), or **Zakończona**. **W trakcie** includes sessions
+waiting to upload their results. The list refreshes about every 10 seconds and
+keeps the last successful update visible if a refresh fails. Open **Wyniki**
+on a finished competition to see its stored ranking.
+
 ## Create a participant
 
 `POST /api/participants` accepts firstName, lastName, age, optional club, belt,

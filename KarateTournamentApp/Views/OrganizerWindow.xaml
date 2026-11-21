@@ -47,6 +47,15 @@
             <TextBlock Text="Panel organizatora" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center"/>
         </DockPanel>
         <TabControl Grid.Row="1">
+            <TabControl.Style>
+                <Style TargetType="TabControl">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                            <Setter Property="IsEnabled" Value="False"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TabControl.Style>
             <TabItem Header="Zawodnicy">
                 <Grid Margin="14">
                     <Grid.ColumnDefinitions>
@@ -129,14 +138,26 @@
                                 CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
                         <Button Content="Odzyskaj" Command="{Binding RecoverApiCategoryCommand}"
                                 CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
-                        <Button Content="Wyniki" Command="{Binding ElementName=CompetitionList, Path=SelectedItem.ViewResultsCommand}"/>
+                        <Button Content="Wyniki" Command="{Binding ViewApiCategoryResultsCommand}"
+                                CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
                     </WrapPanel>
-                    <DataGrid x:Name="CompetitionList" ItemsSource="{Binding Categories}">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                            <Label Content="Status" Target="{Binding ElementName=StatusFilter}" VerticalAlignment="Center"/>
+                            <ComboBox x:Name="StatusFilter" Width="142" Margin="4,0,12,0" ItemsSource="{Binding OrganizerStatusFilters}"
+                                      DisplayMemberPath="Key" SelectedValuePath="Value" SelectedValue="{Binding OrganizerStatusFilter}"/>
+                            <Button Content="Odśwież" Command="{Binding RefreshOrganizerCategoriesCommand}"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding OrganizerCategoryRefreshStatus}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <DataGrid x:Name="CompetitionList" ItemsSource="{Binding OrganizerCategories}"
+                              SelectedItem="{Binding SelectedOrganizerCategory}">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Konkurencja" Binding="{Binding Name}" Width="2*"/>
-                            <DataGridTextColumn Header="Dyscyplina" Binding="{Binding CategoryTypeDisplay}" Width="*"/>
-                            <DataGridTextColumn Header="Zawodnicy" Binding="{Binding ParticipantCount}"/>
-                            <DataGridTextColumn Header="Status" Binding="{Binding ApiStatus}" Width="2*"/>
+                            <DataGridTextColumn Header="Konkurencja" Binding="{Binding Summary.Name}" Width="2*"/>
+                            <DataGridTextColumn Header="Dyscyplina" Binding="{Binding Summary.CategoryType}" Width="*"/>
+                            <DataGridTextColumn Header="Zawodnicy" Binding="{Binding Summary.ParticipantCount}"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="*"/>
+                            <DataGridTextColumn Header="Stanowisko" Binding="{Binding StationName}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>

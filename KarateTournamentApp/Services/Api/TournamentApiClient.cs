@@ -46,6 +46,10 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         }
     }
 
+    public async Task<CategorySummaryDto[]> GetCategorySummariesAsync(CancellationToken cancellationToken) =>
+        await httpClient.GetFromJsonAsync<CategorySummaryDto[]>(GetEndpoint("api/categories"), JsonOptions, cancellationToken)
+            .ConfigureAwait(false) ?? throw new InvalidDataException("API zwróciło pustą listę konkurencji zamiast danych.");
+
     public async Task<ParticipantDto> CreateParticipantAsync(
         CreateParticipantRequest participant, CancellationToken cancellationToken = default)
     {
@@ -119,7 +123,12 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         {
             using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException(await ReadApiErrorAsync(response).ConfigureAwait(false));
+            {
+                var message = await ReadApiErrorAsync(response).ConfigureAwait(false);
+                throw response.StatusCode == HttpStatusCode.Conflict
+                    ? new ApiConflictException(message)
+                    : new InvalidOperationException(message);
+            }
             if (response.StatusCode == HttpStatusCode.NoContent && typeof(T) == typeof(object))
                 return (T)new object();
             return await response.Content.ReadFromJsonAsync<T>(JsonOptions).ConfigureAwait(false)
@@ -197,3 +206,5 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
     private sealed record ValidationErrorResponse(Dictionary<string, string[]>? Errors);
     private sealed record ApiErrorResponse(string? Title);
 }
+
+internal sealed class ApiConflictException(string message) : InvalidOperationException(message);

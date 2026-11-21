@@ -1,6 +1,4 @@
-using KarateClassLibrary;
-
-namespace KarateTournament.Api.Contracts;
+namespace KarateClassLibrary.Contracts;
 
 public sealed record CategorySummaryDto(
     int Id,

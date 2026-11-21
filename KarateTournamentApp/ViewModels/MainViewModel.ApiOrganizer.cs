@@ -36,24 +36,36 @@ public partial class MainViewModel
 
     private bool CanChangeApi() => CanManageApi && !IsLoading;
 
-    private bool CanEditApiCategory(CategoryViewModel category) =>
-        category is not null && CanChangeApi() && _apiSnapshot!.Categories.Any(existing =>
-            existing.Id == category.Category.Id && !existing.IsClaimed && !existing.IsFinished
-            && existing.Teams.Count == 0 && existing.BracketMatches.Count == 0 && existing.FinalResults.Count == 0);
+    private bool CanEditApiCategory(OrganizerCompetitionRow? row) =>
+        CanChangeApi() && row is { Status: OrganizerCompetitionStatus.Available, Summary.TeamCount: 0 };
+
+    private static bool CanEditApiCategoryDetails(CategoryDto? category) =>
+        category is { IsClaimed: false, IsFinished: false, Teams.Count: 0, BracketMatches.Count: 0, FinalResults.Count: 0 };
+
+    private CategoryViewModel CreateCategoryViewModel(ApiCategorySnapshot item) =>
+        new(item.Category, OnMergeRequested, OnDeleteRequested,
+            _dialogService, _windowService, _uiScheduler, FormatApiStatus(item));
 
     private void ShowApiSnapshot(TournamentSnapshotDto snapshot)
     {
-        var categories = TournamentSnapshotMapper.MapCategories(snapshot)
-            .Select(item => new CategoryViewModel(item.Category, OnMergeRequested, OnDeleteRequested,
-                _dialogService, _windowService, _uiScheduler, FormatApiStatus(item))).ToArray();
+        if (IsJudgeStation || _api is null)
+        {
+            var categories = TournamentSnapshotMapper.MapCategories(snapshot).Select(CreateCategoryViewModel).ToArray();
+            SelectedCategoryForMerge = null;
+            Categories.Clear();
+            foreach (var category in categories)
+                Categories.Add(category);
+        }
+
         _apiSnapshot = snapshot;
-        SelectedCategoryForMerge = null;
-        Categories.Clear();
-        foreach (var category in categories)
-            Categories.Add(category);
-        ApiParticipants.Clear();
-        foreach (var participant in snapshot.Participants.OrderByDescending(participant => participant.Id))
-            ApiParticipants.Add(participant);
+        if (!IsJudgeStation)
+        {
+            var selectedId = SelectedApiParticipant?.Id;
+            ApiParticipants.Clear();
+            foreach (var participant in snapshot.Participants.OrderByDescending(participant => participant.Id))
+                ApiParticipants.Add(participant);
+            SelectedApiParticipant = ApiParticipants.FirstOrDefault(participant => participant.Id == selectedId);
+        }
         IsApiPreview = true;
     }
 
@@ -74,23 +86,41 @@ public partial class MainViewModel
         OnPropertyChanged(nameof(AddParticipantLabel));
     }
 
-    private Task EditApiCategoryAsync(CategoryViewModel? category)
+    private async Task EditApiCategoryAsync(OrganizerCompetitionRow? row)
     {
-        var categoryId = category?.Category.Id;
-        var current = _apiSnapshot!.Categories.SingleOrDefault(item => item.Id == categoryId);
+        var categoryId = row?.Summary.Id;
+        TournamentSnapshotDto snapshot;
+        IsLoading = true;
+        try
+        {
+            snapshot = await _api!.GetSnapshotAsync();
+            ShowRefreshedCategories(snapshot.Categories.Select(SummarizeCategory));
+        }
+        finally { IsLoading = false; }
+
+        var current = snapshot.Categories.SingleOrDefault(item => item.Id == categoryId);
+        if (categoryId.HasValue && !CanEditApiCategoryDetails(current))
+        {
+            _dialogService.ShowMessage(current is null ? "Konkurencja nie jest już dostępna."
+                : "Konkurencja jest zajęta, zakończona albo ma dane blokujące edycję.", "Edycja konkurencji");
+            return;
+        }
+
         IWindowHandle? window = null;
-        var editor = new ApiCategoryEditorViewModel(current, _apiSnapshot.Participants, async request =>
+        var editor = new ApiCategoryEditorViewModel(current, snapshot.Participants, async request =>
         {
             IsLoading = true;
             try
             {
                 var saved = await _api!.SaveCategoryAsync(categoryId, request);
-                ShowApiSnapshot(_apiSnapshot with
-                {
-                    Categories = _apiSnapshot.Categories.Where(item => item.Id != saved.Id).Append(saved)
-                        .OrderBy(item => item.Id).ToArray()
-                });
+                ReplaceOrganizerCategories(_organizerCategories.Where(row => row.Summary.Id != saved.Id)
+                    .Append(new OrganizerCompetitionRow(SummarizeCategory(saved))));
                 window?.Close();
+            }
+            catch (ApiConflictException)
+            {
+                await RefreshOrganizerCategoriesAsync(force: true);
+                throw;
             }
             finally { IsLoading = false; }
         });
@@ -103,23 +133,67 @@ public partial class MainViewModel
             window = handle;
             handle.Closed += (_, _) => window = null;
         });
-        return Task.CompletedTask;
     }
 
-    private async Task DeleteApiCategoryAsync(CategoryViewModel category)
+    private async Task DeleteApiCategoryAsync(OrganizerCompetitionRow row)
     {
-        if (!ConfirmApiDelete($"Usunąć konkurencję „{category.Name}”? Zawodnicy pozostaną w rejestrze."))
+        if (!ConfirmApiDelete($"Usunąć konkurencję „{row.Summary.Name}”? Zawodnicy pozostaną w rejestrze."))
             return;
         IsLoading = true;
         try
         {
-            await _api!.DeleteCategoryAsync(category.Category.Id);
-            ShowApiSnapshot(_apiSnapshot! with
-            {
-                Categories = _apiSnapshot.Categories.Where(item => item.Id != category.Category.Id).ToArray()
-            });
+            await _api!.DeleteCategoryAsync(row.Summary.Id);
+            ReplaceOrganizerCategories(_organizerCategories.Where(other => other.Summary.Id != row.Summary.Id));
+        }
+        catch (ApiConflictException)
+        {
+            await RefreshOrganizerCategoriesAsync(force: true);
+            throw;
         }
         finally { IsLoading = false; }
+    }
+
+    private async Task RecoverApiCategoryAsync(OrganizerCompetitionRow row)
+    {
+        IsLoading = true;
+        try
+        {
+            var target = await _api!.GetRecoveryTargetAsync(row.Summary.Id);
+            if (_dialogService.ShowMessage(
+                $"Odzyskać konkurencję „{row.Summary.Name}” ze stanowiska „{target.StationName}”? Stara sesja utraci prawo przesłania wyników.",
+                "Odzyskaj konkurencję", DialogButtons.YesNo, DialogIcon.Warning) != DialogResult.Yes)
+                return;
+            await _api.RecoverClaimAsync(row.Summary.Id, new(target.ClaimReference));
+            ReplaceOrganizerCategories(_organizerCategories.Select(item => item.Summary.Id != row.Summary.Id ? item
+                : new OrganizerCompetitionRow(item.Summary with { IsClaimed = false, ClaimedBy = null })));
+        }
+        catch (ApiConflictException)
+        {
+            await RefreshOrganizerCategoriesAsync(force: true);
+            throw;
+        }
+        finally { IsLoading = false; }
+    }
+
+    private async Task ViewApiCategoryResultsAsync(OrganizerCompetitionRow row)
+    {
+        CategoryViewModel? category;
+        IsLoading = true;
+        try
+        {
+            var snapshot = await _api!.GetSnapshotAsync();
+            ShowRefreshedCategories(snapshot.Categories.Select(SummarizeCategory));
+            category = TournamentSnapshotMapper.MapCategories(snapshot with
+            {
+                Categories = snapshot.Categories.Where(item => item.Id == row.Summary.Id && item.IsFinished).ToArray()
+            }).Select(CreateCategoryViewModel).SingleOrDefault();
+        }
+        finally { IsLoading = false; }
+
+        if (category?.ViewResultsCommand.CanExecute(null) != true)
+            _dialogService.ShowMessage("Brak zapisanych wyników tej konkurencji.", "Wyniki");
+        else
+            category.ViewResultsCommand.Execute(null);
     }
 
     private async Task DeleteApiParticipantAsync()
