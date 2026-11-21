@@ -40,6 +40,7 @@ app.Use(tournamentAccess.InvokeAsync);
 app.MapTournamentEndpoints();
 app.MapParticipantEndpoints();
 app.MapCategoryEndpoints();
+app.MapTeamEndpoints();
 app.MapCategoryClaimEndpoints();
 app.MapJudgingHandoffEndpoints();
 app.MapIndividualResultEndpoints();

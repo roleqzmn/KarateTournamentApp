@@ -127,18 +127,19 @@ public static class CategoryEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<bool> HasCompetitionData(
-        Category category, TournamentDbContext dbContext, CancellationToken cancellationToken) =>
+    internal static async Task<bool> HasCompetitionData(
+        Category category, TournamentDbContext dbContext, CancellationToken cancellationToken, bool includeTeams = true) =>
         category.ClaimToken.HasValue || category.IsFinished
         || await dbContext.Categories.AnyAsync(other => other.Id == category.Id
-            && (other.Teams.Any() || other.BracketMatches.Any() || other.FinalResults.Any()
+            && ((includeTeams && other.Teams.Any()) || other.BracketMatches.Any() || other.FinalResults.Any()
                 || (other.JudgingProgress != null && other.JudgingProgress.CheckpointJson != null)), cancellationToken);
 
     private static IResult CategoryConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,
         title: "Claimed or finished categories and categories with judging progress, teams, matches or results cannot be edited or deleted.");
 
-    private static async Task<IResult?> ValidateParticipantIds(
-        int[] participantIds, TournamentDbContext dbContext, CancellationToken cancellationToken)
+    internal static async Task<IResult?> ValidateParticipantIds(
+        int[] participantIds, TournamentDbContext dbContext, CancellationToken cancellationToken,
+        string field = nameof(CreateCategoryRequest.ParticipantIds))
     {
         if (participantIds.Length == 0)
             return null;
@@ -153,7 +154,7 @@ public static class CategoryEndpoints
         if (missingIds.Length > 0)
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
-                [nameof(CreateCategoryRequest.ParticipantIds)] = [$"Unknown participant IDs: {string.Join(", ", missingIds)}."]
+                [field] = [$"Unknown participant IDs: {string.Join(", ", missingIds)}."]
             });
 
         return null;

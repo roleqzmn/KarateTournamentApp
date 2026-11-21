@@ -23,10 +23,7 @@ public static class CategoryReadModel
         category.AllowedBeltLinks.OrderBy(link => link.SortOrder).Select(link => link.Belt).ToArray(),
         category.ParticipantLinks.OrderBy(link => link.SortOrder).Select(link => link.ParticipantId).ToArray(),
         category.BracketMatches.OrderBy(match => match.BracketPosition).Select(ToMatchDto).ToArray(),
-        category.Teams.OrderBy(team => team.SortOrder).Select(team => new TeamDto(
-            team.Id, team.Name, team.Sex,
-            team.MemberLinks.OrderBy(link => link.SortOrder).Select(link => link.ParticipantId).ToArray()))
-            .ToArray(),
+        category.Teams.OrderBy(team => team.SortOrder).Select(ToTeamDto).ToArray(),
         category.FinalResults.OrderBy(result => result.Rank ?? int.MaxValue).ThenBy(result => result.Id)
             .Select(result => new ParticipantResultDto(
                 result.Id, result.ParticipantId, result.Rank, result.Score,
@@ -36,6 +33,9 @@ public static class CategoryReadModel
             .ToArray(), category.ClaimToken.HasValue, category.ClaimedBy,
         !category.IsFinished && category.JudgingProgress?.CheckpointJson is not null,
         category.ClaimToken.HasValue && category.JudgingProgress?.RequestedFor == category.ClaimToken);
+
+    internal static TeamDto ToTeamDto(Team team) => new(team.Id, team.Name, team.Sex,
+        team.MemberLinks.OrderBy(link => link.SortOrder).Select(link => link.ParticipantId).ToArray());
 
     private static MatchDto ToMatchDto(Match match) => new(
         match.Id, match.BracketPosition, match.AkaParticipantId, match.ShiroParticipantId,
