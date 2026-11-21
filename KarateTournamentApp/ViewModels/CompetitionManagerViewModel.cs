@@ -34,7 +34,7 @@ namespace KarateTournamentApp.ViewModels
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(AkaParticipant));
                 OnPropertyChanged(nameof(ShiroParticipant));
-                OnPropertyChanged(nameof(IsShobuSanbon));
+                OnPropertyChanged(nameof(UsesMatchBracket));
                 OnPropertyChanged(nameof(SenshuEnabled));
                 OnPropertyChanged(nameof(HasSenshuAka));
                 OnPropertyChanged(nameof(HasSenshuShiro));
@@ -42,7 +42,7 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public bool IsShobuSanbon => _category.CategoryType == CategoryType.Kumite;
+        public bool UsesMatchBracket => _category.CategoryType.UsesMatchBracket();
 
         // Senshu properties
         public bool SenshuEnabled
@@ -80,10 +80,9 @@ namespace KarateTournamentApp.ViewModels
             _category = category;
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
 
-            bool isKumiteCategory = _category.CategoryType == CategoryType.Kumite;
-            bool hasLegacyMatchTypes = isKumiteCategory
+            bool hasLegacyMatchTypes = UsesMatchBracket
                 && _category.BracketMatches.Any(m => m is not ShobuSanbonMatch);
-            bool hasNoPlayableMatches = isKumiteCategory
+            bool hasNoPlayableMatches = UsesMatchBracket
                 && _category.BracketMatches.Any()
                 && !_category.BracketMatches.Any(m => !m.IsFinished && m.Aka.HasValue && m.Shiro.HasValue)
                 && _category.Participants.Count >= 2
@@ -91,9 +90,9 @@ namespace KarateTournamentApp.ViewModels
 
             if (!_category.BracketMatches.Any())
             {
-                if (isKumiteCategory)
+                if (UsesMatchBracket)
                 {
-                    InitializeKumiteBracketAsShobu();
+                    InitializeTimedBracket(_category);
                 }
                 else
                 {
@@ -102,11 +101,11 @@ namespace KarateTournamentApp.ViewModels
             }
             else if (hasLegacyMatchTypes || (!preserveBracket && hasNoPlayableMatches))
             {
-                InitializeKumiteBracketAsShobu();
+                InitializeTimedBracket(_category);
             }
 
-            if (isKumiteCategory)
-                AdvanceKumiteByes();
+            if (UsesMatchBracket)
+                AdvanceBracketByes();
 
             // Find first unfinished match
             _currentMatchIndex = FindNextUnfinishedMatch();
@@ -408,8 +407,8 @@ namespace KarateTournamentApp.ViewModels
         private void PromoteWinnerAndSelectNextMatch()
         {
             _category.PromoteWinner(_currentMatchIndex);
-            if (IsShobuSanbon)
-                AdvanceKumiteByes();
+            if (UsesMatchBracket)
+                AdvanceBracketByes();
             _currentMatchIndex = FindNextUnfinishedMatch();
 
             if (_currentMatchIndex >= 0)
@@ -430,10 +429,10 @@ namespace KarateTournamentApp.ViewModels
             if (_category.BracketMatches.FirstOrDefault()?.WinnerId is null)
                 return;
             _category.IsFinished = true;
-            SaveKumiteFinalResults();
+            SaveBracketFinalResults();
         }
 
-        private void AdvanceKumiteByes()
+        private void AdvanceBracketByes()
         {
             var matches = _category.BracketMatches;
             var hasEntrants = new bool[matches.Count];
@@ -466,25 +465,23 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        private void InitializeKumiteBracketAsShobu()
+        internal static void InitializeTimedBracket(Category category)
         {
-            var shobuCategory = new ShobuSanbonCategory(
-                _category.AllowedBelts,
-                _category.CategoryType,
-                _category.Sex,
-                _category.MinAge,
-                _category.MaxAge)
+            if (category is ShobuSanbonCategory)
             {
-                Participants = _category.Participants
-            };
+                category.InitializeBracket();
+                return;
+            }
 
-            shobuCategory.InitializeBracket();
-            _category.BracketMatches = shobuCategory.BracketMatches;
+            // File-based tournaments can still contain a base Category for a bracket discipline.
+            var timedCategory = new ShobuSanbonCategory { Participants = category.Participants };
+            timedCategory.InitializeBracket();
+            category.BracketMatches = timedCategory.BracketMatches;
         }
 
-        private void SaveKumiteFinalResults()
+        private void SaveBracketFinalResults()
         {
-            if (_category.CategoryType != CategoryType.Kumite || !_category.BracketMatches.Any())
+            if (!UsesMatchBracket || !_category.BracketMatches.Any())
             {
                 return;
             }

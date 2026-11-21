@@ -6,7 +6,7 @@ A Windows desktop application for managing karate tournaments, built with WPF an
 
 ## Overview
 
-The same WPF application opens a separate window for the organizer or the judge. In a shared tournament, the organizer manages registration and competition rosters through an ASP.NET Core API backed by PostgreSQL. Judges claim competitions and score locally. The shared judging workflow supports Kumite (Shobu Sanbon), Kata, Team Kata, Kihon and individual Kobudo.
+The same WPF application opens a separate window for the organizer or the judge. In a shared tournament, the organizer manages registration and competition rosters through an ASP.NET Core API backed by PostgreSQL. Judges claim competitions and score locally. The shared judging workflow supports Kumite (Shobu Sanbon), Grappling, Kata, Team Kata, Kihon and individual Kobudo.
 
 The file-based tournament is also available through the `local` role.
 
@@ -118,7 +118,7 @@ The default role is `judge`. For a standalone JSON tournament, use `local`. For 
 
 1. In the organizer's **Konkurencje** tab, select the active competition and click **Zwolnij do kontynuacji**. The current judging station closes the scoring panel and saves the latest progress to PostgreSQL before the API releases the claim.
 2. Wait for **Do wznowienia**. If the station is offline or closed, the organizer sees **Oczekuje na zwolnienie** until the station reconnects and uploads its checkpoint.
-3. On the same or another judging station, refresh with **Pobierz turniej z API** and claim the competition. Individual scores resume from the saved participant. Kumite restores the bracket, points, penalties and remaining time with the clock paused. [Handoff and emergency recovery](KarateTournament.Api/README.md#hand-off-a-competition)
+3. On the same or another judging station, refresh with **Pobierz turniej z API** and claim the competition. Individual scores resume from the saved participant. Kumite and Grappling restore the bracket, points, penalties and remaining time with the clock paused. [Handoff and emergency recovery](KarateTournament.Api/README.md#hand-off-a-competition)
 
 ### Category management in file-based mode
 

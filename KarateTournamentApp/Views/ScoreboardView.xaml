@@ -45,7 +45,7 @@
                                HorizontalAlignment="Center"
                                Margin="0,0,0,20"/>
 
-                    <StackPanel Visibility="{Binding IsShobuSanbon, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel Visibility="{Binding UsesMatchBracket, Converter={StaticResource BoolToVisibilityConverter}}">
                         <TextBlock Text="Atenai:"
                                    FontSize="20"
                                    Foreground="#FFD700"
@@ -78,14 +78,14 @@
                 </StackPanel>
             </Border>
 
-            <!-- Center - Timer (for Shobu Sanbon) -->
+            <!-- Center - Match timer -->
             <Border Grid.Column="1" 
                     Background="#34495E" 
                     CornerRadius="10" 
                     Padding="40,30"
                     Margin="20,0"
                     MinWidth="200"
-                    Visibility="{Binding IsShobuSanbon, Converter={StaticResource BoolToVisibilityConverter}}">
+                    Visibility="{Binding UsesMatchBracket, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="CZAS" 
                                FontSize="24" 
@@ -126,7 +126,7 @@
                                HorizontalAlignment="Center"
                                Margin="0,0,0,20"/>
 
-                    <StackPanel Visibility="{Binding IsShobuSanbon, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <StackPanel Visibility="{Binding UsesMatchBracket, Converter={StaticResource BoolToVisibilityConverter}}">
                         <TextBlock Text="Atenai:"
                                    FontSize="20"
                                    Foreground="#C0392B"

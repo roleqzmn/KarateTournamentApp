@@ -13,10 +13,10 @@ public class CompetitionResumeTests : IDisposable
 
     public void Dispose() => File.Delete(_file);
 
-    private static Category CreateCategory(bool shobu, int count)
+    private static Category CreateCategory(CategoryType discipline, int count)
     {
-        Category category = shobu ? new ShobuSanbonCategory() : new Category();
-        category.CategoryType = shobu ? CategoryType.Kumite : CategoryType.Kata;
+        Category category = discipline.UsesMatchBracket() ? new ShobuSanbonCategory() : new Category();
+        category.CategoryType = discipline;
         for (var id = 1; id <= count; id++)
             category.Participants.Add(new Participant(
                 $"Zawodnik {id}", "Testowy", 12, Belts.Kyu8, Sex.Male, [category.CategoryType]) { Id = id });
@@ -64,12 +64,14 @@ public class CompetitionResumeTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false, 5)]
-    [InlineData(true, 5)]
-    [InlineData(true, 8)]
-    public async Task ResumedCompetitionHasSameFinalAsUninterruptedCompetition(bool shobu, int count)
+    [InlineData(CategoryType.Kata, 5)]
+    [InlineData(CategoryType.Kumite, 5)]
+    [InlineData(CategoryType.Kumite, 8)]
+    [InlineData(CategoryType.Grappling, 5)]
+    public async Task ResumedCompetitionHasSameFinalAsUninterruptedCompetition(CategoryType discipline, int count)
     {
-        var original = CreateCategory(shobu, count);
+        var timed = discipline.UsesMatchBracket();
+        var original = CreateCategory(discipline, count);
         PlayNextMatch(original);
         PlayNextMatch(original);
         Assert.False(original.IsFinished);
@@ -78,7 +80,7 @@ public class CompetitionResumeTests : IDisposable
         var nextIndex = original.BracketMatches.FindLastIndex(match =>
             !match.IsFinished && match.Aka.HasValue && match.Shiro.HasValue);
         Assert.True(nextIndex >= 0);
-        if (shobu)
+        if (timed)
         {
             var next = Assert.IsType<ShobuSanbonMatch>(original.BracketMatches[nextIndex]);
             next.TimeRemaining = 73.5;
@@ -92,7 +94,7 @@ public class CompetitionResumeTests : IDisposable
         Assert.NotSame(original, resumed);
         Assert.Equal(original.GetType(), resumed.GetType());
         AssertSameBracket(original, resumed);
-        if (shobu)
+        if (timed)
         {
             var next = Assert.IsType<ShobuSanbonMatch>(resumed.BracketMatches[nextIndex]);
             Assert.Equal(73.5, next.TimeRemaining);
@@ -112,7 +114,7 @@ public class CompetitionResumeTests : IDisposable
     [Fact]
     public async Task LoadingCompletedCompetitionKeepsFinalWinnerAndFinishedState()
     {
-        var original = CreateCategory(true, 5);
+        var original = CreateCategory(CategoryType.Kumite, 5);
         Assert.Equal(4, FinishCompetition(original));
 
         await _json.SaveTournamentDataAsync(_file, [original]);

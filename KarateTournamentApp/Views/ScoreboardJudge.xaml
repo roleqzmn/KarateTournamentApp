@@ -38,14 +38,14 @@
         <!-- Main Control Panel -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>
-                <!-- Shobu Sanbon Controls -->
+                <!-- Timed match controls -->
                 <Border Background="White" 
                         CornerRadius="5" 
                         Padding="20" 
                         Margin="0,0,0,15"
-                        Visibility="{Binding IsShobuSanbon, Converter={StaticResource BoolToVisibilityConverter}}">
+                        Visibility="{Binding UsesMatchBracket, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
-                        <TextBlock Text="Kontrola Shobu Sanbon" 
+                        <TextBlock Text="{Binding BracketControlsTitle}"
                                    FontSize="20" 
                                    FontWeight="Bold"
                                    Margin="0,0,0,20"/>
@@ -361,7 +361,7 @@
                         CornerRadius="5" 
                         Padding="20" 
                         Margin="0,0,0,15"
-                        Visibility="{Binding IsShobuSanbon, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                        Visibility="{Binding UsesMatchBracket, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock Text="Panel Oceny Sedziow" 
                                    FontSize="20" 

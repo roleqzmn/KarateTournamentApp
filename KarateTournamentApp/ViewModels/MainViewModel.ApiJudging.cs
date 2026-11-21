@@ -40,9 +40,8 @@ public partial class MainViewModel
 
     private static bool CanJudge(Category category) => category is TeamCategory teamCategory
         ? teamCategory.Teams.Count > 0 && teamCategory.Teams.All(team => team.Members.Count > 0)
-        : category.Participants.Count > 0
-            && category.CategoryType is CategoryType.Kumite or CategoryType.Kata or CategoryType.Kihon
-                or CategoryType.KobudoShort or CategoryType.KobudoLong;
+        : category.Participants.Count > 0 && (category.CategoryType.UsesMatchBracket()
+            || category.CategoryType is CategoryType.Kata or CategoryType.Kihon or CategoryType.KobudoShort or CategoryType.KobudoLong);
 
     private async Task StartApiJudgingAsync(CategoryViewModel item)
     {
@@ -163,7 +162,7 @@ public partial class MainViewModel
             if (session?.Category is not { IsFinished: true } category)
                 throw new InvalidOperationException("Zakończ konkurencję przed wysłaniem wyników.");
 
-            if (category.CategoryType == CategoryType.Kumite)
+            if (category.CategoryType.UsesMatchBracket())
             {
                 var matches = category.BracketMatches.Select((item, position) =>
                 {
@@ -175,7 +174,7 @@ public partial class MainViewModel
                         match.SenshuEnabled, match.HasSenshuAka, match.HasSenshuShiro, match.IsInOvertime, match.OvertimeCount);
                 }).ToArray();
                 var ranking = category.FinalResults.Select(result => result.Participant.Id).ToArray();
-                await _api!.SubmitKumiteResultsAsync(session.CategoryId, new(session.Token, matches, ranking));
+                await _api!.SubmitBracketResultsAsync(session.CategoryId, category.CategoryType, new(session.Token, matches, ranking));
             }
             else if (category is TeamCategory teamCategory)
             {

@@ -19,7 +19,9 @@ namespace KarateTournamentApp.ViewModels
         public string CategoryName => _competitionManager.Category.Name;
         public string AkaName => _competitionManager.AkaParticipant?.FullName ?? "---";
         public string ShiroName => _competitionManager.ShiroParticipant?.FullName ?? "---";
-        public bool IsShobuSanbon => _competitionManager.IsShobuSanbon;
+        public bool UsesMatchBracket => _competitionManager.UsesMatchBracket;
+        public string BracketControlsTitle => _competitionManager.Category.CategoryType == CategoryType.Grappling
+            ? "Kontrola Grapplingu" : "Kontrola Shobu Sanbon";
         public int AkaScore => _competitionManager.CurrentMatch?.AkaScore ?? 0;
         public int ShiroScore => _competitionManager.CurrentMatch?.ShiroScore ?? 0;
         public int AkaAtenai => _competitionManager.CurrentMatch is ShobuSanbonMatch akaMatch ? akaMatch.AtenaiAka : 0;
@@ -27,7 +29,7 @@ namespace KarateTournamentApp.ViewModels
         public int AkaChukoku => _competitionManager.CurrentMatch is ShobuSanbonMatch akaPenaltyMatch ? akaPenaltyMatch.ChukokuAka : 0;
         public int ShiroChukoku => _competitionManager.CurrentMatch is ShobuSanbonMatch shiroPenaltyMatch ? shiroPenaltyMatch.ChukokuShiro : 0;
 
-        // Commands for Shobu Sanbon
+        // Timed match controls
         public ICommand AddAkaPointCommand { get; }
         public ICommand AddShiroPointCommand { get; }
         public ICommand RemoveAkaPointCommand { get; }
@@ -250,7 +252,7 @@ namespace KarateTournamentApp.ViewModels
             OnPropertyChanged(nameof(AkaName));
             OnPropertyChanged(nameof(ShiroName));
             OnPropertyChanged(nameof(CategoryName));
-            OnPropertyChanged(nameof(IsShobuSanbon));
+            OnPropertyChanged(nameof(UsesMatchBracket));
             OnPropertyChanged(nameof(AkaScore));
             OnPropertyChanged(nameof(ShiroScore));
             OnPropertyChanged(nameof(AkaAtenai));

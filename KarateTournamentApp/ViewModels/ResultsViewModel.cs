@@ -9,18 +9,18 @@ namespace KarateTournamentApp.ViewModels
 
         public string CategoryName => _competitionManager.Category.Name;
         public IReadOnlyList<KataPerformanceResult> Rankings { get; }
-        public bool HasKumiteWinner =>
-            _competitionManager.Category.CategoryType == CategoryType.Kumite
+        public bool HasBracketWinner =>
+            _competitionManager.Category.CategoryType.UsesMatchBracket()
             && _competitionManager.Category.BracketMatches.Any()
             && _competitionManager.Category.BracketMatches[0].WinnerId.HasValue;
 
-        public bool HasKumiteFinalMatchSummary => HasKumiteWinner && _competitionManager.Category.BracketMatches[0].Aka.HasValue && _competitionManager.Category.BracketMatches[0].Shiro.HasValue;
+        public bool HasBracketFinalMatchSummary => HasBracketWinner && _competitionManager.Category.BracketMatches[0].Aka.HasValue && _competitionManager.Category.BracketMatches[0].Shiro.HasValue;
 
-        public string KumiteWinnerDisplay
+        public string BracketWinnerDisplay
         {
             get
             {
-                if (!HasKumiteWinner)
+                if (!HasBracketWinner)
                 {
                     return string.Empty;
                 }
@@ -31,11 +31,11 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        public string KumiteFinalMatchSummary
+        public string BracketFinalMatchSummary
         {
             get
             {
-                if (!HasKumiteFinalMatchSummary)
+                if (!HasBracketFinalMatchSummary)
                 {
                     return string.Empty;
                 }

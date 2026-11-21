@@ -54,17 +54,17 @@ namespace KarateTournamentApp.ViewModels
         public int ParticipantCount => _category.Participants.Count;
         public string CategoryTypeDisplay => _category is TeamCategory ? "Team Kata" : _category.CategoryType.ToString();
         public string SexDisplay => _category.Sex.ToString();
-        public bool HasKumiteWinner =>
-            _category.CategoryType == CategoryType.Kumite
+        public bool HasBracketWinner =>
+            _category.CategoryType.UsesMatchBracket()
             && _category.IsFinished
             && _category.BracketMatches.Any()
             && _category.BracketMatches[0].WinnerId.HasValue;
 
-        public string KumiteWinnerDisplay
+        public string BracketWinnerDisplay
         {
             get
             {
-                if (!HasKumiteWinner)
+                if (!HasBracketWinner)
                 {
                     return string.Empty;
                 }
@@ -169,8 +169,8 @@ namespace KarateTournamentApp.ViewModels
         {
             try
             {
-                if(_category.CategoryType==CategoryType.Kumite)
-                    _category.InitializeBracket();
+                if (_category.CategoryType.UsesMatchBracket())
+                    CompetitionManagerViewModel.InitializeTimedBracket(_category);
                 else
                     _category.Participants.OrderBy(p => p.Id);
                 _dialogService.ShowMessage(
@@ -201,8 +201,8 @@ namespace KarateTournamentApp.ViewModels
             OnPropertyChanged(nameof(CategoryTypeDisplay));
             OnPropertyChanged(nameof(SexDisplay));
             OnPropertyChanged(nameof(AgeRangeDisplay));
-            OnPropertyChanged(nameof(HasKumiteWinner));
-            OnPropertyChanged(nameof(KumiteWinnerDisplay));
+            OnPropertyChanged(nameof(HasBracketWinner));
+            OnPropertyChanged(nameof(BracketWinnerDisplay));
             OnPropertyChanged(nameof(Category));
         }
 
@@ -269,21 +269,19 @@ namespace KarateTournamentApp.ViewModels
 
         private void StartCompetition()
         {
-            // Check if this is a Kumite category (bracket-style competition)
-            if (_category.CategoryType == CategoryType.Kumite || _category is ShobuSanbonCategory)
+            if (_category.CategoryType.UsesMatchBracket() || _category is ShobuSanbonCategory)
             {
                 StartBracketCompetition();
             }
             else
             {
-                // All other categories are individual (Kata, Kihon, Kobudo, Grappling)
                 StartIndividualCompetition();
             }
         }
 
         internal IWindowHandle OpenApiJudge(IndividualJudgeDraft? draft, TeamJudgeDraft? teamDraft,
             Action<IndividualJudgeDraft?, TeamJudgeDraft?> checkpoint) =>
-            _category.CategoryType == CategoryType.Kumite
+            _category.CategoryType.UsesMatchBracket()
                 ? StartBracketCompetition(() => checkpoint(null, null))
                 : _category is TeamCategory
                     ? StartIndividualCompetition(teamDraft: teamDraft ?? TeamJudgeDraft.Empty, checkpoint: checkpoint)

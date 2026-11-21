@@ -51,14 +51,13 @@ namespace KarateTournamentApp.ViewModels
         public bool AkaHansoku => AkaAtenai >= 3 || AkaChukoku >= 4;
         public bool ShiroHansoku => ShiroAtenai >= 3 || ShiroChukoku >= 4;
 
-        public bool IsShobuSanbon => _competitionManager.Category.CategoryType == CategoryType.Kumite;
+        public bool UsesMatchBracket => _competitionManager.UsesMatchBracket;
 
         public ScoreboardViewModel(CompetitionManagerViewModel competitionManager)
         {
             _competitionManager = competitionManager;
 
-            // Setup timer for Kumite / Shobu Sanbon mode
-            if (IsShobuSanbon)
+            if (UsesMatchBracket)
             {
                 _timer = new System.Timers.Timer(100); // Update every 100ms
                 _timer.Elapsed += OnTimerElapsed;
@@ -93,11 +92,9 @@ namespace KarateTournamentApp.ViewModels
 
         public void StopTimer()
         {
+            _timer?.Stop();
             if (_competitionManager.CurrentMatch is ShobuSanbonMatch shobuMatch)
-            {
                 shobuMatch.IsRunning = false;
-                _timer?.Stop();
-            }
         }
 
         private void RefreshAll()
@@ -113,7 +110,7 @@ namespace KarateTournamentApp.ViewModels
             OnPropertyChanged(nameof(AkaHansoku));
             OnPropertyChanged(nameof(ShiroHansoku));
             OnPropertyChanged(nameof(TimeDisplay));
-            OnPropertyChanged(nameof(IsShobuSanbon));
+            OnPropertyChanged(nameof(UsesMatchBracket));
         }
     }
 }

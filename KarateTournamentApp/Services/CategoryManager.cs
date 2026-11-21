@@ -98,7 +98,7 @@ namespace KarateTournamentApp.Services
             int minAge,
             int maxAge)
         {
-            return categoryType == CategoryType.Kumite
+            return categoryType.UsesMatchBracket()
                 ? new ShobuSanbonCategory(belts, categoryType, sex, minAge, maxAge)
                 : new Category(belts, categoryType, sex, minAge, maxAge);
         }

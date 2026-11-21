@@ -271,7 +271,7 @@ deleting data and can be repeated. This is not an automatic schema upgrade; no E
 migrations or local database reset are performed. Fresh test databases use EnsureCreated.
 
 In WPF, **Przejmij i rozpocznij** opens the judge panel and public scoreboard
-for Kumite and individually scored categories. WPF saves the session token
+for Kumite, Grappling and competitions scored with judge notes. WPF saves the session token
 before claiming and checkpoints progress every two seconds and on close.
 Use **Wznów sesję** to reopen local progress during a network outage. An
 unconfirmed claim is retried with the same token. The timer starts paused after
@@ -294,7 +294,7 @@ reopens with its local session, it completes the handoff.
 
 After the organizer sees **Do wznowienia**, the same or a different judge can
 refresh the competition list and claim it with a new session token. Individual
-notes and the current participant are restored. Kumite restores the bracket,
+notes and the current entry are restored. Kumite and Grappling restore the bracket,
 points, penalties and remaining time with the timer paused. A transferred
 checkpoint is separate from final results, and its roster stays locked against
 edits.
@@ -359,7 +359,12 @@ even after an API restart. A canonical payload hash rejects changed submissions.
 Apply `Data/Schema/add-category-completion.sql` explicitly to existing databases
 before starting this version. Completion tokens and hashes are not exposed in DTOs.
 
-## Complete Kumite
+## Complete Kumite or Grappling
+
+Grappling uses the same bracket, scoring and timer behavior as the existing
+Kumite module. It retains its own category type and publishes via
+`POST /api/categories/{id}/grappling-results`. Both endpoints use the same
+request body and validate the discipline of the category they complete.
 
 `POST /api/categories/{id}/kumite-results` takes sessionToken, matches, and
 rankedParticipantIds. Matches use KumiteMatchResultRequest: bracket position,

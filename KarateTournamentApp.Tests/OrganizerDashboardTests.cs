@@ -89,12 +89,15 @@ public sealed class OrganizerDashboardTests
         Assert.Equal(OrganizerCompetitionStatus.InProgress, Assert.Single(dashboard.OrganizerCategories).Status);
     }
 
-    [Fact]
-    public async Task JudgeCanOpenCompetitionButCannotUseOrganizerCommands()
+    [Theory]
+    [InlineData(CategoryType.Kata)]
+    [InlineData(CategoryType.Grappling)]
+    public async Task JudgeCanOpenCompetitionButCannotUseOrganizerCommands(CategoryType discipline)
     {
         var responses = new TestApi();
         using var http = new HttpClient(responses);
-        var judge = await LoadAsync(http, responses, judge: true);
+        var judge = await LoadAsync(http, responses, judge: true, snapshot:
+            new TournamentSnapshotDto([Participant with { CategoryTypes = [discipline] }], [Category with { CategoryType = discipline }]));
         var competition = Assert.Single(judge.Categories);
         judge.FirstName = Participant.FirstName;
         judge.LastName = Participant.LastName;
@@ -284,6 +287,64 @@ public sealed class OrganizerDashboardTests
             var ranking = Assert.Single(published.TeamResults);
             Assert.Equal(25m, ranking.Score);
             Assert.Equal(Participant.Id, Assert.Single(ranking.Team.Members).Id);
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task GrapplingUsesTheCombatPanelAndPublishesItsOwnBracket()
+    {
+        var second = Participant with { Id = 2, FirstName = "Drugi" };
+        var dto = Category with { CategoryType = CategoryType.Grappling, Name = "Grappling",
+            ParticipantIds = [Participant.Id, second.Id] };
+        var snapshot = new TournamentSnapshotDto([Participant, second], [dto]);
+        var category = Assert.IsType<KarateTournamentApp.Models.ShobuSanbonCategory>(
+            TournamentSnapshotMapper.MapCategories(snapshot).Single().Category);
+        var dialogs = new ImportDialogs(string.Empty);
+        var manager = new CompetitionManagerViewModel(category, dialogs, preserveBracket: true);
+        var scoreboard = new ScoreboardViewModel(manager);
+        var judgePanel = new ScoreboardJudgeViewModel(manager, dialogs, scoreboard);
+        Assert.True(scoreboard.UsesMatchBracket);
+        Assert.Equal("Kontrola Grapplingu", judgePanel.BracketControlsTitle);
+        var match = Assert.IsType<KarateTournamentApp.Models.ShobuSanbonMatch>(manager.CurrentMatch);
+        scoreboard.StartTimer();
+        scoreboard.StopTimer();
+        Assert.False(match.IsRunning);
+        manager.UpdateMatchScore(true, 4);
+        manager.FinishMatchCommand.Execute(null);
+        Assert.True(category.IsFinished);
+        Assert.Equal(Participant.Id, category.FinalResults[0].Participant.Id);
+        var managerForResults = new IndividualCompetitionManagerViewModel(category, new WpfWindowService(), new WpfUiScheduler());
+        Assert.True(new ResultsViewModel(managerForResults).HasBracketWinner);
+
+        var folder = Path.Combine(Path.GetTempPath(), $"karate-grappling-{Guid.NewGuid():N}");
+        var store = new JudgingSessionStore("test", folder);
+        var session = new JudgingSession(category.Id, category.Name, Guid.NewGuid(), "Tatami")
+        {
+            Category = category
+        };
+        try
+        {
+            using (store.Lock(session.CategoryId))
+                store.Save(session);
+            var responses = new TestApi();
+            using var http = new HttpClient(responses);
+            var judge = await LoadAsync(http, responses, judge: true, dialogs: dialogs, sessionStore: store, snapshot: snapshot);
+            responses.Enqueue(HttpStatusCode.NoContent);
+            responses.EnqueueJson(snapshot with { Categories = [dto with { IsFinished = true }] });
+
+            await Assert.IsType<AsyncRelayCommand<JudgingSession>>(judge.SubmitApiJudgingCommand)
+                .ExecuteAsync(Assert.Single(judge.JudgingSessions));
+
+            Assert.Equal((HttpMethod.Post, "/api/categories/1/grappling-results"), responses.Operations[1]);
+            var request = JsonSerializer.Deserialize<CompleteKumiteCategoryRequest>(responses.Bodies[1]!, JsonSerializerOptions.Web)!;
+            Assert.Equal(4, Assert.Single(request.Matches!).AkaScore);
+            Assert.Equal(new[] { Participant.Id, second.Id }, request.RankedParticipantIds);
+            Assert.Empty(judge.JudgingSessions);
         }
         finally
         {

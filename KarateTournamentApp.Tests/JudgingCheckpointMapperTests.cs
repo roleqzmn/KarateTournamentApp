@@ -44,24 +44,26 @@ public sealed class JudgingCheckpointMapperTests
         Assert.Empty(resumed.FinalResults);
     }
 
-    [Fact]
-    public void RestoresKumitePointsPenaltiesAndClockWithoutStartingTheTimer()
+    [Theory]
+    [InlineData(CategoryType.Kumite)]
+    [InlineData(CategoryType.Grappling)]
+    public void RestoresBracketPointsPenaltiesAndClockWithoutStartingTheTimer(CategoryType discipline)
     {
-        var first = new Participant("Jan", "Test", 12, Belts.Kyu8, Sex.Male, [CategoryType.Kumite]);
-        var second = new Participant("Adam", "Test", 12, Belts.Kyu8, Sex.Male, [CategoryType.Kumite]);
+        var first = new Participant("Jan", "Test", 12, Belts.Kyu8, Sex.Male, [discipline]);
+        var second = new Participant("Adam", "Test", 12, Belts.Kyu8, Sex.Male, [discipline]);
         var fight = new ShobuSanbonMatch
         {
             Aka = first.Id, Shiro = second.Id, AkaScore = 2, ShiroScore = 1, TimeRemaining = 33.5,
             AtenaiAka = 1, ChukokuShiro = 2, IsRunning = true, HasSenshuAka = true,
             IsInOvertime = true, OvertimeCount = 1
         };
-        var original = new JudgingSession(1, "Kumite", Guid.NewGuid(), "Tatami 1")
+        var original = new JudgingSession(1, discipline.ToString(), Guid.NewGuid(), "Tatami 1")
         {
-            Category = new ShobuSanbonCategory { CategoryType = CategoryType.Kumite, Participants = [first, second], BracketMatches = [fight] }
+            Category = new ShobuSanbonCategory { CategoryType = discipline, Participants = [first, second], BracketMatches = [fight] }
         };
-        var next = new JudgingSession(1, "Kumite", Guid.NewGuid(), "Tatami 2")
+        var next = new JudgingSession(1, discipline.ToString(), Guid.NewGuid(), "Tatami 2")
         {
-            Category = new ShobuSanbonCategory { CategoryType = CategoryType.Kumite, Participants = [first, second] }
+            Category = new ShobuSanbonCategory { CategoryType = discipline, Participants = [first, second] }
         };
 
         var checkpoint = JudgingCheckpointMapper.Capture(original);

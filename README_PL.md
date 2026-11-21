@@ -6,7 +6,7 @@ Aplikacja Windows do zarządzania turniejami karate, zbudowana w WPF i .NET 10.
 
 ## Przegląd
 
-Jedna aplikacja WPF otwiera osobne okno organizatora lub sędziego. We wspólnym turnieju organizator prowadzi rejestr i zarządza składami przez API z bazą PostgreSQL. Sędziowie przejmują konkurencje i oceniają lokalnie. Tryb sieciowy obsługuje sędziowanie Kumite (Shobu Sanbon), Kata, Team Kata, Kihon i indywidualnego Kobudo.
+Jedna aplikacja WPF otwiera osobne okno organizatora lub sędziego. We wspólnym turnieju organizator prowadzi rejestr i zarządza składami przez API z bazą PostgreSQL. Sędziowie przejmują konkurencje i oceniają lokalnie. Tryb sieciowy obsługuje sędziowanie Kumite (Shobu Sanbon), Grapplingu, Kata, Team Kata, Kihon i indywidualnego Kobudo.
 
 Tryb plikowy jest dostępny po ustawieniu roli `local`.
 
@@ -118,7 +118,7 @@ Domyślna rola to `judge`. Ustaw `local`, żeby pracować z turniejem w plikach 
 
 1. Organizator wybiera trwającą konkurencję i klika **Zwolnij do kontynuacji**. Stanowisko sędziego zamyka panel oceniania, a API zapisuje bieżący stan w PostgreSQL i zwalnia blokadę.
 2. Poczekaj na status **Do wznowienia**. Jeśli stanowisko sędziego jest offline lub aplikacja jest zamknięta, status **Oczekuje na zwolnienie** pozostaje do ponownego połączenia i wysłania zapisu.
-3. Ten sam lub inny sędzia klika **Pobierz turniej z API**, a następnie przejmuje konkurencję. W konkurencjach indywidualnych wracają noty i aktualny zawodnik. W Kumite wracają drabinka, punkty, kary i pozostały czas. Zegar startuje w pauzie. [Przekazanie i odzyskiwanie awaryjne](KarateTournament.Api/README.md#hand-off-a-competition)
+3. Ten sam lub inny sędzia klika **Pobierz turniej z API**, a następnie przejmuje konkurencję. W konkurencjach ocenianych notami wracają noty i aktualny występ. W Kumite i Grapplingu wracają drabinka, punkty, kary i pozostały czas. Zegar startuje w pauzie. [Przekazanie i odzyskiwanie awaryjne](KarateTournament.Api/README.md#hand-off-a-competition)
 
 ### Zarządzanie kategoriami w trybie plikowym
 

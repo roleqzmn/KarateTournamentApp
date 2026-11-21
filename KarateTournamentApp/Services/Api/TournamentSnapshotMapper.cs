@@ -25,7 +25,7 @@ internal static class TournamentSnapshotMapper
         {
             Category category = dto.CategoryType switch
             {
-                CategoryType.Kumite => new ShobuSanbonCategory(),
+                _ when dto.CategoryType.UsesMatchBracket() => new ShobuSanbonCategory(),
                 CategoryType.Team => new TeamCategory(),
                 _ => new Category()
             };
@@ -64,7 +64,7 @@ internal static class TournamentSnapshotMapper
 
     internal static Match MapMatch(MatchDto dto, CategoryType categoryType)
     {
-        Match match = categoryType == CategoryType.Kumite
+        Match match = categoryType.UsesMatchBracket()
             ? new ShobuSanbonMatch
             {
                 TimeRemaining = dto.TimeRemaining,

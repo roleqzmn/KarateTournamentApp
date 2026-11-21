@@ -17,7 +17,7 @@ internal static class JudgingCheckpointMapper
         }
         var ranking = category.FinalResults.Count == 0 ? null
             : category.FinalResults.Select(result => result.Participant.Id).ToArray();
-        if (category.CategoryType != CategoryType.Kumite)
+        if (!category.CategoryType.UsesMatchBracket())
             return new(category.IsFinished, session.Draft ?? IndividualJudgeDraft.Empty, null, ranking);
 
         var matches = category.BracketMatches.Select((entry, index) =>

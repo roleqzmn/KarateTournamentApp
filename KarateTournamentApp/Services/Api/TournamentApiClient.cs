@@ -117,8 +117,16 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/individual-results", request);
     public Task SubmitTeamResultsAsync(int id, CompleteTeamCategoryRequest request) =>
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/team-results", request);
-    public Task SubmitKumiteResultsAsync(int id, CompleteKumiteCategoryRequest request) =>
-        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/kumite-results", request);
+    public Task SubmitBracketResultsAsync(int id, CategoryType discipline, CompleteKumiteCategoryRequest request)
+    {
+        var route = discipline switch
+        {
+            CategoryType.Kumite => "kumite-results",
+            CategoryType.Grappling => "grappling-results",
+            _ => throw new ArgumentOutOfRangeException(nameof(discipline))
+        };
+        return WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/{route}", request);
+    }
     public Task<ClaimRecoveryDto> GetRecoveryTargetAsync(int id) =>
         WriteAsync<ClaimRecoveryDto>(HttpMethod.Get, $"api/categories/{id}/claim-recovery", useRecoveryKey: true);
     public Task RecoverClaimAsync(int id, RecoverCategoryClaimRequest request) =>
