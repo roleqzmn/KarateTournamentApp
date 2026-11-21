@@ -20,12 +20,25 @@ public partial class TournamentApiIntegrationTests
         _client.Dispose();
         await _factory.DisposeAsync();
         StartApi(organizerKey: organizers, judgeKey: judges);
+        using var organizer = _factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        organizer.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", organizers);
         using var secondStation = _factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
         var clients = new[] { _client, secondStation };
         foreach (var client in clients)
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", judges);
         var tokens = new[] { Guid.NewGuid(), Guid.NewGuid() };
         var path = $"/api/categories/{category.Id}";
+
+        async Task<CategorySummaryDto> ReadOrganizerSummaryAsync()
+        {
+            var summaries = await organizer.GetFromJsonAsync<CategorySummaryDto[]>("/api/categories");
+            return Assert.Single(summaries!);
+        }
+
+        var open = await ReadOrganizerSummaryAsync();
+        Assert.False(open.IsClaimed);
+        Assert.False(open.IsFinished);
+
         var claims = await Task.WhenAll(clients.Select((client, index) =>
             client.PostAsJsonAsync($"{path}/claim", new ClaimCategoryRequest(tokens[index], $"Tatami {index}"))));
         try
@@ -33,6 +46,10 @@ public partial class TournamentApiIntegrationTests
             Assert.Single(claims, response => response.StatusCode == HttpStatusCode.NoContent);
             Assert.Single(claims, response => response.StatusCode == HttpStatusCode.Conflict);
             var winner = Array.FindIndex(claims, response => response.StatusCode == HttpStatusCode.NoContent);
+            var inProgress = await ReadOrganizerSummaryAsync();
+            Assert.True(inProgress.IsClaimed);
+            Assert.False(inProgress.IsFinished);
+            Assert.Equal($"Tatami {winner}", inProgress.ClaimedBy);
             var request = new CompleteIndividualCategoryRequest(tokens[winner], [new(participant.Id, 1, [7m, 8m, 9m])]);
             using var submitted = await clients[winner].PostAsJsonAsync($"{path}/individual-results", request);
             Assert.Equal(HttpStatusCode.NoContent, submitted.StatusCode);
@@ -41,6 +58,12 @@ public partial class TournamentApiIntegrationTests
             var stored = await clients[1 - winner].GetFromJsonAsync<CategoryDto>(path);
             Assert.True(stored!.IsFinished);
             Assert.Equal(24m, Assert.Single(stored.FinalResults).Score);
+            var completed = await ReadOrganizerSummaryAsync();
+            Assert.True(completed.IsFinished);
+            Assert.False(completed.IsClaimed);
+            Assert.Null(completed.ClaimedBy);
+            var ranking = await organizer.GetFromJsonAsync<CategoryDto>(path);
+            Assert.Equal(1, Assert.Single(ranking!.FinalResults).Rank);
         }
         finally { foreach (var response in claims) response.Dispose(); }
     }

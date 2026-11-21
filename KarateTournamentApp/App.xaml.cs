@@ -1,8 +1,7 @@
-﻿using System.Configuration;
-using System.Data;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Windows;
+using KarateTournamentApp.Models;
 using KarateTournamentApp.Services;
 using KarateTournamentApp.Services.Api;
 using KarateTournamentApp.Services.Dialogs;
@@ -30,6 +29,17 @@ namespace KarateTournamentApp
             var uiScheduler = new WpfUiScheduler();
             RegisterViews(windowService);
 
+            var role = StationRoleSettings.Parse(Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_ROLE"));
+            if (role == StationRole.Local)
+            {
+                MainWindow = new MainWindow
+                {
+                    DataContext = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler)
+                };
+                MainWindow.Show();
+                return;
+            }
+
             _tournamentHttpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
             {
                 Timeout = TimeSpan.FromSeconds(10)
@@ -40,16 +50,10 @@ namespace KarateTournamentApp
             var api = new TournamentApiClient(_tournamentHttpClient,
                 Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_API_URL"),
                 Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_RECOVERY_KEY"));
-            var judgeStation = string.Equals(Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_ROLE"),
-                "judge", StringComparison.OrdinalIgnoreCase);
-            var mainViewModel = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler, api, judgeStation);
-
-            var mainWindow = new MainWindow
-            {
-                DataContext = mainViewModel
-            };
-
-            mainWindow.Show();
+            var judgeStation = role == StationRole.Judge;
+            MainWindow = judgeStation ? new JudgeWindow() : new OrganizerWindow();
+            MainWindow.DataContext = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler, api, judgeStation);
+            MainWindow.Show();
         }
 
         protected override void OnExit(ExitEventArgs e)

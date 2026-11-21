@@ -16,6 +16,16 @@ public sealed class TournamentDbContext : DbContext
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<ParticipantResult> ParticipantResults => Set<ParticipantResult>();
     public DbSet<RevokedCategoryClaim> RevokedCategoryClaims => Set<RevokedCategoryClaim>();
+    public DbSet<CategoryJudgingProgress> JudgingProgress => Set<CategoryJudgingProgress>();
+
+    internal Task EnsureJudgingProgressSchemaAsync() => Database.ExecuteSqlRawAsync("""
+        CREATE TABLE IF NOT EXISTS "JudgingProgress" (
+            "CategoryId" integer PRIMARY KEY REFERENCES "Categories" ("Id") ON DELETE CASCADE,
+            "RequestedFor" uuid,
+            "LastReleasedToken" uuid,
+            "CheckpointJson" text
+        )
+        """);
 
     // Call inside a transaction that holds the lock until the category change commits.
     internal async Task<Category?> LockCategoryAsync(int categoryId, CancellationToken cancellationToken)
@@ -62,6 +72,14 @@ public sealed class TournamentDbContext : DbContext
             entity.Property(claim => claim.ClaimReference).HasMaxLength(64);
             entity.HasOne<Category>().WithMany()
                 .HasForeignKey(claim => claim.CategoryId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CategoryJudgingProgress>(entity =>
+        {
+            entity.HasKey(progress => progress.CategoryId);
+            entity.HasOne<Category>().WithOne(category => category.JudgingProgress)
+                .HasForeignKey<CategoryJudgingProgress>(progress => progress.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Participant>(entity =>

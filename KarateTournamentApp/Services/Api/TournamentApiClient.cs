@@ -46,10 +46,14 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         }
     }
 
+    public async Task<CategorySummaryDto[]> GetCategorySummariesAsync(CancellationToken cancellationToken) =>
+        await httpClient.GetFromJsonAsync<CategorySummaryDto[]>(GetEndpoint("api/categories"), JsonOptions, cancellationToken)
+            .ConfigureAwait(false) ?? throw new InvalidDataException("API zwróciło pustą listę konkurencji zamiast danych.");
+
     public async Task<ParticipantDto> CreateParticipantAsync(
-        CreateParticipantRequest participant, CancellationToken cancellationToken = default)
+        CreateParticipantRequest participant, CancellationToken cancellationToken = default, CategoryGrouping? groupBy = null)
     {
-        var endpoint = GetEndpoint("api/participants");
+        var endpoint = GetEndpoint(RegistrationPath("api/participants", groupBy));
         try
         {
             using var response = await httpClient.PostAsJsonAsync(
@@ -85,8 +89,11 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
     public Task<ParticipantDto> UpdateParticipantAsync(int id, CreateParticipantRequest request) =>
         WriteAsync<ParticipantDto>(HttpMethod.Put, $"api/participants/{id}", request);
 
-    public Task<ParticipantDto[]> ImportParticipantsAsync(CreateParticipantRequest[] requests) =>
-        WriteAsync<ParticipantDto[]>(HttpMethod.Post, "api/participants/batch", requests);
+    public Task<ParticipantDto[]> ImportParticipantsAsync(CreateParticipantRequest[] requests, CategoryGrouping groupBy) =>
+        WriteAsync<ParticipantDto[]>(HttpMethod.Post, RegistrationPath("api/participants/batch", groupBy), requests);
+
+    private static string RegistrationPath(string path, CategoryGrouping? groupBy) =>
+        groupBy is { } grouping ? $"{path}?groupBy={grouping}" : path;
 
     public Task<CategoryDto> SaveCategoryAsync(int? id, CreateCategoryRequest request) =>
         id.HasValue
@@ -108,7 +115,24 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
     public Task RecoverClaimAsync(int id, RecoverCategoryClaimRequest request) =>
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/claim-recovery", request, useRecoveryKey: true);
 
-    private async Task<T> WriteAsync<T>(HttpMethod method, string path, object? payload = null, bool useRecoveryKey = false)
+    public Task<ClaimRecoveryDto> GetHandoffTargetAsync(int id) =>
+        WriteAsync<ClaimRecoveryDto>(HttpMethod.Get, $"api/categories/{id}/handoff");
+
+    public Task RequestHandoffAsync(int id, RecoverCategoryClaimRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/handoff", request);
+
+    public Task<JudgingHandoffState> GetHandoffStateAsync(int id, Guid token, CancellationToken cancellationToken) =>
+        WriteAsync<JudgingHandoffState>(HttpMethod.Post, $"api/categories/{id}/handoff/status",
+            new ReleaseCategoryRequest(token), cancellationToken: cancellationToken);
+
+    public Task<JudgingCheckpointDto> GetJudgingCheckpointAsync(int id, Guid token) =>
+        WriteAsync<JudgingCheckpointDto>(HttpMethod.Post, $"api/categories/{id}/handoff/checkpoint", new ReleaseCategoryRequest(token));
+
+    public Task SaveAndReleaseJudgingAsync(int id, SaveJudgingHandoffRequest request, CancellationToken cancellationToken = default) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/handoff/save", request, cancellationToken: cancellationToken);
+
+    private async Task<T> WriteAsync<T>(HttpMethod method, string path, object? payload = null, bool useRecoveryKey = false,
+        CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(method, GetEndpoint(path));
         if (useRecoveryKey)
@@ -117,19 +141,24 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
             request.Content = JsonContent.Create(payload, options: JsonOptions);
         try
         {
-            using var response = await httpClient.SendAsync(request).ConfigureAwait(false);
+            using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException(await ReadApiErrorAsync(response).ConfigureAwait(false));
+            {
+                var message = await ReadApiErrorAsync(response).ConfigureAwait(false);
+                throw response.StatusCode == HttpStatusCode.Conflict
+                    ? new ApiConflictException(message)
+                    : new InvalidOperationException(message);
+            }
             if (response.StatusCode == HttpStatusCode.NoContent && typeof(T) == typeof(object))
                 return (T)new object();
-            return await response.Content.ReadFromJsonAsync<T>(JsonOptions).ConfigureAwait(false)
+            return await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidDataException("API nie zwróciło danych. Odśwież turniej, aby sprawdzić stan zapisu.");
         }
         catch (HttpRequestException exception)
         {
             throw new InvalidOperationException("Nie można potwierdzić operacji. Sprawdź połączenie i odśwież turniej.", exception);
         }
-        catch (OperationCanceledException exception)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             throw new InvalidOperationException("Upłynął czas oczekiwania. Odśwież turniej, aby sprawdzić stan zapisu.", exception);
         }
@@ -197,3 +226,5 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
     private sealed record ValidationErrorResponse(Dictionary<string, string[]>? Errors);
     private sealed record ApiErrorResponse(string? Title);
 }
+
+internal sealed class ApiConflictException(string message) : InvalidOperationException(message);

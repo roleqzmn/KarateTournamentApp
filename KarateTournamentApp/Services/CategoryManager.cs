@@ -11,7 +11,7 @@ namespace KarateTournamentApp.Services
         private List<Belts> AllBelts { get; } = Enum.GetValues<Belts>().ToList();
         public void AssignParticipant(Participant p, bool DivideByBelt, bool DivideByAge) 
         {
-            if (p.Age >= 18){ AssignSenior(p); return; }
+            if (p.Age >= ParticipantCategoryRules.SeniorAge) { AssignSenior(p); return; }
 
             if (DivideByBelt && DivideByAge)
             {
@@ -49,52 +49,39 @@ namespace KarateTournamentApp.Services
         }
         public void AssignSenior(Participant p)
         {
-            AssignParticipantToCategories(
-                p,
-                category => category.MinAge >= 18 && category.AllowedBelts.Contains(p.Belt),
-                categoryType => CreateParticipantCategory(AllBelts, categoryType, p.Sex, 18, 99));
+            AssignParticipantToCategories(p, CategoryGrouping.AgeAndBelt, senior: true);
         }
 
         public void AssignByBelt(Participant p)
         {
-            AssignParticipantToCategories(
-                p,
-                category => category.MaxAge < 18 && category.AllowedBelts.Contains(p.Belt),
-                categoryType => CreateParticipantCategory(p.Belt, categoryType, p.Sex, 1, 17));
+            AssignParticipantToCategories(p, CategoryGrouping.Belt, senior: false);
         }
 
         public void AssignByAge(Participant p)
         {
-            AssignParticipantToCategories(
-                p,
-                category => p.Age >= category.MinAge && p.Age <= category.MaxAge,
-                categoryType => CreateParticipantCategory(AllBelts, categoryType, p.Sex, p.Age, p.Age));
+            AssignParticipantToCategories(p, CategoryGrouping.Age, senior: false);
         }
 
         public void AssignByBoth(Participant p)
         {
-            AssignParticipantToCategories(
-                p,
-                category => p.Age >= category.MinAge
-                    && p.Age <= category.MaxAge
-                    && category.AllowedBelts.Contains(p.Belt),
-                categoryType => CreateParticipantCategory(p.Belt, categoryType, p.Sex, p.Age, p.Age));
+            AssignParticipantToCategories(p, CategoryGrouping.AgeAndBelt, senior: false);
         }
 
         private void AssignParticipantToCategories(
-            Participant participant,
-            Func<Category, bool> additionalMatch,
-            Func<CategoryType, Category> createCategory)
+            Participant participant, CategoryGrouping grouping, bool senior)
         {
+            var (minAge, maxAge, singleBelt) = ParticipantCategoryRules.GetSettings(
+                participant.Age, participant.Belt, grouping, senior);
             foreach (var categoryType in participant.Categories)
             {
                 var targetCategory = DefinedCategories.FirstOrDefault(category =>
                     category.CategoryType == categoryType
-                    && (participant.Sex == category.Sex || category.Sex == Sex.Unisex)
-                    && additionalMatch(category));
+                    && ParticipantCategoryRules.Matches(participant.Age, participant.Sex, senior, grouping,
+                        category.MinAge, category.MaxAge, category.Sex, category.AllowedBelts.Contains(participant.Belt)));
 
                 var isNewCategory = targetCategory == null;
-                targetCategory ??= createCategory(categoryType);
+                targetCategory ??= CreateParticipantCategory(
+                    singleBelt is Belts belt ? [belt] : [.. AllBelts], categoryType, participant.Sex, minAge, maxAge);
                 targetCategory.Participants.Add(participant);
 
                 if (isNewCategory)
@@ -116,16 +103,5 @@ namespace KarateTournamentApp.Services
                 : new Category(belts, categoryType, sex, minAge, maxAge);
         }
 
-        private static Category CreateParticipantCategory(
-            Belts belt,
-            CategoryType categoryType,
-            Sex sex,
-            int minAge,
-            int maxAge)
-        {
-            return categoryType == CategoryType.Kumite
-                ? new ShobuSanbonCategory(belt, categoryType, sex, minAge, maxAge)
-                : new Category(belt, categoryType, sex, minAge, maxAge);
-        }
     }
 }

@@ -1,5 +1,6 @@
 using System.Windows.Input;
 using System.Windows.Threading;
+using KarateClassLibrary.Contracts;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
 using KarateTournamentApp.Services.Dialogs;

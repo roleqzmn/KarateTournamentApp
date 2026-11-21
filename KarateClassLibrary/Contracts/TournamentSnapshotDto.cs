@@ -28,7 +28,9 @@ public sealed record CategoryDto(
     IReadOnlyList<TeamDto> Teams,
     IReadOnlyList<ParticipantResultDto> FinalResults,
     bool IsClaimed,
-    string? ClaimedBy);
+    string? ClaimedBy,
+    bool HasJudgingCheckpoint = false,
+    bool HandoffRequested = false);
 
 public sealed record MatchDto(
     int Id,

@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using KarateClassLibrary;
 using KarateClassLibrary.Contracts;
-using KarateTournament.Api.Contracts;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Testcontainers.PostgreSql;

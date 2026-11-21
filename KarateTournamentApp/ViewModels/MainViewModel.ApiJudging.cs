@@ -5,6 +5,7 @@ using KarateClassLibrary.Contracts;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Services.Api;
 using KarateTournamentApp.Services.Dialogs;
+using KarateTournamentApp.Services.Navigation;
 
 namespace KarateTournamentApp.ViewModels;
 
@@ -12,6 +13,8 @@ public partial class MainViewModel
 {
     private readonly JudgingSessionStore? _sessions;
     private FileStream? _activeJudgeLock;
+    private IWindowHandle? _activeJudgeWindow;
+    private JudgingSession? _activeJudgeSession;
     private string? _judgingWarning;
     public ObservableCollection<JudgingSession> JudgingSessions { get; } = new();
     public ICommand StartApiJudgingCommand { get; }
@@ -73,7 +76,9 @@ public partial class MainViewModel
                     session.Category = null;
                     throw new InvalidOperationException("Ta konkurencja nie ma obsługiwanego składu. Zwolnij sesję albo popraw skład po zwolnieniu.");
                 }
-                await _api.ClaimCategoryAsync(session.CategoryId, new ClaimCategoryRequest(session.Token, session.StationName));
+                var checkpoint = await _api.GetJudgingCheckpointAsync(session.CategoryId, session.Token);
+                if (checkpoint.Checkpoint is { } saved)
+                    JudgingCheckpointMapper.Restore(session, saved);
                 _sessions.Save(session);
                 ShowApiSnapshot(snapshot);
             }
@@ -84,10 +89,14 @@ public partial class MainViewModel
                 _windowService, _uiScheduler, "Sesja lokalna");
             var judge = view.OpenApiJudge(session.Draft, draft => SaveJudgingCheckpoint(session, draft));
             _activeJudgeLock = heldLock;
+            _activeJudgeWindow = judge;
+            _activeJudgeSession = session;
             judge.Closed += (_, _) =>
             {
                 _activeJudgeLock?.Dispose();
                 _activeJudgeLock = null;
+                _activeJudgeWindow = null;
+                _activeJudgeSession = null;
                 RefreshJudgingSessions();
                 CommandManager.InvalidateRequerySuggested();
             };
@@ -117,23 +126,10 @@ public partial class MainViewModel
 
     private async Task ReleaseApiJudgingAsync(JudgingSession selected)
     {
-        if (!ConfirmApiDelete($"Zwolnić konkurencję „{selected.Name}”? Lokalny zapis tej sesji zostanie usunięty po potwierdzeniu przez API."))
+        if (_dialogService.ShowMessage($"Zapisać stan konkurencji „{selected.Name}” i zwolnić ją do wznowienia?",
+            "Zapisz i zwolnij", DialogButtons.YesNo, DialogIcon.Question) != DialogResult.Yes)
             return;
-        using var heldLock = _sessions!.Lock(selected.CategoryId);
-        IsLoading = true;
-        try
-        {
-            var session = _sessions.Load(selected.CategoryId)
-                ?? throw new InvalidOperationException("Lokalna sesja już nie istnieje.");
-            await _api!.ReleaseCategoryAsync(session.CategoryId, new ReleaseCategoryRequest(session.Token));
-            _sessions.Delete(session.CategoryId);
-            ShowApiSnapshot(await _api.GetSnapshotAsync());
-        }
-        finally
-        {
-            IsLoading = false;
-            RefreshJudgingSessions();
-        }
+        await SaveHandoffAsync(selected, alreadyReleased: false, CancellationToken.None);
     }
 
     private void RefreshJudgingSessions()
@@ -207,24 +203,10 @@ public partial class MainViewModel
         {
             using var heldLock = _sessions!.Lock(selected.CategoryId);
             _sessions.Archive(selected.CategoryId);
+            if (_pendingHandoff?.Token == selected.Token)
+                _pendingHandoff = null;
             RefreshJudgingSessions();
         }
         return Task.CompletedTask;
-    }
-
-    private async Task RecoverApiCategoryAsync(CategoryViewModel item)
-    {
-        IsLoading = true;
-        try
-        {
-            var target = await _api!.GetRecoveryTargetAsync(item.Category.Id);
-            if (_dialogService.ShowMessage(
-                $"Odzyskać konkurencję „{item.Name}” ze stanowiska „{target.StationName}”? Stara sesja utraci prawo przesłania wyników.",
-                "Odzyskaj konkurencję", DialogButtons.YesNo, DialogIcon.Warning) != DialogResult.Yes)
-                return;
-            await _api.RecoverClaimAsync(item.Category.Id, new(target.ClaimReference));
-            ShowApiSnapshot(await _api.GetSnapshotAsync());
-        }
-        finally { IsLoading = false; }
     }
 }

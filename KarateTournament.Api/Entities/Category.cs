@@ -15,6 +15,7 @@ public class Category
     public string? ClaimedBy { get; set; }
     public Guid? CompletionToken { get; set; }
     public string? CompletionHash { get; set; }
+    public CategoryJudgingProgress? JudgingProgress { get; set; }
 
     public ICollection<CategoryParticipant> ParticipantLinks { get; set; } = [];
     public ICollection<CategoryAllowedBelt> AllowedBeltLinks { get; set; } = [];

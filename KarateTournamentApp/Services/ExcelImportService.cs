@@ -129,9 +129,7 @@ namespace KarateTournamentApp.Services
         {
             await Task.Run(() =>
             {
-                FileInfo fileInfo = new FileInfo(filePath);
-
-                using (ExcelPackage package = new ExcelPackage(fileInfo))
+                using (ExcelPackage package = new ExcelPackage())
                 {
                     ExcelWorksheet worksheet = package.Workbook.Worksheets.Add("Participants");
 
@@ -177,9 +175,25 @@ namespace KarateTournamentApp.Services
                     worksheet.Cells.AutoFitColumns();
                     instructionsSheet.Cells.AutoFitColumns();
 
-                    package.Save();
+                    SaveTemplate(package, filePath);
                 }
             });
+        }
+
+        private static void SaveTemplate(ExcelPackage package, string filePath)
+        {
+            var destination = Path.GetFullPath(filePath);
+            var temporaryFile = Path.Combine(Path.GetDirectoryName(destination)!, $".karate-excel-{Guid.NewGuid():N}.xlsx");
+            try
+            {
+                package.SaveAs(new FileInfo(temporaryFile));
+                File.Move(temporaryFile, destination, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(temporaryFile))
+                    File.Delete(temporaryFile);
+            }
         }
     }
 }

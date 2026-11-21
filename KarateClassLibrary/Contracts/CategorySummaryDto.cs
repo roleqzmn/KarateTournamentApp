@@ -1,6 +1,4 @@
-using KarateClassLibrary;
-
-namespace KarateTournament.Api.Contracts;
+namespace KarateClassLibrary.Contracts;
 
 public sealed record CategorySummaryDto(
     int Id,
@@ -13,4 +11,6 @@ public sealed record CategorySummaryDto(
     int ParticipantCount,
     int TeamCount,
     bool IsClaimed,
-    string? ClaimedBy);
+    string? ClaimedBy,
+    bool HasJudgingCheckpoint = false,
+    bool HandoffRequested = false);

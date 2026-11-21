@@ -1,8 +1,9 @@
-# Excel Participant Import - Instructions
+# Excel Participant Import
 
 ## Excel File Format
 
-The Excel file should have the following column structure:
+Use an `.xlsx` workbook. Put the participant rows on the first worksheet. The
+generated template names it **Participants** and includes an **Instructions** sheet.
 
 | Column | Header | Required | Description |
 |--------|--------|----------|-------------|
@@ -27,7 +28,7 @@ The Excel file should have the following column structure:
 1. **First row** must contain headers (will be skipped during import)
 2. **Required fields**: FirstName, LastName, Age, Belt, Sex, and at least one Category
 3. **Optional fields**: Club (can be empty)
-4. **Categories**: You can have multiple category columns. The import stops reading categories when it encounters an empty cell.
+4. Add discipline columns from G through AX. The organizer import reads past empty discipline cells. File-based mode reads consecutive discipline cells.
 
 ## Possible Values
 
@@ -47,26 +48,23 @@ The Excel file should have the following column structure:
 - `KobudoLong` - Kobudo (long weapon)
 - `Grappling` - Grappling
 
-## Application Usage
+## Organizer workflow
 
-1. **Generate template**: Click "Create Excel Template" button to generate a sample Excel file
-2. **Fill in data**: Edit the generated file by adding participants (keep the header row)
-3. **Import**: Click "Import Excel" button to import participants
-4. **Note**: Before importing, make sure that "Divide by age" or "Divide by belt" options are selected
+1. In **Zawodnicy**, click **Wygeneruj szablon Excel** and save the workbook.
+2. Enter participants from row 2 and keep the original column order.
+3. Set **Podział po dodaniu lub imporcie**. The default is **Wiek i pas**.
+4. Click **Importuj Excel**, choose the workbook and confirm the number of entries.
+
+The API registers the whole batch and assigns participants to eligible
+competitions or creates the missing ones. Check the new rosters in **Konkurencje**.
 
 ## Validation
 
-The system will automatically skip rows that:
-- Have incomplete required fields
-- Have invalid values (e.g., incorrect age, non-existent belt)
-- Are duplicates (same first and last name)
-- Don't have any category
-
-After import, you will see a message with the number of successfully imported participants and the number of skipped entries.
+- In the organizer workflow, an invalid row rejects the batch. Blank rows are skipped, and importing the same file again adds new records.
+- In file-based mode, the application can skip invalid rows and duplicate first and last names. Choose the age or belt division before importing.
 
 ## Tips
 
 - The generated template includes an "Instructions" sheet with quick reference information
-- You can add as many category columns as needed
 - Leave cells empty for optional fields (Club) or unused category columns
 - Use Excel's data validation features to prevent input errors

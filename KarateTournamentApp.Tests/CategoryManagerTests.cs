@@ -103,4 +103,16 @@ public class CategoryManagerTests
         Assert.Same(category, Assert.Single(manager.DefinedCategories));
         Assert.Equal(2, category.Participants.Count);
     }
+
+    [Fact]
+    public void AgeDivisionDoesNotAddAParticipantToAnIncompatibleBeltCategory()
+    {
+        var restricted = new Category(Belts.Kyu7, CategoryType.Kata, Sex.Unisex, 10, 14);
+        var manager = new CategoryManager { DefinedCategories = [restricted] };
+
+        manager.AssignParticipant(Person(belt: Belts.Kyu8), false, true);
+
+        Assert.Empty(restricted.Participants);
+        Assert.Single(manager.DefinedCategories.Single(category => category != restricted).Participants);
+    }
 }

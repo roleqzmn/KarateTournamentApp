@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Input;
@@ -87,7 +87,6 @@ namespace KarateTournamentApp.ViewModels
         public ICommand ImportExcelCommand { get; }
         public ICommand CreateExcelTemplateCommand { get; }
         public ICommand LoadApiTournamentCommand { get; }
-        public ICommand ReturnToLocalTournamentCommand { get; }
 
         private bool _isApiPreview;
         public bool IsApiPreview
@@ -131,13 +130,18 @@ namespace KarateTournamentApp.ViewModels
         }
 
         internal MainViewModel(CategoryManager categoryManager, IDialogService dialogService, IWindowService windowService,
-            IUiScheduler uiScheduler, TournamentApiClient api, bool isJudgeStation = false)
-            : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync, api.CreateParticipantAsync)
+            IUiScheduler uiScheduler, TournamentApiClient api, bool isJudgeStation = false, JudgingSessionStore? sessionStore = null)
+            : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync)
         {
             _api = api;
+            _createApiParticipant = (request, cancellationToken) =>
+                api.CreateParticipantAsync(request, cancellationToken, SelectedCategoryGrouping);
             IsJudgeStation = isJudgeStation;
-            _sessions = new JudgingSessionStore(api.SessionScope);
-            RefreshJudgingSessions();
+            if (isJudgeStation)
+            {
+                _sessions = sessionStore ?? new JudgingSessionStore(api.SessionScope);
+                RefreshJudgingSessions();
+            }
         }
 
         public MainViewModel(
@@ -171,37 +175,45 @@ namespace KarateTournamentApp.ViewModels
 
             AddParticipantCommand = new AsyncRelayCommand(CreateParticipantAsync, HandleAsyncCommandError, CanCreateParticipant);
             ImportCommand = new AsyncRelayCommand(ImportDataAsync, HandleAsyncCommandError,
-                () => IsLocalTournament && !IsLoading);
+                () => ShowOrganizerTools && IsLocalTournament && !IsLoading);
             ExportCommand = new AsyncRelayCommand(
                 ExportDataAsync,
                 HandleAsyncCommandError,
-                () => IsLocalTournament && !IsLoading && _categoryManager.DefinedCategories.Any());
+                () => ShowOrganizerTools && IsLocalTournament && !IsLoading && _categoryManager.DefinedCategories.Any());
             ImportExcelCommand = new AsyncRelayCommand(
                 ImportExcelDataAsync,
                 HandleAsyncCommandError,
-                () => !IsLoading && (CanManageApi || (IsLocalTournament && (DivideByAge || DivideByBelt))));
-            CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync, HandleAsyncCommandError);
+                () => ShowOrganizerTools && !IsLoading && (CanManageApi || (IsLocalTournament && (DivideByAge || DivideByBelt))));
+            CreateExcelTemplateCommand = new AsyncRelayCommand(CreateExcelTemplateAsync, HandleAsyncCommandError,
+                () => ShowOrganizerTools);
             LoadApiTournamentCommand = new AsyncRelayCommand(
                 () => LoadApiTournamentAsync(loadApiSnapshot!), HandleAsyncCommandError,
                 () => loadApiSnapshot is not null && !IsLoading);
-            ReturnToLocalTournamentCommand = new RelayCommand(_ => ReturnToLocalTournament(),
-                _ => IsApiPreview && !IsLoading && _activeJudgeLock is null);
             StartApiJudgingCommand = new AsyncRelayCommand<CategoryViewModel>(StartApiJudgingAsync,
                 HandleAsyncCommandError, CanStartApiJudging);
             ResumeApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ResumeApiJudgingAsync,
-                HandleAsyncCommandError, session => session is not null && CanUseSessions() && session.Category?.IsFinished != true);
+                HandleAsyncCommandError, session => session is not null && CanUseSessions()
+                    && !session.AwaitingHandoff && session.Token != _pendingHandoff?.Token && session.Category?.IsFinished != true);
             ReleaseApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ReleaseApiJudgingAsync,
                 HandleAsyncCommandError, session => session is not null && CanUseSessions());
             SubmitApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(SubmitApiJudgingAsync,
-                HandleAsyncCommandError, session => CanUseSessions() && session?.Category?.IsFinished == true);
+                HandleAsyncCommandError, session => CanUseSessions() && session?.Category?.IsFinished == true
+                    && !session.AwaitingHandoff && session.Token != _pendingHandoff?.Token);
             ArchiveApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ArchiveApiJudgingAsync,
                 HandleAsyncCommandError, session => session is not null && CanUseSessions());
-            RecoverApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(RecoverApiCategoryAsync,
-                HandleAsyncCommandError, item => item is not null && CanChangeApi() && _api!.HasRecoveryKey
-                    && _apiSnapshot!.Categories.Any(category => category.Id == item.Category.Id && category.IsClaimed && !category.IsFinished));
+            RecoverApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(RecoverApiCategoryAsync,
+                HandleAsyncCommandError, item => CanChangeApi() && _api!.HasRecoveryKey
+                    && item?.Status == OrganizerCompetitionStatus.InProgress);
+            RequestJudgingHandoffCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(RequestJudgingHandoffAsync,
+                HandleAsyncCommandError, item => CanChangeApi() && item is
+                    { Status: OrganizerCompetitionStatus.InProgress, Summary.HandoffRequested: false });
             CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
-            EditApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
-            DeleteApiCategoryCommand = new AsyncRelayCommand<CategoryViewModel>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
+            EditApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
+            DeleteApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
+            ViewApiCategoryResultsCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(ViewApiCategoryResultsAsync,
+                HandleAsyncCommandError, item => CanChangeApi() && item?.Status == OrganizerCompetitionStatus.Finished);
+            RefreshOrganizerCategoriesCommand = new AsyncRelayCommand(() => RefreshOrganizerCategoriesAsync(),
+                HandleAsyncCommandError, CanChangeApi);
             EditApiParticipantCommand = new RelayCommand(_ => BeginApiParticipantEdit(), _ => CanChangeApi() && SelectedApiParticipant is not null);
             DeleteApiParticipantCommand = new AsyncRelayCommand(DeleteApiParticipantAsync, HandleAsyncCommandError,
                 () => CanChangeApi() && SelectedApiParticipant is not null && !IsEditingApiParticipant);
@@ -213,7 +225,10 @@ namespace KarateTournamentApp.ViewModels
             IsLoading = true;
             try
             {
-                ShowApiSnapshot(await loadSnapshot(CancellationToken.None));
+                var snapshot = await loadSnapshot(CancellationToken.None);
+                ShowApiSnapshot(snapshot);
+                if (CanManageApi)
+                    ShowRefreshedCategories(snapshot.Categories.Select(SummarizeCategory));
             }
             finally
             {
@@ -221,20 +236,12 @@ namespace KarateTournamentApp.ViewModels
             }
         }
 
-        private void ReturnToLocalTournament()
-        {
-            if (IsEditingApiParticipant)
-                ResetForm();
-            RefreshCategories();
-            IsApiPreview = false;
-        }
-
         private static string FormatApiStatus(ApiCategorySnapshot item)
         {
             if (item.Category.IsFinished)
                 return "Zakończona";
             if (!item.IsClaimed)
-                return "Dostępna";
+                return item.HasJudgingCheckpoint ? "Do wznowienia" : "Dostępna";
             return string.IsNullOrWhiteSpace(item.ClaimedBy) ? "Zajęta" : $"Zajęta · {item.ClaimedBy}";
         }
 
@@ -274,6 +281,7 @@ namespace KarateTournamentApp.ViewModels
                 IsLoading = true;
                 try
                 {
+                    var newRegistration = _editingParticipantId is null;
                     var saved = _editingParticipantId is int id
                         ? await _api!.UpdateParticipantAsync(id, request)
                         : await _createApiParticipant(request, CancellationToken.None);
@@ -282,6 +290,8 @@ namespace KarateTournamentApp.ViewModels
                         Participants = _apiSnapshot.Participants.Where(person => person.Id != saved.Id).Append(saved).ToArray()
                     });
                     ResetForm();
+                    if (newRegistration)
+                        await RefreshOrganizerCategoriesAsync(force: true);
                 }
                 finally
                 {
@@ -431,8 +441,8 @@ namespace KarateTournamentApp.ViewModels
         private async Task ImportExcelDataAsync()
         {
             var filePath = _dialogService.ShowOpenFileDialog(
-                "Import Participants from Excel",
-                "Excel files (*.xlsx;*.xls)|*.xlsx;*.xls|All files (*.*)|*.*");
+                "Importuj zawodników z Excela",
+                "Arkusze Excel (*.xlsx)|*.xlsx|Wszystkie pliki (*.*)|*.*");
             if (filePath == null)
             {
                 return;

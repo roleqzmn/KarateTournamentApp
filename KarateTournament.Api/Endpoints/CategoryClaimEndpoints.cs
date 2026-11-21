@@ -81,7 +81,7 @@ public static class CategoryClaimEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> GetRecoveryTarget(
+    internal static async Task<IResult> GetRecoveryTarget(
         int categoryId, TournamentDbContext dbContext, CancellationToken cancellationToken)
     {
         var category = await dbContext.Categories.AsNoTracking()
@@ -115,7 +115,7 @@ public static class CategoryClaimEndpoints
         return Results.NoContent();
     }
 
-    private static async Task RevokeClaim(
+    internal static async Task RevokeClaim(
         Category category, string claimReference, TournamentDbContext dbContext, CancellationToken cancellationToken)
     {
         dbContext.RevokedCategoryClaims.Add(new RevokedCategoryClaim
@@ -150,8 +150,8 @@ public static class CategoryClaimEndpoints
         return await next(context);
     }
 
-    private static bool IsHexDigest(string? value) => value is { Length: 64 } && value.All(Uri.IsHexDigit);
-    private static string GetClaimReference(Guid token) => Convert.ToHexString(SHA256.HashData(token.ToByteArray()));
+    internal static bool IsHexDigest(string? value) => value is { Length: 64 } && value.All(Uri.IsHexDigit);
+    internal static string GetClaimReference(Guid token) => Convert.ToHexString(SHA256.HashData(token.ToByteArray()));
 
     private static IResult ClaimConflict() => Results.Problem(statusCode: StatusCodes.Status409Conflict,
         title: "Category is finished, belongs to another session, or the session was revoked.");

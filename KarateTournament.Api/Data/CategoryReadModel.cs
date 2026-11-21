@@ -14,6 +14,7 @@ public static class CategoryReadModel
         .Include(category => category.BracketMatches)
         .Include(category => category.Teams).ThenInclude(team => team.MemberLinks)
         .Include(category => category.FinalResults).ThenInclude(result => result.JudgeScores)
+        .Include(category => category.JudgingProgress)
         .AsSplitQuery();
 
     public static CategoryDto ToDto(Category category) => new(
@@ -32,7 +33,9 @@ public static class CategoryReadModel
                 result.JudgeScores.OrderBy(score => score.Ordinal)
                     .Select(score => new JudgeScoreDto(score.Ordinal, score.Score, score.IsDiscarded))
                     .ToArray()))
-            .ToArray(), category.ClaimToken.HasValue, category.ClaimedBy);
+            .ToArray(), category.ClaimToken.HasValue, category.ClaimedBy,
+        !category.IsFinished && category.JudgingProgress?.CheckpointJson is not null,
+        category.ClaimToken.HasValue && category.JudgingProgress?.RequestedFor == category.ClaimToken);
 
     private static MatchDto ToMatchDto(Match match) => new(
         match.Id, match.BracketPosition, match.AkaParticipantId, match.ShiroParticipantId,

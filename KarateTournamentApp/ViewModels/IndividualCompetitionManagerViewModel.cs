@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
+using KarateClassLibrary.Contracts;
 using KarateTournamentApp.Models;
 using KarateTournamentApp.Commands;
 using KarateTournamentApp.Services.Navigation;
