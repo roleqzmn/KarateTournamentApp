@@ -116,7 +116,11 @@ includes unassigned participants. On a confirmed save, WPF displays the assigned
 ID and clears the form. Rejected data stays in the form for correction. If a
 response is lost, refresh the registry and check for the participant before retrying.
 
-In API mode, **Import Excel** sends one batch to `POST /api/participants/batch`.
+On the organizer's **Zawodnicy** tab, use **Wygeneruj szablon Excel** to save
+a blank `.xlsx` workbook. Fill in the **Participants** sheet starting on row 2
+and keep the column order. The **Instructions** sheet lists the accepted values.
+Use **Importuj Excel** to preview the number of entries and confirm their upload
+as one batch to `POST /api/participants/batch`.
 The API validates the entire batch before saving in one transaction. A 400
 response names the rejected entries and adds nobody. Valid entries are added
 to the registry. Importing the same file again creates additional records.

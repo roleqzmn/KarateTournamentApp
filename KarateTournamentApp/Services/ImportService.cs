@@ -90,9 +90,9 @@ namespace KarateTournamentApp.Services
         public async Task CreateSampleExcelFileAsync()
         {
             var filePath = _dialogService.ShowSaveFileDialog(
-                "Save Excel Template",
-                "Excel files (*.xlsx)|*.xlsx",
-                "participants_template.xlsx");
+                "Zapisz szablon listy zawodników",
+                "Arkusze Excel (*.xlsx)|*.xlsx",
+                "zawodnicy_szablon.xlsx");
             if (filePath == null)
             {
                 return;
@@ -101,13 +101,13 @@ namespace KarateTournamentApp.Services
             try
             {
                 await _excelImportService.CreateSampleExcelFileAsync(filePath);
-                _dialogService.ShowMessage($"Excel template has been saved!\n\nPath: {filePath}",
-                    "Success", DialogButtons.Ok, DialogIcon.Information);
+                _dialogService.ShowMessage($"Zapisano szablon Excel.\n\n{filePath}",
+                    "Szablon Excel", DialogButtons.Ok, DialogIcon.Information);
             }
             catch (Exception ex)
             {
-                _dialogService.ShowMessage($"Error creating template:\n{ex.Message}",
-                    "Error", DialogButtons.Ok, DialogIcon.Error);
+                _dialogService.ShowMessage($"Nie udało się zapisać szablonu Excel.\n\n{ex.Message}",
+                    "Szablon Excel", DialogButtons.Ok, DialogIcon.Error);
             }
         }
 

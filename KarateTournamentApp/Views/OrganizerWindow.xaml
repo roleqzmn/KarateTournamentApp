@@ -108,8 +108,8 @@
                     </ScrollViewer>
                     <DockPanel Grid.Column="1">
                         <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <Button Content="Wygeneruj szablon Excel" Command="{Binding CreateExcelTemplateCommand}"/>
                             <Button Content="Importuj Excel" Command="{Binding ImportExcelCommand}"/>
-                            <Button Content="Zapisz szablon Excel" Command="{Binding CreateExcelTemplateCommand}"/>
                             <Button Content="Edytuj" Command="{Binding EditApiParticipantCommand}"/>
                             <Button Content="Usuń" Command="{Binding DeleteApiParticipantCommand}"/>
                         </WrapPanel>

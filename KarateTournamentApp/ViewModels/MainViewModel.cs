@@ -431,8 +431,8 @@ namespace KarateTournamentApp.ViewModels
         private async Task ImportExcelDataAsync()
         {
             var filePath = _dialogService.ShowOpenFileDialog(
-                "Import Participants from Excel",
-                "Excel files (*.xlsx;*.xls)|*.xlsx;*.xls|All files (*.*)|*.*");
+                "Importuj zawodników z Excela",
+                "Arkusze Excel (*.xlsx)|*.xlsx|Wszystkie pliki (*.*)|*.*");
             if (filePath == null)
             {
                 return;
