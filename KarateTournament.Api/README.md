@@ -85,11 +85,11 @@ verify the restored categories and results before using that database.
 category members, belts, bracket matches, teams, final results, and judge scores.
 The endpoint reads these related records from one consistent database snapshot.
 
-To open the snapshot in WPF, start the API with its `https` launch profile and
-select **Pobierz turniej z API**. The default URL is `https://localhost:7086`.
-Set `KARATE_TOURNAMENT_API_URL` before launching WPF to use another API address.
-The preview shows category availability, rosters and saved results. Use
-**Wróć do turnieju lokalnego** to resume working with the local tournament.
+Start the API with its `https` launch profile. The organizer window loads the
+tournament on startup. In the judging window select **Pobierz turniej z API**.
+The default URL is `https://localhost:7086`. Set `KARATE_TOURNAMENT_API_URL`
+before launching WPF to use another API address. To work with a file-based
+tournament, start a separate instance with `KARATE_TOURNAMENT_ROLE=local`.
 
 ## Create a participant
 

@@ -1,0 +1,148 @@
+<Window x:Class="KarateTournamentApp.Views.OrganizerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shared="clr-namespace:KarateClassLibrary;assembly=KarateClassLibrary"
+        xmlns:system="clr-namespace:System;assembly=System.Runtime"
+        Title="Turniej karate — panel organizatora"
+        Width="1140" Height="760" MinWidth="800" MinHeight="520"
+        WindowStartupLocation="CenterScreen" Background="#F5F7FA">
+    <Window.Resources>
+        <ObjectDataProvider x:Key="Belts" MethodName="GetValues" ObjectType="{x:Type system:Enum}">
+            <ObjectDataProvider.MethodParameters><x:Type TypeName="shared:Belts"/></ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <ObjectDataProvider x:Key="Sexes" MethodName="GetValues" ObjectType="{x:Type system:Enum}">
+            <ObjectDataProvider.MethodParameters><x:Type TypeName="shared:Sex"/></ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="0,4,0,12"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Margin" Value="0,4,0,12"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,16">
+            <Button DockPanel.Dock="Right" Margin="0" Content="Pobierz turniej z API"
+                    Command="{Binding LoadApiTournamentCommand}"/>
+            <TextBlock Text="Panel organizatora" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </DockPanel>
+        <TabControl Grid.Row="1">
+            <TabItem Header="Zawodnicy">
+                <Grid Margin="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="290"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,16,0"
+                                  IsEnabled="{Binding IsApiPreview}">
+                        <StackPanel>
+                            <TextBlock Text="Dane zawodnika" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                            <TextBlock Text="Imię"/>
+                            <TextBox Text="{Binding FirstName, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="Nazwisko"/>
+                            <TextBox Text="{Binding LastName, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="Wiek"/>
+                            <TextBox x:Name="AgeInput" Text="{Binding Age, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="Płeć"/>
+                            <ComboBox ItemsSource="{Binding Source={StaticResource Sexes}}" SelectedItem="{Binding SelectedSex}"/>
+                            <TextBlock Text="Pas"/>
+                            <ComboBox ItemsSource="{Binding Source={StaticResource Belts}}" SelectedItem="{Binding SelectedBelt}"/>
+                            <TextBlock Text="Dyscypliny (co najmniej jedna)" Margin="0,0,0,4"/>
+                            <ItemsControl ItemsSource="{Binding CategorySelections}" Margin="0,0,0,12">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}" Margin="0,0,12,4"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Klub (opcjonalnie)"/>
+                            <TextBox Text="{Binding Club, UpdateSourceTrigger=PropertyChanged}"/>
+                            <WrapPanel>
+                                <Button Content="{Binding AddParticipantLabel}" Command="{Binding AddParticipantCommand}">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ElementName=AgeInput, Path=(Validation.HasError)}" Value="True">
+                                                    <Setter Property="IsEnabled" Value="False"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <Button Content="Anuluj edycję" Command="{Binding CancelApiParticipantEditCommand}"
+                                        Visibility="{Binding IsEditingApiParticipant, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <DockPanel Grid.Column="1">
+                        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <Button Content="Importuj Excel" Command="{Binding ImportExcelCommand}"/>
+                            <Button Content="Zapisz szablon Excel" Command="{Binding CreateExcelTemplateCommand}"/>
+                            <Button Content="Edytuj" Command="{Binding EditApiParticipantCommand}"/>
+                            <Button Content="Usuń" Command="{Binding DeleteApiParticipantCommand}"/>
+                        </WrapPanel>
+                        <TextBlock DockPanel.Dock="Bottom" Margin="0,8,0,0"
+                                   Text="{Binding ApiParticipants.Count, StringFormat='Zawodnicy w rejestrze: {0}'}"/>
+                        <DataGrid ItemsSource="{Binding ApiParticipants}" SelectedItem="{Binding SelectedApiParticipant}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="ID" Binding="{Binding Id}"/>
+                                <DataGridTextColumn Header="Imię" Binding="{Binding FirstName}" Width="*"/>
+                                <DataGridTextColumn Header="Nazwisko" Binding="{Binding LastName}" Width="*"/>
+                                <DataGridTextColumn Header="Wiek" Binding="{Binding Age}"/>
+                                <DataGridTextColumn Header="Pas" Binding="{Binding Belt}"/>
+                                <DataGridTextColumn Header="Klub" Binding="{Binding Club}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Konkurencje">
+                <DockPanel Margin="14">
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Button Content="Nowa konkurencja" Command="{Binding CreateApiCategoryCommand}"/>
+                        <Button Content="Edytuj ustawienia i skład" Command="{Binding EditApiCategoryCommand}"
+                                CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
+                        <Button Content="Usuń konkurencję" Command="{Binding DeleteApiCategoryCommand}"
+                                CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
+                        <Button Content="Odzyskaj" Command="{Binding RecoverApiCategoryCommand}"
+                                CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
+                        <Button Content="Wyniki" Command="{Binding ElementName=CompetitionList, Path=SelectedItem.ViewResultsCommand}"/>
+                    </WrapPanel>
+                    <DataGrid x:Name="CompetitionList" ItemsSource="{Binding Categories}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Konkurencja" Binding="{Binding Name}" Width="2*"/>
+                            <DataGridTextColumn Header="Dyscyplina" Binding="{Binding CategoryTypeDisplay}" Width="*"/>
+                            <DataGridTextColumn Header="Zawodnicy" Binding="{Binding ParticipantCount}"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding ApiStatus}" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+        <ProgressBar Grid.Row="2" Height="3" Margin="0,6,0,0" IsIndeterminate="True"
+                     Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"/>
+    </Grid>
+</Window>

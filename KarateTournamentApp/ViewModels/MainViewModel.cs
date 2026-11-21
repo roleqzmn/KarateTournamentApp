@@ -87,7 +87,6 @@ namespace KarateTournamentApp.ViewModels
         public ICommand ImportExcelCommand { get; }
         public ICommand CreateExcelTemplateCommand { get; }
         public ICommand LoadApiTournamentCommand { get; }
-        public ICommand ReturnToLocalTournamentCommand { get; }
 
         private bool _isApiPreview;
         public bool IsApiPreview
@@ -136,8 +135,11 @@ namespace KarateTournamentApp.ViewModels
         {
             _api = api;
             IsJudgeStation = isJudgeStation;
-            _sessions = new JudgingSessionStore(api.SessionScope);
-            RefreshJudgingSessions();
+            if (isJudgeStation)
+            {
+                _sessions = new JudgingSessionStore(api.SessionScope);
+                RefreshJudgingSessions();
+            }
         }
 
         public MainViewModel(
@@ -185,8 +187,6 @@ namespace KarateTournamentApp.ViewModels
             LoadApiTournamentCommand = new AsyncRelayCommand(
                 () => LoadApiTournamentAsync(loadApiSnapshot!), HandleAsyncCommandError,
                 () => loadApiSnapshot is not null && !IsLoading);
-            ReturnToLocalTournamentCommand = new RelayCommand(_ => ReturnToLocalTournament(),
-                _ => ShowOrganizerTools && IsApiPreview && !IsLoading && _activeJudgeLock is null);
             StartApiJudgingCommand = new AsyncRelayCommand<CategoryViewModel>(StartApiJudgingAsync,
                 HandleAsyncCommandError, CanStartApiJudging);
             ResumeApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ResumeApiJudgingAsync,
@@ -220,14 +220,6 @@ namespace KarateTournamentApp.ViewModels
             {
                 IsLoading = false;
             }
-        }
-
-        private void ReturnToLocalTournament()
-        {
-            if (IsEditingApiParticipant)
-                ResetForm();
-            RefreshCategories();
-            IsApiPreview = false;
         }
 
         private static string FormatApiStatus(ApiCategorySnapshot item)

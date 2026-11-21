@@ -51,7 +51,7 @@ namespace KarateTournamentApp
                 Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_API_URL"),
                 Environment.GetEnvironmentVariable("KARATE_TOURNAMENT_RECOVERY_KEY"));
             var judgeStation = role == StationRole.Judge;
-            MainWindow = judgeStation ? new JudgeWindow() : new MainWindow();
+            MainWindow = judgeStation ? new JudgeWindow() : new OrganizerWindow();
             MainWindow.DataContext = new MainViewModel(categoryManager, dialogService, windowService, uiScheduler, api, judgeStation);
             MainWindow.Show();
         }
