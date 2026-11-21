@@ -72,6 +72,7 @@ namespace KarateTournamentApp
             windowService.Register<DrawResolverViewModel, DrawResolverView>();
             windowService.Register<DrawResolverScoreboardViewModel, DrawResolverScoreboardView>();
             windowService.Register<ApiCategoryEditorViewModel, ApiCategoryEditorView>();
+            windowService.Register<ApiTeamRosterViewModel, ApiTeamRosterView>();
         }
     }
 

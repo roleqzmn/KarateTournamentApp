@@ -138,6 +138,8 @@
                         <Button Content="Nowa konkurencja" Command="{Binding CreateApiCategoryCommand}"/>
                         <Button Content="Edytuj ustawienia i skład" Command="{Binding EditApiCategoryCommand}"
                                 CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
+                        <Button Content="Drużyny" Command="{Binding ManageApiTeamsCommand}"
+                                CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
                         <Button Content="Usuń konkurencję" Command="{Binding DeleteApiCategoryCommand}"
                                 CommandParameter="{Binding ElementName=CompetitionList, Path=SelectedItem}"/>
                         <Button Content="Zwolnij do kontynuacji" Command="{Binding RequestJudgingHandoffCommand}"
@@ -160,8 +162,9 @@
                               SelectedItem="{Binding SelectedOrganizerCategory}">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Konkurencja" Binding="{Binding Summary.Name}" Width="2*"/>
-                            <DataGridTextColumn Header="Dyscyplina" Binding="{Binding Summary.CategoryType}" Width="*"/>
+                            <DataGridTextColumn Header="Dyscyplina" Binding="{Binding DisciplineName}" Width="*"/>
                             <DataGridTextColumn Header="Zawodnicy" Binding="{Binding Summary.ParticipantCount}"/>
+                            <DataGridTextColumn Header="Drużyny" Binding="{Binding Summary.TeamCount}"/>
                             <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="*"/>
                             <DataGridTextColumn Header="Stanowisko" Binding="{Binding StationName}" Width="*"/>
                         </DataGrid.Columns>

@@ -20,6 +20,7 @@ public sealed record OrganizerCompetitionRow(CategorySummaryDto Summary)
         _ => GetStatusText(Status)
     };
     public string? StationName => Status == OrganizerCompetitionStatus.InProgress ? Summary.ClaimedBy : null;
+    public string DisciplineName => Summary.CategoryType == CategoryType.Team ? "Team Kata" : Summary.CategoryType.ToString();
 
     internal static string GetStatusText(OrganizerCompetitionStatus status) => status switch
     {

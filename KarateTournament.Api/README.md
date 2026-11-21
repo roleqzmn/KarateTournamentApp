@@ -177,6 +177,20 @@ For a PostgreSQL smoke test, create a participant and then a category using its 
 Verify the snapshot contains the category with the requested member/belt order.
 An unknown participant ID must return 400 and leave no partially created category.
 
+## Manage Team Kata rosters
+
+Create a competition with discipline **Team Kata** (`CategoryType.Team`), select
+it in the organizer's **Konkurencje** tab and open **Drużyny**. Give the team a
+name and select its members from the participant registry. Each team has its own
+ID and stores its members as an ordered list of existing participant IDs.
+
+`POST /api/categories/{id}/teams` adds a team with `name`, `sex` and
+`memberParticipantIds`. Use the returned resource URL to read the team
+(`GET`), update its roster (`PUT`) or remove the team (`DELETE`). The shared
+snapshot includes these teams and their ordered members. Roster writes require
+the organizer key when access keys are configured. The API protects rosters
+once the competition is claimed or has judging data.
+
 ## Edit participants and categories
 
 `PUT /api/participants/{id}` and `PUT /api/categories/{id}` use the same body

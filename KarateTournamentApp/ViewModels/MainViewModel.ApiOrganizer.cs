@@ -28,6 +28,7 @@ public partial class MainViewModel
     public ICommand CreateApiCategoryCommand { get; }
     public ICommand EditApiCategoryCommand { get; }
     public ICommand DeleteApiCategoryCommand { get; }
+    public ICommand ManageApiTeamsCommand { get; }
     public ICommand RequestJudgingHandoffCommand { get; }
     public ICommand EditApiParticipantCommand { get; }
     public ICommand DeleteApiParticipantCommand { get; }
@@ -145,6 +146,34 @@ public partial class MainViewModel
             window = handle;
             handle.Closed += (_, _) => window = null;
         });
+    }
+
+    private async Task ManageApiTeamsAsync(OrganizerCompetitionRow row)
+    {
+        IsLoading = true;
+        try
+        {
+            var snapshot = await _api!.GetSnapshotAsync();
+            var category = snapshot.Categories.SingleOrDefault(item => item.Id == row.Summary.Id);
+            if (category is not { CategoryType: CategoryType.Team, IsClaimed: false, IsFinished: false,
+                HasJudgingCheckpoint: false, BracketMatches.Count: 0, FinalResults.Count: 0 })
+            {
+                _dialogService.ShowMessage("Składów tej konkurencji nie można teraz zmienić.", "Drużyny");
+                return;
+            }
+
+            var editor = new ApiTeamRosterViewModel(category, snapshot.Participants,
+                (id, request) => _api.SaveTeamAsync(category.Id, id, request),
+                id => _api.DeleteTeamAsync(category.Id, id), _dialogService);
+            _windowService.ShowDialog(editor, new WindowOptions
+            {
+                Title = $"Drużyny · {category.Name}",
+                Width = 690, Height = 570, StartupPosition = WindowStartupPosition.CenterOwner
+            });
+        }
+        finally { IsLoading = false; }
+
+        await RefreshOrganizerCategoriesAsync(force: true);
     }
 
     private async Task DeleteApiCategoryAsync(OrganizerCompetitionRow row)

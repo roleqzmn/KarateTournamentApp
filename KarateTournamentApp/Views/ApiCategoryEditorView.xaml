@@ -14,7 +14,8 @@
                 <UniformGrid Columns="2" Margin="0,0,0,12">
                     <StackPanel Margin="0,0,6,0">
                         <TextBlock Text="Dyscyplina"/>
-                        <ComboBox ItemsSource="{Binding Disciplines}" SelectedItem="{Binding Discipline}" Margin="0,4,0,0"/>
+                        <ComboBox ItemsSource="{Binding Disciplines}" DisplayMemberPath="Key" SelectedValuePath="Value"
+                                  SelectedValue="{Binding Discipline}" Margin="0,4,0,0"/>
                     </StackPanel>
                     <StackPanel Margin="6,0,0,0">
                         <TextBlock Text="Płeć"/>
@@ -42,17 +43,32 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Text="Skład konkurencji" FontWeight="SemiBold"/>
-                <ListBox ItemsSource="{Binding Roster}" SelectedItem="{Binding SelectedParticipant}" Height="190" Margin="0,4,0,6">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}"/>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="Przesuń w górę" Command="{Binding MoveUpCommand}" Padding="8,4" Margin="0,0,6,0"/>
-                    <Button Content="Przesuń w dół" Command="{Binding MoveDownCommand}" Padding="8,4"/>
+                <TextBlock Text="Po zapisaniu konkurencji wybierz Drużyny, aby dodać składy."
+                           Visibility="{Binding IsTeamKata, Converter={StaticResource BoolToVisibilityConverter}}"
+                           TextWrapping="Wrap"/>
+                <StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsTeamKata}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="Skład konkurencji" FontWeight="SemiBold"/>
+                    <ListBox ItemsSource="{Binding Roster.Choices}" SelectedItem="{Binding Roster.SelectedParticipant}"
+                             Height="190" Margin="0,4,0,6">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Label}" IsChecked="{Binding IsSelected}"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Przesuń w górę" Command="{Binding Roster.MoveUpCommand}" Padding="8,4" Margin="0,0,6,0"/>
+                        <Button Content="Przesuń w dół" Command="{Binding Roster.MoveDownCommand}" Padding="8,4"/>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>

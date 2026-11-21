@@ -210,6 +210,9 @@ namespace KarateTournamentApp.ViewModels
             CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
             EditApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
             DeleteApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
+            ManageApiTeamsCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(ManageApiTeamsAsync,
+                HandleAsyncCommandError, row => CanChangeApi() && row is
+                    { Status: OrganizerCompetitionStatus.Available, Summary.CategoryType: CategoryType.Team, Summary.HasJudgingCheckpoint: false });
             ViewApiCategoryResultsCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(ViewApiCategoryResultsAsync,
                 HandleAsyncCommandError, item => CanChangeApi() && item?.Status == OrganizerCompetitionStatus.Finished);
             RefreshOrganizerCategoriesCommand = new AsyncRelayCommand(() => RefreshOrganizerCategoriesAsync(),

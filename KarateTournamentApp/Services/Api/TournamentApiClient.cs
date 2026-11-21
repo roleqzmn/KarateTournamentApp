@@ -102,6 +102,13 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
 
     public Task DeleteParticipantAsync(int id) => WriteAsync<object>(HttpMethod.Delete, $"api/participants/{id}");
     public Task DeleteCategoryAsync(int id) => WriteAsync<object>(HttpMethod.Delete, $"api/categories/{id}");
+    public Task<TeamDto> SaveTeamAsync(int categoryId, int? teamId, SaveTeamRequest request) =>
+        teamId is int id
+            ? WriteAsync<TeamDto>(HttpMethod.Put, $"api/categories/{categoryId}/teams/{id}", request)
+            : WriteAsync<TeamDto>(HttpMethod.Post, $"api/categories/{categoryId}/teams", request);
+    public Task DeleteTeamAsync(int categoryId, int teamId) =>
+        WriteAsync<object>(HttpMethod.Delete, $"api/categories/{categoryId}/teams/{teamId}");
+
     public Task ClaimCategoryAsync(int id, ClaimCategoryRequest request) =>
         WriteAsync<object>(HttpMethod.Post, $"api/categories/{id}/claim", request);
     public Task ReleaseCategoryAsync(int id, ReleaseCategoryRequest request) =>
