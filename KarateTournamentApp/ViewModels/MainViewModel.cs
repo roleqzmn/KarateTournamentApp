@@ -131,9 +131,11 @@ namespace KarateTournamentApp.ViewModels
 
         internal MainViewModel(CategoryManager categoryManager, IDialogService dialogService, IWindowService windowService,
             IUiScheduler uiScheduler, TournamentApiClient api, bool isJudgeStation = false)
-            : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync, api.CreateParticipantAsync)
+            : this(categoryManager, dialogService, windowService, uiScheduler, api.GetSnapshotAsync)
         {
             _api = api;
+            _createApiParticipant = (request, cancellationToken) =>
+                api.CreateParticipantAsync(request, cancellationToken, SelectedCategoryGrouping);
             IsJudgeStation = isJudgeStation;
             if (isJudgeStation)
             {
@@ -274,6 +276,7 @@ namespace KarateTournamentApp.ViewModels
                 IsLoading = true;
                 try
                 {
+                    var newRegistration = _editingParticipantId is null;
                     var saved = _editingParticipantId is int id
                         ? await _api!.UpdateParticipantAsync(id, request)
                         : await _createApiParticipant(request, CancellationToken.None);
@@ -282,6 +285,8 @@ namespace KarateTournamentApp.ViewModels
                         Participants = _apiSnapshot.Participants.Where(person => person.Id != saved.Id).Append(saved).ToArray()
                     });
                     ResetForm();
+                    if (newRegistration)
+                        await RefreshOrganizerCategoriesAsync(force: true);
                 }
                 finally
                 {

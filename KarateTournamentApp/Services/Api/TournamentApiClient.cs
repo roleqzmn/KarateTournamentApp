@@ -51,9 +51,9 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
             .ConfigureAwait(false) ?? throw new InvalidDataException("API zwróciło pustą listę konkurencji zamiast danych.");
 
     public async Task<ParticipantDto> CreateParticipantAsync(
-        CreateParticipantRequest participant, CancellationToken cancellationToken = default)
+        CreateParticipantRequest participant, CancellationToken cancellationToken = default, CategoryGrouping? groupBy = null)
     {
-        var endpoint = GetEndpoint("api/participants");
+        var endpoint = GetEndpoint(RegistrationPath("api/participants", groupBy));
         try
         {
             using var response = await httpClient.PostAsJsonAsync(
@@ -89,8 +89,11 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
     public Task<ParticipantDto> UpdateParticipantAsync(int id, CreateParticipantRequest request) =>
         WriteAsync<ParticipantDto>(HttpMethod.Put, $"api/participants/{id}", request);
 
-    public Task<ParticipantDto[]> ImportParticipantsAsync(CreateParticipantRequest[] requests) =>
-        WriteAsync<ParticipantDto[]>(HttpMethod.Post, "api/participants/batch", requests);
+    public Task<ParticipantDto[]> ImportParticipantsAsync(CreateParticipantRequest[] requests, CategoryGrouping groupBy) =>
+        WriteAsync<ParticipantDto[]>(HttpMethod.Post, RegistrationPath("api/participants/batch", groupBy), requests);
+
+    private static string RegistrationPath(string path, CategoryGrouping? groupBy) =>
+        groupBy is { } grouping ? $"{path}?groupBy={grouping}" : path;
 
     public Task<CategoryDto> SaveCategoryAsync(int? id, CreateCategoryRequest request) =>
         id.HasValue

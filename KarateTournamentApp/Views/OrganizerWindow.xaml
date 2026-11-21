@@ -65,6 +65,10 @@
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,0,16,0"
                                   IsEnabled="{Binding IsApiPreview}">
                         <StackPanel>
+                            <Label Content="Podział po dodaniu lub imporcie" Target="{Binding ElementName=GroupingInput}" Padding="0"/>
+                            <ComboBox x:Name="GroupingInput" ItemsSource="{Binding OrganizerGroupingOptions}"
+                                      DisplayMemberPath="Key" SelectedValuePath="Value"
+                                      SelectedValue="{Binding SelectedCategoryGrouping}"/>
                             <TextBlock Text="Dane zawodnika" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
                             <TextBlock Text="Imię"/>
                             <TextBox Text="{Binding FirstName, UpdateSourceTrigger=PropertyChanged}"/>

@@ -105,16 +105,25 @@ KarateClassLibrary. Names must not be blank, age must be non-negative, enum
 values must be defined, and category types must not repeat. Invalid data returns
 400 with field errors. Names and club are trimmed; an empty club is stored as null.
 
-The database assigns the ID. A single SaveChanges operation atomically saves the
-participant and their category types. The response is 201 with ParticipantDto and
-a Location header pointing to `GET /api/participants/{id}` (404 if not found).
-Category types declare disciplines; this endpoint does not assign categories or
-generate brackets. Participants with identical names are allowed.
+The database assigns the ID. The response is 201 with ParticipantDto and a
+Location header pointing to `GET /api/participants/{id}` (404 if not found).
+Participants with identical names are allowed.
 
-In WPF, open the API tournament and use **Zapisz zawodnika w API**. The registry
-includes unassigned participants. On a confirmed save, WPF displays the assigned
-ID and clears the form. Rejected data stays in the form for correction. If a
-response is lost, refresh the registry and check for the participant before retrying.
+Both registration endpoints accept the optional query parameter
+`groupBy=Age`, `groupBy=Belt`, or `groupBy=AgeAndBelt`. With a grouping set,
+the API registers participants and assigns them to eligible categories in one
+transaction. It creates a category per selected individual discipline if no open
+category matches. Juniors follow the chosen grouping when a new category is
+needed. Adults (18+) form separate groups across belts. Claimed or completed
+categories keep their roster. Team disciplines still need a team roster.
+Requests without the parameter only register participants as before. Brackets
+are prepared on the judging station.
+
+In WPF, choose **Podział po dodaniu lub imporcie** in **Zawodnicy**. The default
+is **Wiek i pas**. This setting applies to **Zapisz zawodnika w API** and
+**Importuj Excel**. The competition list refreshes after a confirmed save.
+Editing an existing profile keeps its assignments. If a response is lost,
+refresh the registry and check for the participant before retrying.
 
 On the organizer's **Zawodnicy** tab, use **Wygeneruj szablon Excel** to save
 a blank `.xlsx` workbook. Fill in the **Participants** sheet starting on row 2
@@ -124,9 +133,9 @@ as one batch to `POST /api/participants/batch`.
 The API validates the entire batch before saving in one transaction. A 400
 response names the rejected entries and adds nobody. Valid entries are added
 to the registry. Importing the same file again creates additional records.
-Use **Nowa konkurencja** or **Edytuj ustawienia i skład** to assign participants
-and adjust their order. On the registry list, **Edytuj** opens a participant's
-profile in the registration form.
+Use **Nowa konkurencja** or **Edytuj ustawienia i skład** for manual changes
+and to adjust participant order. On the registry list, **Edytuj** opens a
+participant's profile in the registration form.
 
 Run validation tests with:
 

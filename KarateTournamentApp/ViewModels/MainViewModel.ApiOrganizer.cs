@@ -16,6 +16,15 @@ public partial class MainViewModel
 
     public bool CanManageApi => ShowOrganizerTools && IsApiPreview && _api is not null;
     public bool IsEditingApiParticipant => _editingParticipantId.HasValue;
+    public CategoryGrouping SelectedCategoryGrouping { get; set; } = CategoryGrouping.AgeAndBelt;
+    public IReadOnlyDictionary<string, CategoryGrouping> OrganizerGroupingOptions { get; } =
+        new Dictionary<string, CategoryGrouping>
+        {
+            ["Wiek i pas"] = CategoryGrouping.AgeAndBelt,
+            ["Wiek"] = CategoryGrouping.Age,
+            ["Pas"] = CategoryGrouping.Belt
+        };
+
     public ICommand CreateApiCategoryCommand { get; }
     public ICommand EditApiCategoryCommand { get; }
     public ICommand DeleteApiCategoryCommand { get; }
@@ -224,14 +233,15 @@ public partial class MainViewModel
             _dialogService.ShowMessage("Plik nie zawiera zawodników.", "Import Excel");
             return;
         }
-        if (_dialogService.ShowMessage($"Dodać do rejestru {participants.Count} zawodników z pliku?",
+        if (_dialogService.ShowMessage($"Dodać {participants.Count} zawodników z pliku i przydzielić ich do konkurencji?",
             "Import Excel", DialogButtons.YesNo, DialogIcon.Question) != DialogResult.Yes)
             return;
 
         var requests = participants.Select(person => new CreateParticipantRequest(person.FirstName, person.LastName,
             person.Age, person.Club, person.Belt, person.Sex, person.Categories.ToArray())).ToArray();
-        var saved = await _api!.ImportParticipantsAsync(requests);
+        var saved = await _api!.ImportParticipantsAsync(requests, SelectedCategoryGrouping);
         ShowApiSnapshot(_apiSnapshot! with { Participants = _apiSnapshot.Participants.Concat(saved).ToArray() });
+        await RefreshOrganizerCategoriesAsync(force: true);
         _dialogService.ShowMessage($"Zapisano zawodników: {saved.Length}.", "Import Excel");
     }
 }

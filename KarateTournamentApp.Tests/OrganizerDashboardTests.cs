@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -10,6 +11,7 @@ using KarateTournamentApp.Services.Dialogs;
 using KarateTournamentApp.Services.Navigation;
 using KarateTournamentApp.Services.Scheduling;
 using KarateTournamentApp.ViewModels;
+using OfficeOpenXml;
 using Xunit;
 
 namespace KarateTournamentApp.Tests;
@@ -108,14 +110,81 @@ public sealed class OrganizerDashboardTests
         Assert.Empty(judge.ApiParticipants);
     }
 
-    private static async Task<MainViewModel> LoadAsync(HttpClient http, TestApi responses, bool judge = false)
+    [Fact]
+    public async Task RegistrationRequestsSelectedGroupingAndImmediatelyRefreshesRosterSizes()
+    {
+        var responses = new TestApi();
+        using var http = new HttpClient(responses);
+        var organizer = await LoadAsync(http, responses);
+        Assert.Equal(CategoryGrouping.AgeAndBelt, organizer.SelectedCategoryGrouping);
+        organizer.SelectedCategoryGrouping = CategoryGrouping.Age;
+        organizer.FirstName = "Nowy";
+        organizer.LastName = Participant.LastName;
+        organizer.Age = Participant.Age;
+        organizer.SelectedSex = Participant.Sex;
+        organizer.SelectedBelt = Participant.Belt;
+        organizer.CategorySelections.Single(item => item.CategoryType == CategoryType.Kata).IsSelected = true;
+        responses.EnqueueJson(Participant with { Id = 2, FirstName = "Nowy" }, HttpStatusCode.Created);
+        responses.EnqueueJson(new[] { Summary with { ParticipantCount = 2 } });
+
+        await Assert.IsType<AsyncRelayCommand>(organizer.AddParticipantCommand).ExecuteAsync();
+
+        Assert.Equal((HttpMethod.Post, "/api/participants?groupBy=Age"), responses.Operations[1]);
+        Assert.Equal((HttpMethod.Get, "/api/categories"), responses.Operations[2]);
+        Assert.Equal(2, organizer.ApiParticipants.Count);
+        Assert.Equal(2, Assert.Single(organizer.OrganizerCategories).Summary.ParticipantCount);
+    }
+
+    [Fact]
+    public async Task ExcelImportUsesSelectedGroupingAndShowsNewCompetitionAfterSave()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"karate-organizer-import-{Guid.NewGuid():N}.xlsx");
+        try
+        {
+            await new ExcelImportService().CreateSampleExcelFileAsync(path);
+            using (var workbook = new ExcelPackage(new FileInfo(path)))
+            {
+                workbook.Workbook.Worksheets["Participants"].Cells["A2:G2"].LoadFromArrays(
+                    [new object[] { "Nowy", "Zawodnik", 12, "", "Kyu8", "Male", "Kumite" }]);
+                workbook.Save();
+            }
+
+            var responses = new TestApi();
+            using var http = new HttpClient(responses);
+            var organizer = await LoadAsync(http, responses, dialogs: new ImportDialogs(path));
+            organizer.SelectedCategoryGrouping = CategoryGrouping.Belt;
+            responses.EnqueueJson(new[] { Participant with { Id = 2, CategoryTypes = [CategoryType.Kumite] } },
+                HttpStatusCode.Created);
+            responses.EnqueueJson(new[] { Summary, Summary with { Id = 2, Name = "Kumite", CategoryType = CategoryType.Kumite } });
+
+            await Assert.IsType<AsyncRelayCommand>(organizer.ImportExcelCommand).ExecuteAsync();
+
+            Assert.Equal((HttpMethod.Post, "/api/participants/batch?groupBy=Belt"), responses.Operations[1]);
+            Assert.Equal((HttpMethod.Get, "/api/categories"), responses.Operations[2]);
+            Assert.Contains(organizer.OrganizerCategories, row => row.Summary.Name == "Kumite");
+        }
+        finally { File.Delete(path); }
+    }
+
+    private static async Task<MainViewModel> LoadAsync(
+        HttpClient http, TestApi responses, bool judge = false, IDialogService? dialogs = null)
     {
         responses.EnqueueJson(new TournamentSnapshotDto([Participant], [Category]));
         var api = new TournamentApiClient(http, $"https://{Guid.NewGuid():N}.test");
-        var viewModel = new MainViewModel(new CategoryManager(), new WpfDialogService(),
+        var viewModel = new MainViewModel(new CategoryManager(), dialogs ?? new WpfDialogService(),
             new WpfWindowService(), new WpfUiScheduler(), api, isJudgeStation: judge);
         await Assert.IsType<AsyncRelayCommand>(viewModel.LoadApiTournamentCommand).ExecuteAsync();
         return viewModel;
+    }
+
+    private sealed class ImportDialogs(string path) : IDialogService
+    {
+        public DialogResult ShowMessage(string message, string title, DialogButtons buttons, DialogIcon icon) =>
+            buttons == DialogButtons.YesNo ? DialogResult.Yes : DialogResult.Ok;
+
+        public string ShowOpenFileDialog(string title, string filter) => path;
+        public string? ShowTextInput(string title, string prompt, string defaultValue) => throw new NotSupportedException();
+        public string? ShowSaveFileDialog(string title, string filter, string defaultFileName) => throw new NotSupportedException();
     }
 
     private sealed class TestApi : HttpMessageHandler
@@ -123,9 +192,10 @@ public sealed class OrganizerDashboardTests
         private readonly Queue<Task<HttpResponseMessage>> _responses = new();
 
         public List<string> Requests { get; } = [];
+        public List<(HttpMethod Method, string Path)> Operations { get; } = [];
 
-        public void EnqueueJson<T>(T value) => _responses.Enqueue(Task.FromResult(
-            new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(value) }));
+        public void EnqueueJson<T>(T value, HttpStatusCode status = HttpStatusCode.OK) => _responses.Enqueue(Task.FromResult(
+            new HttpResponseMessage(status) { Content = JsonContent.Create(value) }));
 
         public void Enqueue(HttpStatusCode status) => _responses.Enqueue(Task.FromResult(new HttpResponseMessage(status)));
 
@@ -138,8 +208,8 @@ public sealed class OrganizerDashboardTests
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            Assert.Equal(HttpMethod.Get, request.Method);
             Requests.Add(request.RequestUri!.AbsolutePath);
+            Operations.Add((request.Method, request.RequestUri.PathAndQuery));
             return _responses.Dequeue().WaitAsync(cancellationToken);
         }
     }
