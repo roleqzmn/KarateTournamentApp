@@ -141,7 +141,7 @@ internal static class JudgingHandoffEndpoints
 
         if (checkpoint.Team is not null || checkpoint.RankedTeamIds is not null)
             return false;
-        if (discipline == CategoryType.Kumite)
+        if (discipline.UsesMatchBracket())
             return checkpoint.Individual is null && ValidBracket(roster, checkpoint);
 
         return discipline is CategoryType.Kata or CategoryType.Kihon or CategoryType.KobudoShort or CategoryType.KobudoLong

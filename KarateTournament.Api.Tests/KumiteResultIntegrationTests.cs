@@ -11,18 +11,19 @@ namespace KarateTournament.Api.Tests;
 
 public partial class TournamentApiIntegrationTests
 {
-    private async Task<(int Id, Guid Token, int[] Participants)> PrepareKumite(int count = 2)
+    private async Task<(int Id, Guid Token, int[] Participants)> PrepareBracket(
+        int count = 2, CategoryType discipline = CategoryType.Kumite)
     {
         var ids = new List<int>();
         for (var index = 0; index < count; index++)
         {
             using var response = await _client.PostAsJsonAsync("/api/participants",
-                new CreateParticipantRequest($"Jan {index}", "Kowalski", 12, null, Belts.Dan, Sex.Male, [CategoryType.Kumite]));
+                new CreateParticipantRequest($"Jan {index}", "Kowalski", 12, null, Belts.Dan, Sex.Male, [discipline]));
             response.EnsureSuccessStatusCode();
             ids.Add((await response.Content.ReadFromJsonAsync<ParticipantDto>())!.Id);
         }
         using var category = await _client.PostAsJsonAsync("/api/categories",
-            new CreateCategoryRequest("Kumite", null, null, Sex.Unisex, CategoryType.Kumite, [Belts.Dan], ids.ToArray()));
+            new CreateCategoryRequest(discipline.ToString(), null, null, Sex.Unisex, discipline, [Belts.Dan], ids.ToArray()));
         category.EnsureSuccessStatusCode();
         var id = (await category.Content.ReadFromJsonAsync<CategoryDto>())!.Id;
         var token = Guid.NewGuid();
@@ -34,7 +35,7 @@ public partial class TournamentApiIntegrationTests
     [Fact]
     public async Task SavesFightStateAndRankingAndDeduplicatesConcurrentRetries()
     {
-        var (id, token, ids) = await PrepareKumite();
+        var (id, token, ids) = await PrepareBracket();
         var match = new KumiteMatchResultRequest(0, ids[0], ids[1], ids[0], 2, 1,
             IsDisqualification: true, TimeRemaining: 12.5, AtenaiAka: 1, ChukokuShiro: 2, HasSenshuAka: true,
             IsInOvertime: true, OvertimeCount: 1);
@@ -77,7 +78,7 @@ public partial class TournamentApiIntegrationTests
     [Fact]
     public async Task RejectsWrongOwnerAndInconsistentBracketWithoutReleasingClaim()
     {
-        var (id, token, ids) = await PrepareKumite(4);
+        var (id, token, ids) = await PrepareBracket(4);
         KumiteMatchResultRequest[] matches =
         [new(0, ids[0], ids[2], ids[0], 2, 0), new(1, ids[0], ids[1], ids[0], 2, 0), new(2, ids[2], ids[3], ids[2], 2, 0)];
         var valid = new CompleteKumiteCategoryRequest(token, matches, ids);
@@ -121,7 +122,7 @@ public partial class TournamentApiIntegrationTests
     [Fact]
     public async Task PersistsByeAndEmptySubtreeWithoutInventingFightPoints()
     {
-        var (id, token, ids) = await PrepareKumite(1);
+        var (id, token, ids) = await PrepareBracket(1);
         using var response = await _client.PostAsJsonAsync($"/api/categories/{id}/kumite-results",
             new CompleteKumiteCategoryRequest(token,
                 [new(0, ids[0], null, ids[0]), new(1, ids[0], null, ids[0]), new(2, null, null, null)], ids));
@@ -136,7 +137,7 @@ public partial class TournamentApiIntegrationTests
     [Fact]
     public async Task DatabaseFailureRollsBackBracketRankingAndCompletion()
     {
-        var (id, token, ids) = await PrepareKumite();
+        var (id, token, ids) = await PrepareBracket();
         await using var connection = new NpgsqlConnection(_database.GetConnectionString());
         await connection.OpenAsync();
         await using var constraint = new NpgsqlCommand(
@@ -154,5 +155,39 @@ public partial class TournamentApiIntegrationTests
         Assert.True(category.IsClaimed);
         Assert.Empty(category.BracketMatches);
         Assert.Empty(category.FinalResults);
+    }
+
+    [Fact]
+    public async Task GrapplingCanTransferTheCurrentFightAndPublishItsOwnRanking()
+    {
+        var (id, token, ids) = await PrepareBracket(discipline: CategoryType.Grappling);
+        var path = $"/api/categories/{id}";
+        var fight = new MatchDto(1, 0, ids[0], ids[1], null, 2, 1, false, false, 33.5, 1, 0, 0, 1,
+            false, true, true, false, false, 0);
+        using var handoff = await _client.PostAsJsonAsync($"{path}/handoff/save",
+            new SaveJudgingHandoffRequest(token, new JudgingCheckpoint(false, null, [fight], null)));
+        Assert.Equal(HttpStatusCode.NoContent, handoff.StatusCode);
+        var next = Guid.NewGuid();
+        using var claim = await _client.PostAsJsonAsync($"{path}/claim", new ClaimCategoryRequest(next, "Tatami 2"));
+        Assert.Equal(HttpStatusCode.NoContent, claim.StatusCode);
+        Assert.Equal(fight, Assert.Single((await ReadCheckpointAsync(path, next)).Bracket!));
+
+        var final = new CompleteKumiteCategoryRequest(next,
+            [new(0, ids[0], ids[1], ids[0], 4, 1, TimeRemaining: 20, AtenaiAka: 1, ChukokuShiro: 1, HasSenshuAka: true)],
+            ids);
+        using var wrongRoute = await _client.PostAsJsonAsync($"{path}/kumite-results", final);
+        Assert.Equal(HttpStatusCode.BadRequest, wrongRoute.StatusCode);
+        using var oldOwner = await _client.PostAsJsonAsync($"{path}/grappling-results", final with { SessionToken = token });
+        Assert.Equal(HttpStatusCode.Conflict, oldOwner.StatusCode);
+        using var published = await _client.PostAsJsonAsync($"{path}/grappling-results", final);
+        Assert.Equal(HttpStatusCode.NoContent, published.StatusCode);
+        using var retry = await _client.PostAsJsonAsync($"{path}/grappling-results", final);
+        Assert.Equal(HttpStatusCode.NoContent, retry.StatusCode);
+        var category = (await _client.GetFromJsonAsync<CategoryDto>(path))!;
+        Assert.Equal(CategoryType.Grappling, category.CategoryType);
+        Assert.True(category.IsFinished);
+        Assert.False(category.IsClaimed);
+        Assert.Equal(4, Assert.Single(category.BracketMatches).AkaScore);
+        Assert.Equal(ids, category.FinalResults.Select(result => result.ParticipantId));
     }
 }

@@ -14,13 +14,19 @@ public static class KumiteResultEndpoints
 {
     public static IEndpointRouteBuilder MapKumiteResultEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/api/categories/{categoryId:int}/kumite-results", CompleteCategory)
+        endpoints.MapPost("/api/categories/{categoryId:int}/kumite-results",
+            (int categoryId, CompleteKumiteCategoryRequest request, TournamentDbContext db, CancellationToken token) =>
+                CompleteCategory(categoryId, CategoryType.Kumite, request, db, token))
             .WithName("CompleteKumiteCategory");
+        endpoints.MapPost("/api/categories/{categoryId:int}/grappling-results",
+            (int categoryId, CompleteKumiteCategoryRequest request, TournamentDbContext db, CancellationToken token) =>
+                CompleteCategory(categoryId, CategoryType.Grappling, request, db, token))
+            .WithName("CompleteGrapplingCategory");
         return endpoints;
     }
 
     private static async Task<IResult> CompleteCategory(
-        int categoryId, CompleteKumiteCategoryRequest request, TournamentDbContext db,
+        int categoryId, CategoryType discipline, CompleteKumiteCategoryRequest request, TournamentDbContext db,
         CancellationToken cancellationToken)
     {
         var error = KumiteResultValidator.Validate(request);
@@ -28,7 +34,8 @@ public static class KumiteResultEndpoints
         var matches = request.Matches!.OrderBy(match => match.BracketPosition)
             .Select(match => match with { TimeRemaining = match.TimeRemaining == 0 ? 0 : match.TimeRemaining }).ToArray();
         var ranking = request.RankedParticipantIds!;
-        var canonical = "kumite:v1:" + JsonSerializer.Serialize(new { Matches = matches, Ranking = ranking });
+        var canonical = $"{discipline.ToString().ToLowerInvariant()}:v1:"
+            + JsonSerializer.Serialize(new { Matches = matches, Ranking = ranking });
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var category = await db.Categories.AsNoTracking().Include(category => category.ParticipantLinks)
@@ -36,9 +43,9 @@ public static class KumiteResultEndpoints
         if (category is null) return Results.NotFound();
         if (category.IsFinished) return RetryOrConflict(category, request.SessionToken, hash);
         if (category.ClaimToken != request.SessionToken) return Conflict();
-        if (category.CategoryType != CategoryType.Kumite
+        if (category.CategoryType != discipline
             || !category.ParticipantLinks.Select(link => link.ParticipantId).Order().SequenceEqual(ranking.Order()))
-            return Results.Problem(statusCode: 400, title: "Provide results for exactly all participants of a Kumite category.");
+            return Results.Problem(statusCode: 400, title: $"Provide results for exactly all participants of a {discipline} category.");
         var affected = await db.Categories
             .Where(category => category.Id == categoryId && !category.IsFinished && category.ClaimToken == request.SessionToken)
             .ExecuteUpdateAsync(setters => setters

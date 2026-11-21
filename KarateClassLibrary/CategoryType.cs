@@ -10,3 +10,9 @@ public enum CategoryType
     Grappling = 5,
     Team = 6
 }
+
+public static class CategoryTypeExtensions
+{
+    public static bool UsesMatchBracket(this CategoryType discipline) =>
+        discipline is CategoryType.Kumite or CategoryType.Grappling;
+}
