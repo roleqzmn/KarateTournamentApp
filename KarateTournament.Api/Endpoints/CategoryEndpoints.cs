@@ -115,11 +115,14 @@ public static class CategoryEndpoints
     {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, cancellationToken);
+        await dbContext.LockScheduleAsync(cancellationToken);
         var category = await dbContext.LockCategoryAsync(categoryId, cancellationToken);
         if (category is null)
             return Results.NotFound();
         if (await HasCompetitionData(category, dbContext, cancellationToken))
             return CategoryConflict();
+        if (await dbContext.ScheduleSlots.AnyAsync(slot => slot.CategoryId == categoryId, cancellationToken))
+            return Results.Problem(statusCode: 409, title: "Remove the competition from the schedule before deleting it.");
 
         dbContext.Categories.Remove(category);
         await dbContext.SaveChangesAsync(cancellationToken);

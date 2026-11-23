@@ -29,6 +29,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     }
     await dbContext.EnsureJudgingProgressSchemaAsync();
     await dbContext.EnsureTeamResultSchemaAsync();
+    await dbContext.EnsureScheduleSchemaAsync();
 }
 
 if (app.Environment.IsDevelopment())
@@ -43,6 +44,7 @@ app.MapParticipantEndpoints();
 app.MapCategoryEndpoints();
 app.MapTeamEndpoints();
 app.MapCategoryClaimEndpoints();
+app.MapScheduleEndpoints();
 app.MapJudgingHandoffEndpoints();
 app.MapKataResultEndpoints();
 app.MapKumiteResultEndpoints();

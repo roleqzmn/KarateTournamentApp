@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace KarateTournament.Api.Data;
 
-public sealed class TournamentDbContext : DbContext
+public sealed partial class TournamentDbContext : DbContext
 {
     public TournamentDbContext(DbContextOptions<TournamentDbContext> options)
         : base(options)
@@ -56,6 +56,7 @@ public sealed class TournamentDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        ConfigureSchedule(modelBuilder);
         modelBuilder.Entity<Category>(entity =>
         {
             entity.HasKey(category => category.Id);

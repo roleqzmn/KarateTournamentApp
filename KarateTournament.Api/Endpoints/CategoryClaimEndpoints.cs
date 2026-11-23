@@ -36,6 +36,7 @@ public static class CategoryClaimEndpoints
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             IsolationLevel.ReadCommitted, cancellationToken);
+        await dbContext.LockScheduleAsync(cancellationToken);
         var category = await dbContext.LockCategoryAsync(categoryId, cancellationToken);
         if (category is null)
             return Results.NotFound();
@@ -44,6 +45,14 @@ public static class CategoryClaimEndpoints
         if (category.ClaimToken.HasValue)
             return category.ClaimToken == request.SessionToken && category.ClaimedBy == stationName
                 ? Results.NoContent() : ClaimConflict();
+
+        var slot = await dbContext.ScheduleSlots.AsNoTracking().Include(item => item.Mat)
+            .SingleOrDefaultAsync(item => item.CategoryId == categoryId, cancellationToken);
+        if (slot is not null && (!slot.Mat.ClaimToken.HasValue || slot.Mat.ClaimToken != request.MatClaimToken
+            || slot.Mat.ClaimedBy != stationName || await dbContext.ScheduleSlots.AnyAsync(
+                item => item.MatNumber == slot.MatNumber && item.Position < slot.Position && !item.Category.IsFinished,
+                cancellationToken)))
+            return Results.Problem(statusCode: 409, title: "Claim the mat and start its first unfinished competition.");
 
         // A separate query after acquiring the lock sees revocations that committed while we waited.
         var claimReference = GetClaimReference(request.SessionToken);
