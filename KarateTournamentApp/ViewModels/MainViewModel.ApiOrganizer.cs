@@ -26,6 +26,7 @@ public partial class MainViewModel
         };
 
     public ICommand CreateApiCategoryCommand { get; }
+    public ICommand EditApiScheduleCommand { get; }
     public ICommand EditApiCategoryCommand { get; }
     public ICommand DeleteApiCategoryCommand { get; }
     public ICommand ManageApiTeamsCommand { get; }
@@ -98,6 +99,27 @@ public partial class MainViewModel
             category.IsSelected = participant.CategoryTypes.Contains(category.CategoryType);
         OnPropertyChanged(nameof(IsEditingApiParticipant));
         OnPropertyChanged(nameof(AddParticipantLabel));
+    }
+
+    private async Task EditApiScheduleAsync()
+    {
+        ApiScheduleEditorViewModel editor;
+        IsLoading = true;
+        try
+        {
+            var schedule = await _api!.GetScheduleAsync();
+            var categories = await _api.GetCategorySummariesAsync(CancellationToken.None);
+            editor = new ApiScheduleEditorViewModel(schedule, categories, _api, _dialogService);
+        }
+        finally { IsLoading = false; }
+
+        _windowService.ShowDialog(editor, new WindowOptions
+        {
+            Title = "Harmonogram turnieju",
+            Width = 920,
+            Height = 670,
+            StartupPosition = WindowStartupPosition.CenterScreen
+        });
     }
 
     private async Task EditApiCategoryAsync(OrganizerCompetitionRow? row)

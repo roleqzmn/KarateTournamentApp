@@ -208,6 +208,7 @@ namespace KarateTournamentApp.ViewModels
                 HandleAsyncCommandError, item => CanChangeApi() && item is
                     { Status: OrganizerCompetitionStatus.InProgress, Summary.HandoffRequested: false });
             CreateApiCategoryCommand = new AsyncRelayCommand(() => EditApiCategoryAsync(null), HandleAsyncCommandError, CanChangeApi);
+            EditApiScheduleCommand = new AsyncRelayCommand(EditApiScheduleAsync, HandleAsyncCommandError, CanChangeApi);
             EditApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(EditApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
             DeleteApiCategoryCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(DeleteApiCategoryAsync, HandleAsyncCommandError, CanEditApiCategory);
             ManageApiTeamsCommand = new AsyncRelayCommand<OrganizerCompetitionRow>(ManageApiTeamsAsync,

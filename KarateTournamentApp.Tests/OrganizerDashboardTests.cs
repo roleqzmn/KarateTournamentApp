@@ -139,6 +139,51 @@ public sealed class OrganizerDashboardTests
     }
 
     [Fact]
+    public async Task ScheduleEditorSavesReorderedSlotsWithVenueLocalTimes()
+    {
+        var responses = new TestApi();
+        using var http = new HttpClient(responses);
+        var api = new TournamentApiClient(http, "https://schedule.test");
+        var other = Summary with { Id = 2, Name = "Team Kata", CategoryType = CategoryType.Team };
+        var editor = new ApiScheduleEditorViewModel(new(7, []), [Summary, other], api, new WpfDialogService());
+        editor.MatCountText = "2";
+        editor.ApplyMatCountCommand.Execute(null);
+        editor.SelectedCategory = Summary;
+        editor.AddSlotCommand.Execute(null);
+        editor.SelectedSlot!.StartsAt = "2026-11-23 10:30";
+        editor.SelectedCategory = other;
+        editor.AddSlotCommand.Execute(null);
+        editor.MoveUpCommand.Execute(null);
+        responses.Enqueue(HttpStatusCode.NoContent);
+        responses.EnqueueJson(new TournamentScheduleDto(8, []));
+
+        await Assert.IsType<AsyncRelayCommand>(editor.SaveCommand).ExecuteAsync();
+
+        var request = JsonSerializer.Deserialize<SaveTournamentScheduleRequest>(responses.Bodies[0]!, JsonSerializerOptions.Web)!;
+        Assert.Equal(7, request.Version);
+        Assert.Equal(2, request.MatCount);
+        Assert.Equal(new[] { other.Id, Summary.Id }, request.Slots!.Select(slot => slot!.CategoryId));
+        Assert.Equal(new DateTime(2026, 11, 23, 10, 30, 0), request.Slots![1]!.StartsAt);
+        Assert.Equal(DateTimeKind.Unspecified, request.Slots[1]!.StartsAt!.Value.Kind);
+    }
+
+    [Fact]
+    public void PrintScheduleUsesMatOrderAndEscapesCompetitionNames()
+    {
+        var date = new DateTime(2026, 11, 23, 9, 30, 0);
+        var html = SchedulePrintExport.CreateHtml(new TournamentScheduleDto(1,
+            [new(1, Guid.NewGuid(), null,
+                [new(1, "Kata <A> & B", CategoryType.Kata, false, null, date, null),
+                 new(2, "Drużyny", CategoryType.Team, false, null, null, null)])]));
+
+        Assert.Contains("Mata 1", html);
+        Assert.Contains("<td>1</td><td>Kata &lt;A&gt; &amp; B</td>", html);
+        Assert.Contains("<td>2</td><td>Drużyny</td><td>Team Kata</td>", html);
+        Assert.Contains("23.11.2026 09:30", html);
+        Assert.DoesNotContain("<A>", html);
+    }
+
+    [Fact]
     public async Task RegistrationRequestsSelectedGroupingAndImmediatelyRefreshesRosterSizes()
     {
         var responses = new TestApi();

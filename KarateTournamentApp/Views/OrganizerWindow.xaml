@@ -44,6 +44,7 @@
         <DockPanel Margin="0,0,0,16">
             <Button DockPanel.Dock="Right" Margin="0" Content="Pobierz turniej z API"
                     Command="{Binding LoadApiTournamentCommand}"/>
+            <Button DockPanel.Dock="Right" Content="Harmonogram" Command="{Binding EditApiScheduleCommand}"/>
             <TextBlock Text="Panel organizatora" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center"/>
         </DockPanel>
         <TabControl Grid.Row="1">
