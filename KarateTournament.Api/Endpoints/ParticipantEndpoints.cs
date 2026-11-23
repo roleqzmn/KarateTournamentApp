@@ -18,6 +18,8 @@ public static class ParticipantEndpoints
             .WithMetadata(TournamentRouteAccess.Organizer);
         endpoints.MapGet("/api/participants/{participantId:int}", GetParticipant)
             .WithName("GetParticipant");
+        endpoints.MapGet("/api/participants/{participantId:int}/results", GetParticipantResults)
+            .WithName("GetParticipantResults");
         endpoints.MapPut("/api/participants/{participantId:int}", UpdateParticipant)
             .WithName("UpdateParticipant").WithMetadata(TournamentRouteAccess.Organizer);
         endpoints.MapDelete("/api/participants/{participantId:int}", DeleteParticipant)
@@ -178,6 +180,36 @@ public static class ParticipantEndpoints
             .SingleOrDefaultAsync(participant => participant.Id == participantId, cancellationToken);
 
         return participant is null ? Results.NotFound() : Results.Ok(ToDto(participant));
+    }
+
+    private static async Task<IResult> GetParticipantResults(
+        int participantId, TournamentDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var individual = from result in dbContext.ParticipantResults
+                         where result.ParticipantId == participantId && result.Category.IsFinished
+                         select new
+                         {
+                             result.CategoryId, result.Category.Name, result.Category.CategoryType,
+                             result.Rank, result.Score, TeamId = (int?)null, TeamName = (string?)null
+                         };
+        var team = from member in dbContext.Set<TeamMember>()
+                   join result in dbContext.TeamResults on member.TeamId equals result.TeamId
+                   where member.ParticipantId == participantId && member.Team.Category.IsFinished
+                   select new
+                   {
+                       result.CategoryId, member.Team.Category.Name, member.Team.Category.CategoryType,
+                       Rank = (int?)result.Rank, result.Score, TeamId = (int?)result.TeamId,
+                       TeamName = (string?)member.Team.Name
+                   };
+
+        var rows = await individual.Concat(team).OrderBy(row => row.Name).ThenBy(row => row.CategoryId)
+            .ThenBy(row => row.Rank).ToArrayAsync(cancellationToken);
+        if (rows.Length == 0 && !await dbContext.Participants.AnyAsync(person => person.Id == participantId, cancellationToken))
+            return Results.NotFound();
+
+        return Results.Ok(rows.Select(row => new ParticipantResultHistoryEntryDto(
+            row.CategoryId, row.Name, row.CategoryType, row.Rank,
+            row.CategoryType.UsesMatchBracket() ? null : row.Score, row.TeamId, row.TeamName)).ToArray());
     }
 
     private static ParticipantDto ToDto(Participant participant) => new(

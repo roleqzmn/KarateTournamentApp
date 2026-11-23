@@ -158,6 +158,16 @@ KarateTournament.Api.http. Verify POST returns 201, GET by the returned ID and
 GET /api/tournament contain the participant, and the data survives an API restart.
 Also verify an invalid request returns 400 without adding a participant.
 
+## Read a participant's results
+
+`GET /api/participants/{id}/results` returns the participant's published results
+in the current tournament, ordered by category name. Team Kata entries are
+linked through roster membership and carry the team ID and name. Each entry
+includes the category and placement. `judgedScore` contains the final score
+for judged performances and is null for Kumite and Grappling.
+The route returns an empty array for a participant with no published results
+and HTTP 404 for an unknown participant ID.
+
 ## Create a category
 
 `POST /api/categories` accepts name, optional minAge/maxAge, sex, categoryType,
