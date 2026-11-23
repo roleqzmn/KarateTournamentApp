@@ -73,6 +73,8 @@ public partial class MainViewModel
         }
 
         _apiSnapshot = snapshot;
+        if (IsJudgeStation)
+            UpdateMatQueueFromSnapshot(snapshot);
         if (!IsJudgeStation)
         {
             var selectedId = SelectedApiParticipant?.Id;

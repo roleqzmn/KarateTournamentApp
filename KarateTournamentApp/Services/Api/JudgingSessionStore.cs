@@ -14,6 +14,7 @@ public sealed class JudgingSession(int categoryId, string name, Guid token, stri
     public string Name { get; } = name;
     public Guid Token { get; } = token;
     public string StationName { get; } = stationName;
+    public Guid? MatClaimToken { get; init; }
     public Category? Category { get; set; }
     public bool AwaitingHandoff { get; set; }
     // JsonInclude serializes this internal checkpoint without exposing it to the view.
@@ -21,6 +22,8 @@ public sealed class JudgingSession(int categoryId, string name, Guid token, stri
     [JsonInclude] internal TeamJudgeDraft? TeamDraft { get; set; }
     [JsonIgnore] public string Label => $"{Name} · {StationName}";
 }
+
+internal sealed record LocalMatClaim(int Number, ClaimMatRequest Request);
 
 internal sealed class JudgingSessionStore
 {
@@ -34,12 +37,30 @@ internal sealed class JudgingSessionStore
             "KarateTournamentApp", "Judging", folderName);
     }
 
-    public FileStream Lock(int categoryId)
+    public FileStream Lock(int categoryId) => LockFile($"{categoryId}.lock", "Ta sesja jest otwarta w innej instancji aplikacji.");
+
+    internal FileStream LockMat(int number) => LockFile($"mat-{number}.lock", "Ta mata jest otwarta w innej instancji aplikacji.");
+
+    private FileStream LockFile(string fileName, string failure)
     {
         Directory.CreateDirectory(_folder);
-        try { return new FileStream(Path.Combine(_folder, $"{categoryId}.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
-        catch (IOException exception) { throw new IOException("Ta sesja jest otwarta w innej instancji aplikacji.", exception); }
+        try { return new FileStream(Path.Combine(_folder, fileName), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+        catch (IOException exception) { throw new IOException(failure, exception); }
     }
+
+    internal LocalMatClaim? LoadMat(int number)
+    {
+        var path = MatPath(number);
+        if (!File.Exists(path))
+            return null;
+        var claim = JsonSerializer.Deserialize<LocalMatClaim>(File.ReadAllBytes(path), JsonOptions);
+        return claim is { Request: { } request } && claim.Number == number && request.SessionToken != Guid.Empty
+            ? claim : throw new InvalidDataException($"Nie można odczytać lokalnego przydziału maty {number}.");
+    }
+
+    internal void SaveMat(LocalMatClaim claim) => SaveJson(MatPath(claim.Number), claim);
+    internal void DeleteMat(int number) => File.Delete(MatPath(number));
+    private string MatPath(int number) => Path.Combine(_folder, $"mat-{number}.json");
 
     public JudgingSession? Load(int categoryId)
     {
@@ -77,13 +98,14 @@ internal sealed class JudgingSessionStore
     }
 
     // The caller holds Lock(categoryId) during all writes.
-    public void Save(JudgingSession session)
+    public void Save(JudgingSession session) => SaveJson(GetPath(session.CategoryId), session);
+
+    private static void SaveJson<T>(string path, T value)
     {
-        var path = GetPath(session.CategoryId);
         var temp = path + ".tmp";
         using (var output = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
         {
-            JsonSerializer.Serialize(output, session, JsonOptions);
+            JsonSerializer.Serialize(output, value, JsonOptions);
             output.Flush(flushToDisk: true);
         }
         File.Move(temp, path, overwrite: true);

@@ -24,6 +24,8 @@ public partial class JudgeWindow : Window
             _handoffTimer.Stop();
             _lifetime.Cancel();
             _lifetime.Dispose();
+            if (DataContext is MainViewModel judge)
+                judge.CloseJudgeSchedule();
         };
     }
 }

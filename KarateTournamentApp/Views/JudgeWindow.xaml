@@ -18,14 +18,51 @@
         </Grid.RowDefinitions>
         <DockPanel Margin="0,0,0,16">
             <Button DockPanel.Dock="Right" Margin="0" Content="Pobierz turniej z API"
-                    Command="{Binding LoadApiTournamentCommand}"/>
+                    Command="{Binding RefreshJudgeScheduleCommand}"/>
             <TextBlock Text="Stanowisko sędziowskie" FontSize="24" FontWeight="SemiBold"
                        VerticalAlignment="Center"/>
         </DockPanel>
         <TextBlock Grid.Row="1" Text="{Binding JudgingWarning}" TextWrapping="Wrap" Foreground="#754600"/>
         <TabControl Grid.Row="2">
-            <TabItem Header="Konkurencje">
-                <DataGrid ItemsSource="{Binding Categories}" AutoGenerateColumns="False"
+            <TabItem Header="Maty">
+                <DockPanel Margin="12">
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Label Content="Mata" Target="{Binding ElementName=JudgeMatSelector}"/>
+                        <ComboBox x:Name="JudgeMatSelector" Width="190" Margin="0,0,8,0"
+                                  ItemsSource="{Binding JudgeMats}" SelectedItem="{Binding SelectedJudgeMat}"
+                                  IsEnabled="{Binding CanChooseJudgeMat}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Number, StringFormat='Mata {0}'}"/>
+                                        <TextBlock Text="{Binding ClaimedBy, TargetNullValue=Wolna}" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Content="Przejmij / wznów matę" Command="{Binding ClaimJudgeMatCommand}"/>
+                        <Button Content="Zwolnij matę" Command="{Binding ReleaseJudgeMatCommand}"/>
+                        <Button Content="Rozpocznij następną" Command="{Binding StartNextScheduledCategoryCommand}"/>
+                    </WrapPanel>
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button Content="Wznów bieżącą" Command="{Binding ResumeApiJudgingCommand}" CommandParameter="{Binding JudgeMatSession}"/>
+                        <Button Content="Wyślij wynik" Command="{Binding SubmitApiJudgingCommand}" CommandParameter="{Binding JudgeMatSession}"/>
+                        <TextBlock Text="{Binding JudgeScheduleStatus}" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                    <DataGrid ItemsSource="{Binding JudgeMatQueue}" AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" CanUserSortColumns="False" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Lp." Binding="{Binding Position}"/>
+                            <DataGridTextColumn Header="Konkurencja" Binding="{Binding Slot.CategoryName}" Width="2*"/>
+                            <DataGridTextColumn Header="Od" Binding="{Binding StartsAt}"/>
+                            <DataGridTextColumn Header="Do" Binding="{Binding EndsAt}"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="Konkurencje bez maty">
+                <DataGrid ItemsSource="{Binding UnscheduledJudgeCategories}" AutoGenerateColumns="False"
                           IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
                           CanUserAddRows="False" CanUserDeleteRows="False" Margin="12">
                     <DataGrid.Columns>

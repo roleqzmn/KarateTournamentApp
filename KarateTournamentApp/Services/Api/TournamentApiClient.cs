@@ -116,6 +116,10 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         WriteAsync<object>(HttpMethod.Put, "api/schedule", request);
     public Task RecoverMatAsync(int number, RecoverMatRequest request) =>
         WriteAsync<object>(HttpMethod.Post, $"api/schedule/mats/{number}/recover", request);
+    public Task ClaimMatAsync(int number, ClaimMatRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/schedule/mats/{number}/claim", request);
+    public Task ReleaseMatAsync(int number, ReleaseMatRequest request) =>
+        WriteAsync<object>(HttpMethod.Post, $"api/schedule/mats/{number}/release", request);
 
     public Task<TeamDto> SaveTeamAsync(int categoryId, int? teamId, SaveTeamRequest request) =>
         teamId is int id

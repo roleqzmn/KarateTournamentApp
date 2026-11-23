@@ -263,6 +263,38 @@ bound to loopback, and run the API through WebApplicationFactory. No local tourn
 database or user secrets are needed. Containers are disposed after each test.
 To run only tests without Docker, add `--filter "Category!=Integration"`.
 
+## Schedule competitions on mats
+
+In the organizer panel, open **Harmonogram**, set the number of mats and add
+competitions to their queues. Use **Wcześniej**, **Później** or **Przenieś do
+wybranej maty** to adjust the order. The start and end fields accept venue-local
+dates and times in `YYYY-MM-DD HH:mm` format. Both fields are optional and the
+times are informational. The judge follows the saved queue order.
+
+Save the plan, then use **Eksportuj zapisany plan do druku** to save an HTML file
+with the order and hours for each mat. Open it in a browser and print on A4 or
+select the browser's PDF destination.
+
+At a judging station, load the tournament and open **Maty**. Select a mat and
+choose **Przejmij / wznów matę**, then **Rozpocznij następną**. Close the judging
+window when the competition is finished and select **Wyślij wynik** in the mat
+tab. The next competition becomes available after publication. Unscheduled
+competitions are still available in **Konkurencje bez maty**.
+
+A mat remains assigned after the judge app exits. The same station can resume
+it from its local claim file, or release it explicitly. The organizer can
+release an idle mat from **Harmonogram**. For a running competition, first use
+the normal handoff flow to save its progress and release the competition, then
+release the mat so another station can take over.
+
+`GET /api/schedule` returns the plan version, mat claims and ordered slots.
+`PUT /api/schedule` is organizer-only and replaces the plan using the last
+read version. Mat claims use `POST /api/schedule/mats/{number}/claim` and
+`/release`. Organizer recovery uses `/recover` on that route. For a scheduled
+competition, the category claim also requires `matClaimToken` and the category
+must be the first unfinished slot. Startup creates the scheduling tables in
+existing databases without changing saved results.
+
 ## Claim a category for local judging
 
 `POST /api/categories/{id}/claim` takes `{ "sessionToken": "<UUID>", "stationName": "Tatami 1" }`.

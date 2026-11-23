@@ -95,9 +95,21 @@ public partial class TournamentApiIntegrationTests
         var successor = attempts.Single(request => request != owner) with { ExpectedRevision = current.Revision };
         using var matTaken = await _client.PostAsJsonAsync($"{matPath}/claim", successor);
         Assert.Equal(HttpStatusCode.NoContent, matTaken.StatusCode);
+        var secondToken = Guid.NewGuid();
         using var next = await _client.PostAsJsonAsync($"/api/categories/{second.Id}/claim",
-            new ClaimCategoryRequest(Guid.NewGuid(), successor.StationName, successor.SessionToken));
+            new ClaimCategoryRequest(secondToken, successor.StationName, successor.SessionToken));
         Assert.Equal(HttpStatusCode.NoContent, next.StatusCode);
+
+        var occupied = Assert.Single((await ReadSchedule()).Mats);
+        using var recoverActive = await _client.PostAsJsonAsync($"{matPath}/recover", new RecoverMatRequest(occupied.Revision));
+        Assert.Equal(HttpStatusCode.Conflict, recoverActive.StatusCode);
+        using var handoff = await _client.PostAsJsonAsync($"/api/categories/{second.Id}/release", new ReleaseCategoryRequest(secondToken));
+        Assert.Equal(HttpStatusCode.NoContent, handoff.StatusCode);
+        using var recoverOld = await _client.PostAsJsonAsync($"{matPath}/recover", new RecoverMatRequest(current.Revision));
+        Assert.Equal(HttpStatusCode.Conflict, recoverOld.StatusCode);
+        using var recover = await _client.PostAsJsonAsync($"{matPath}/recover", new RecoverMatRequest(occupied.Revision));
+        Assert.Equal(HttpStatusCode.NoContent, recover.StatusCode);
+        Assert.Null(Assert.Single((await ReadSchedule()).Mats).ClaimedBy);
     }
 
     private async Task<TournamentScheduleDto> ReadSchedule() =>

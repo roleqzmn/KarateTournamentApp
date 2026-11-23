@@ -191,6 +191,11 @@ namespace KarateTournamentApp.ViewModels
                 () => loadApiSnapshot is not null && !IsLoading);
             StartApiJudgingCommand = new AsyncRelayCommand<CategoryViewModel>(StartApiJudgingAsync,
                 HandleAsyncCommandError, CanStartApiJudging);
+            RefreshJudgeScheduleCommand = new AsyncRelayCommand(RefreshJudgeScheduleAsync, HandleAsyncCommandError, CanUseJudgeSchedule);
+            ClaimJudgeMatCommand = new AsyncRelayCommand(ClaimJudgeMatAsync, HandleAsyncCommandError, CanClaimJudgeMat);
+            ReleaseJudgeMatCommand = new AsyncRelayCommand(ReleaseJudgeMatAsync, HandleAsyncCommandError, CanReleaseJudgeMat);
+            StartNextScheduledCategoryCommand = new AsyncRelayCommand(StartNextScheduledCategoryAsync, HandleAsyncCommandError,
+                CanStartNextScheduledCategory);
             ResumeApiJudgingCommand = new AsyncRelayCommand<JudgingSession>(ResumeApiJudgingAsync,
                 HandleAsyncCommandError, session => session is not null && CanUseSessions()
                     && !session.AwaitingHandoff && session.Token != _pendingHandoff?.Token && session.Category?.IsFinished != true);

@@ -184,6 +184,72 @@ public sealed class OrganizerDashboardTests
     }
 
     [Fact]
+    public async Task JudgeRestoresLocalMatClaimAndStartsTheFirstUnfinishedSlot()
+    {
+        var responses = new TestApi();
+        using var http = new HttpClient(responses);
+        var folder = Path.Combine(Path.GetTempPath(), $"karate-schedule-{Guid.NewGuid():N}");
+        var store = new JudgingSessionStore("schedule-test", folder);
+        var windows = new QueueWindows();
+        var dialogs = new ImportDialogs("", "Tatami A");
+        var done = Category with { Id = 4, IsFinished = true };
+        var snapshot = new TournamentSnapshotDto([Participant], [done, Category]);
+        var free = new ScheduleMatDto(1, Guid.NewGuid(), null,
+            [new(done.Id, done.Name, CategoryType.Kata, true, null, null, null),
+             new(Category.Id, Category.Name, CategoryType.Kata, false, null, null, null)]);
+        var taken = free with { Revision = Guid.NewGuid(), ClaimedBy = "Tatami A" };
+
+        MainViewModel? judge = null;
+        try
+        {
+            judge = await LoadAsync(http, responses, true, dialogs, store, snapshot, windows);
+            responses.EnqueueJson(snapshot);
+            responses.EnqueueJson(new TournamentScheduleDto(1, [free]));
+            await Assert.IsType<AsyncRelayCommand>(judge.RefreshJudgeScheduleCommand).ExecuteAsync();
+            Assert.Empty(judge.UnscheduledJudgeCategories);
+            Assert.False(judge.StartApiJudgingCommand.CanExecute(judge.Categories.Single(item => item.Category.Id == Category.Id)));
+
+            responses.Enqueue(HttpStatusCode.NoContent);
+            responses.EnqueueJson(new TournamentScheduleDto(1, [taken]));
+            await Assert.IsType<AsyncRelayCommand>(judge.ClaimJudgeMatCommand).ExecuteAsync();
+            Assert.Throws<IOException>(() => store.LockMat(1));
+            var reserved = store.LoadMat(1)!.Request;
+            judge.CloseJudgeSchedule();
+
+            judge = await LoadAsync(http, responses, true, dialogs, store, snapshot, windows);
+            responses.EnqueueJson(snapshot);
+            responses.EnqueueJson(new TournamentScheduleDto(1, [taken]));
+            await Assert.IsType<AsyncRelayCommand>(judge.RefreshJudgeScheduleCommand).ExecuteAsync();
+            responses.Enqueue(HttpStatusCode.NoContent);
+            responses.EnqueueJson(new TournamentScheduleDto(1, [taken]));
+            await Assert.IsType<AsyncRelayCommand>(judge.ClaimJudgeMatCommand).ExecuteAsync();
+            Assert.Equal(reserved, store.LoadMat(1)!.Request);
+
+            responses.EnqueueJson(snapshot);
+            responses.EnqueueJson(new TournamentScheduleDto(1, [taken]));
+            responses.Enqueue(HttpStatusCode.NoContent);
+            responses.Enqueue(HttpStatusCode.NoContent);
+            responses.EnqueueJson(snapshot with { Categories = [done, Category with { IsClaimed = true, ClaimedBy = taken.ClaimedBy }] });
+            responses.EnqueueJson(new JudgingCheckpointDto(null));
+            await Assert.IsType<AsyncRelayCommand>(judge.StartNextScheduledCategoryCommand).ExecuteAsync();
+
+            var claimIndex = responses.Requests.IndexOf($"/api/categories/{Category.Id}/claim");
+            Assert.True(claimIndex >= 0);
+            var claim = JsonSerializer.Deserialize<ClaimCategoryRequest>(responses.Bodies[claimIndex]!, JsonSerializerOptions.Web)!;
+            Assert.Equal(reserved.SessionToken, claim.MatClaimToken);
+            Assert.Equal(claim.SessionToken, judge.JudgeMatSession!.Token);
+            Assert.False(judge.StartNextScheduledCategoryCommand.CanExecute(null));
+        }
+        finally
+        {
+            windows.Judge?.Close();
+            judge?.CloseJudgeSchedule();
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RegistrationRequestsSelectedGroupingAndImmediatelyRefreshesRosterSizes()
     {
         var responses = new TestApi();
@@ -451,13 +517,32 @@ public sealed class OrganizerDashboardTests
             EventHandler? onClosed = null) => throw new NotSupportedException();
     }
 
-    private sealed class ImportDialogs(string path) : IDialogService
+    private sealed class QueueWindows : IWindowService
+    {
+        public IWindowHandle? Judge { get; private set; }
+
+        public IWindowHandle Show(object viewModel, WindowOptions? options = null) => Judge = new Handle();
+        public IWindowHandle ShowOrUpdate(string key, object viewModel, WindowOptions? options = null,
+            EventHandler? onClosed = null) => new Handle();
+        public void Register<TViewModel, TView>() where TView : System.Windows.FrameworkElement, new() =>
+            throw new NotSupportedException();
+        public bool? ShowDialog(object viewModel, WindowOptions? options = null, Action<IWindowHandle>? onOpened = null) =>
+            throw new NotSupportedException();
+
+        private sealed class Handle : IWindowHandle
+        {
+            public event EventHandler? Closed;
+            public void Close() => Closed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private sealed class ImportDialogs(string path, string? station = null) : IDialogService
     {
         public DialogResult ShowMessage(string message, string title, DialogButtons buttons, DialogIcon icon) =>
             buttons == DialogButtons.YesNo ? DialogResult.Yes : DialogResult.Ok;
 
         public string ShowOpenFileDialog(string title, string filter) => path;
-        public string? ShowTextInput(string title, string prompt, string defaultValue) => throw new NotSupportedException();
+        public string? ShowTextInput(string title, string prompt, string defaultValue) => station ?? throw new NotSupportedException();
         public string? ShowSaveFileDialog(string title, string filter, string defaultFileName) => throw new NotSupportedException();
     }
 

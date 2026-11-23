@@ -33,6 +33,9 @@ public partial class MainViewModel
     private bool CanUseSessions() => _api is not null && _sessions is not null && !IsLoading && _activeJudgeLock is null;
 
     private bool CanStartApiJudging(CategoryViewModel item) =>
+        CanStartCategory(item) && !_judgeMats.SelectMany(mat => mat.Slots).Any(slot => slot.CategoryId == item.Category.Id);
+
+    private bool CanStartCategory(CategoryViewModel item) =>
         item is not null && IsApiPreview && CanUseSessions() && !item.Category.IsFinished
         && CanJudge(item.Category)
         && !JudgingSessions.Any(session => session.CategoryId == item.Category.Id)
@@ -67,7 +70,15 @@ public partial class MainViewModel
             if (session.Category is null)
             {
                 _sessions.Save(session);
-                await _api!.ClaimCategoryAsync(session.CategoryId, new ClaimCategoryRequest(session.Token, session.StationName));
+                try
+                {
+                    await _api!.ClaimCategoryAsync(session.CategoryId, new(session.Token, session.StationName, session.MatClaimToken));
+                }
+                catch (ApiConflictException) when (session.MatClaimToken.HasValue)
+                {
+                    _sessions.Delete(session.CategoryId);
+                    throw;
+                }
 
                 var snapshot = await _api.GetSnapshotAsync();
                 var category = snapshot.Categories.Single(item => item.Id == session.CategoryId);
@@ -150,6 +161,7 @@ public partial class MainViewModel
         {
             JudgingWarning = $"Nie można odczytać lokalnych sesji: {exception.Message}";
         }
+        OnPropertyChanged(nameof(JudgeMatSession));
     }
 
     private async Task SubmitApiJudgingAsync(JudgingSession selected)
