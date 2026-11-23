@@ -168,6 +168,9 @@ for judged performances and is null for Kumite and Grappling.
 The route returns an empty array for a participant with no published results
 and HTTP 404 for an unknown participant ID.
 
+In the WPF organizer panel, select a person in **Zawodnicy** and click
+**Historia wyników**. The app fetches the current history each time the window opens.
+
 ## Create a category
 
 `POST /api/categories` accepts name, optional minAge/maxAge, sex, categoryType,

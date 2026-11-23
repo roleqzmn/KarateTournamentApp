@@ -33,6 +33,7 @@ public partial class MainViewModel
     public ICommand EditApiParticipantCommand { get; }
     public ICommand DeleteApiParticipantCommand { get; }
     public ICommand CancelApiParticipantEditCommand { get; }
+    public ICommand ViewApiParticipantResultsCommand { get; }
 
     public ParticipantDto? SelectedApiParticipant
     {
@@ -260,6 +261,28 @@ public partial class MainViewModel
             _dialogService.ShowMessage("Brak zapisanych wyników tej konkurencji.", "Wyniki");
         else
             category.ViewResultsCommand.Execute(null);
+    }
+
+    private async Task ViewApiParticipantResultsAsync()
+    {
+        if (SelectedApiParticipant is not { } participant)
+            return;
+
+        ParticipantResultHistoryEntryDto[] results;
+        IsLoading = true;
+        try
+        {
+            results = await _api!.GetParticipantResultsAsync(participant.Id);
+        }
+        finally { IsLoading = false; }
+
+        _windowService.ShowDialog(new ParticipantResultHistoryViewModel(results), new WindowOptions
+        {
+            Title = $"Historia wyników — {participant.FirstName} {participant.LastName} (ID {participant.Id})",
+            Width = 740,
+            Height = 420,
+            StartupPosition = WindowStartupPosition.CenterScreen
+        });
     }
 
     private async Task DeleteApiParticipantAsync()

@@ -111,7 +111,31 @@ public sealed class OrganizerDashboardTests
         Assert.False(judge.ImportExcelCommand.CanExecute(null));
         Assert.False(judge.CreateExcelTemplateCommand.CanExecute(null));
         Assert.False(judge.CreateApiCategoryCommand.CanExecute(null));
+        Assert.False(judge.ViewApiParticipantResultsCommand.CanExecute(null));
         Assert.Empty(judge.ApiParticipants);
+    }
+
+    [Fact]
+    public async Task ShowsFreshResultHistoryForTheSelectedParticipant()
+    {
+        var responses = new TestApi();
+        using var http = new HttpClient(responses);
+        var windows = new HistoryWindow();
+        var namesake = Participant with { Id = 42 };
+        var organizer = await LoadAsync(http, responses, snapshot: new([Participant, namesake], [Category]), windows: windows);
+        var command = Assert.IsType<AsyncRelayCommand>(organizer.ViewApiParticipantResultsCommand);
+        Assert.False(command.CanExecute(null));
+        organizer.SelectedApiParticipant = namesake;
+
+        responses.EnqueueJson(Array.Empty<ParticipantResultHistoryEntryDto>());
+        await command.ExecuteAsync();
+        Assert.False(windows.History!.HasResults);
+
+        responses.EnqueueJson(new[] { new ParticipantResultHistoryEntryDto(2, "Drużyny", CategoryType.Team, 1, 25m, 4, "Smoki") });
+        await command.ExecuteAsync();
+        Assert.Equal(new ParticipantResultHistoryViewModel.Row("Drużyny", "Team Kata", 1, 25m, "Smoki"),
+            Assert.Single(windows.History!.Rows));
+        Assert.Equal(new[] { "/api/tournament", "/api/participants/42/results", "/api/participants/42/results" }, responses.Requests);
     }
 
     [Fact]
@@ -355,14 +379,31 @@ public sealed class OrganizerDashboardTests
 
     private static async Task<MainViewModel> LoadAsync(
         HttpClient http, TestApi responses, bool judge = false, IDialogService? dialogs = null,
-        JudgingSessionStore? sessionStore = null, TournamentSnapshotDto? snapshot = null)
+        JudgingSessionStore? sessionStore = null, TournamentSnapshotDto? snapshot = null, IWindowService? windows = null)
     {
         responses.EnqueueJson(snapshot ?? new TournamentSnapshotDto([Participant], [Category]));
         var api = new TournamentApiClient(http, $"https://{Guid.NewGuid():N}.test");
         var viewModel = new MainViewModel(new CategoryManager(), dialogs ?? new WpfDialogService(),
-            new WpfWindowService(), new WpfUiScheduler(), api, isJudgeStation: judge, sessionStore: sessionStore);
+            windows ?? new WpfWindowService(), new WpfUiScheduler(), api, isJudgeStation: judge, sessionStore: sessionStore);
         await Assert.IsType<AsyncRelayCommand>(viewModel.LoadApiTournamentCommand).ExecuteAsync();
         return viewModel;
+    }
+
+    private sealed class HistoryWindow : IWindowService
+    {
+        public ParticipantResultHistoryViewModel? History { get; private set; }
+
+        public bool? ShowDialog(object viewModel, WindowOptions? options = null, Action<IWindowHandle>? onOpened = null)
+        {
+            History = Assert.IsType<ParticipantResultHistoryViewModel>(viewModel);
+            return null;
+        }
+
+        public void Register<TViewModel, TView>() where TView : System.Windows.FrameworkElement, new() =>
+            throw new NotSupportedException();
+        public IWindowHandle Show(object viewModel, WindowOptions? options = null) => throw new NotSupportedException();
+        public IWindowHandle ShowOrUpdate(string key, object viewModel, WindowOptions? options = null,
+            EventHandler? onClosed = null) => throw new NotSupportedException();
     }
 
     private sealed class ImportDialogs(string path) : IDialogService

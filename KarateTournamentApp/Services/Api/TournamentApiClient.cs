@@ -50,6 +50,13 @@ internal sealed class TournamentApiClient(HttpClient httpClient, string? baseAdd
         await httpClient.GetFromJsonAsync<CategorySummaryDto[]>(GetEndpoint("api/categories"), JsonOptions, cancellationToken)
             .ConfigureAwait(false) ?? throw new InvalidDataException("API zwróciło pustą listę konkurencji zamiast danych.");
 
+    public async Task<ParticipantResultHistoryEntryDto[]> GetParticipantResultsAsync(int id)
+    {
+        var endpoint = GetEndpoint($"api/participants/{id}/results");
+        return await httpClient.GetFromJsonAsync<ParticipantResultHistoryEntryDto[]>(endpoint, JsonOptions)
+            .ConfigureAwait(false) ?? throw new InvalidDataException("API nie zwróciło historii wyników zawodnika.");
+    }
+
     public async Task<ParticipantDto> CreateParticipantAsync(
         CreateParticipantRequest participant, CancellationToken cancellationToken = default, CategoryGrouping? groupBy = null)
     {

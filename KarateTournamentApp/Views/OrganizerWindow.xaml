@@ -115,6 +115,7 @@
                             <Button Content="Wygeneruj szablon Excel" Command="{Binding CreateExcelTemplateCommand}"/>
                             <Button Content="Importuj Excel" Command="{Binding ImportExcelCommand}"/>
                             <Button Content="Edytuj" Command="{Binding EditApiParticipantCommand}"/>
+                            <Button Content="Historia wyników" Command="{Binding ViewApiParticipantResultsCommand}"/>
                             <Button Content="Usuń" Command="{Binding DeleteApiParticipantCommand}"/>
                         </WrapPanel>
                         <TextBlock DockPanel.Dock="Bottom" Margin="0,8,0,0"

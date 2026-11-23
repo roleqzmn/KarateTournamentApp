@@ -220,6 +220,8 @@ namespace KarateTournamentApp.ViewModels
             EditApiParticipantCommand = new RelayCommand(_ => BeginApiParticipantEdit(), _ => CanChangeApi() && SelectedApiParticipant is not null);
             DeleteApiParticipantCommand = new AsyncRelayCommand(DeleteApiParticipantAsync, HandleAsyncCommandError,
                 () => CanChangeApi() && SelectedApiParticipant is not null && !IsEditingApiParticipant);
+            ViewApiParticipantResultsCommand = new AsyncRelayCommand(ViewApiParticipantResultsAsync, HandleAsyncCommandError,
+                () => CanChangeApi() && SelectedApiParticipant is not null);
             CancelApiParticipantEditCommand = new RelayCommand(_ => ResetForm(), _ => IsEditingApiParticipant && !IsLoading);
         }
 
